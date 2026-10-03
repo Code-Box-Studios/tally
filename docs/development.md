@@ -39,6 +39,38 @@ flutter run -d web-server --web-hostname=127.0.0.1 --web-port=7357 --target lib/
 
 Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data. Other destinations have purposeful empty states; Add returns an action choice and does not save a financial record. Theme/currency preferences last for the session. Roboto is bundled with its license; the app does not request Google Fonts at runtime. Preview imports no active Firebase initialization path.
 
+## Deploy the web preview
+
+The current web release is a sample-data preview hosted on Firebase Hosting. This deployment does not enable authentication or financial writes.
+
+With Node 22 selected, build the Flutter release:
+
+```sh
+node tool/build_web_preview.mjs
+```
+
+The build bundles renderer resources and fonts locally. Hosting publishes only `build/web-preview`; source, Firebase configuration, emulator output and credentials are excluded. Assets revalidate on each request so later releases can replace Flutter's stable filenames safely. The Hosting predeploy hook rebuilds this same explicit preview entry point.
+
+On a new machine, sign in interactively:
+
+```sh
+npx --no-install firebase login --interactive
+```
+
+Preview the Hosting routing and response headers locally:
+
+```sh
+npx --no-install firebase emulators:start --project demo-tally --only hosting
+```
+
+Open `http://127.0.0.1:5000`. Publish with an explicit project and Hosting-only deployment:
+
+```sh
+npx --no-install firebase deploy --only hosting --project preview
+```
+
+The `preview` alias in `.firebaserc` identifies the separate Tally preview project. There is no default production project. Continue making source changes directly on `main`.
+
 ## Local Firebase development
 
 Select Node 22 and a JDK with Java 21+ in your environment. Java's runtime alone is insufficient for native Android compilation; `javac` must be available. The local workspace tools live under `~/.local/share/tally-tools`; these paths are optional, not embedded in source:

@@ -1,8 +1,23 @@
 {
+  "hosting": {
+    "public": "build/web-preview",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": ["node tool/build_web_preview.mjs"],
+    "rewrites": [{"source": "**", "destination": "/index.html"}],
+    "headers": [{
+      "source": "**",
+      "headers": [
+        {"key": "Cache-Control", "value": "public, max-age=0, must-revalidate"},
+        {"key": "X-Content-Type-Options", "value": "nosniff"},
+        {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}
+      ]
+    }]
+  },
   "functions": [{"source":"functions","codebase":"default","runtime":"nodejs22"}],
   "firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},
   "storage":{"rules":"storage.rules"},
   "emulators":{
+    "hosting":{"host":"127.0.0.1","port":5000},
     "auth":{"host":"127.0.0.1","port":9099},
     "firestore":{"host":"127.0.0.1","port":8080},
     "functions":{"host":"127.0.0.1","port":5001},
