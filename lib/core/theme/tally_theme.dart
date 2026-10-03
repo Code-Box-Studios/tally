@@ -14,9 +14,12 @@ abstract final class TallyTheme {
       surface: Color(dark ? 0xff1d2721 : 0xffffffff),
       onSurface: ink,
     );
+    final colors = scheme.copyWith(
+      primaryContainer: Color(dark ? 0xff2e4438 : 0xffe3eee4),
+    );
     return ThemeData(
       useMaterial3: true,
-      colorScheme: scheme,
+      colorScheme: colors,
       scaffoldBackgroundColor: Color(dark ? 0xff151d19 : 0xfff6f7f4),
       textTheme: TextTheme(
         bodyLarge: TextStyle(fontSize: 16, height: 1.5, color: ink),
@@ -34,6 +37,8 @@ abstract final class TallyTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
+        color: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

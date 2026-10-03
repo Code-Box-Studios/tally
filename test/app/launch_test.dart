@@ -5,7 +5,8 @@ import 'package:tally/app/tally_app.dart';
 void main() {
   testWidgets('launch displays the Tally brand and purpose', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: TallyApp()));
+    await tester.pumpAndSettle();
     expect(find.text('Tally'), findsOneWidget);
-    expect(find.text('Know what’s due.'), findsOneWidget);
+    expect(find.textContaining('Know what’s due.'), findsOneWidget);
   });
 }

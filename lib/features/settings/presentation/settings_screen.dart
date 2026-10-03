@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/environment.dart';
 import '../../../core/config/environment_providers.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/money/currency_code.dart';
+import '../../dashboard/presentation/dashboard_providers.dart';
 import '../../../shared/widgets/page_body.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -58,6 +60,27 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+          if (preview) ...[
+            const Text('Preview currency'),
+            DropdownButton<CurrencyCode>(
+              value: ref.watch(selectedCurrencyProvider),
+              items: [
+                for (final currency in CurrencyCode.values)
+                  DropdownMenuItem(value: currency, child: Text(currency.code)),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  ref
+                      .read(selectedCurrencyProvider.notifier)
+                      .setCurrency(value);
+                }
+              },
+            ),
+            const Text(
+              'Each currency has its own totals. No exchange conversion.',
+            ),
+            const SizedBox(height: 24),
+          ],
           Text(
             preview
                 ? 'You’re exploring a preview with sample data. Your choices apply to this session.'

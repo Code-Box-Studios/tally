@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/calendar/presentation/calendar_screen.dart';
 import '../features/obligations/presentation/obligations_screen.dart';
@@ -36,10 +37,7 @@ GoRouter createAppRouter({String initialLocation = '/home'}) => GoRouter(
       branches: [
         StatefulShellBranch(
           routes: [
-            GoRoute(
-              path: '/home',
-              builder: (_, _) => const Center(child: Text('Know what’s due.')),
-            ),
+            GoRoute(path: '/home', builder: (_, _) => const DashboardScreen()),
           ],
         ),
         StatefulShellBranch(
