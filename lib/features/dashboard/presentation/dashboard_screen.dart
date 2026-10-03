@@ -47,7 +47,8 @@ class DashboardScreen extends ConsumerWidget {
                   child: EmptyState(
                     icon: Icons.home_outlined,
                     title: 'Your overview starts here',
-                    description: 'You’re connected to local emulators. Personal records will appear after sign-in is added.',
+                    description:
+                        'Your loans, dues and payments will appear here.',
                   ),
                 )
               : _Overview(summary: summary),

@@ -15,24 +15,29 @@ abstract final class TallyTheme {
       onSurface: ink,
     );
     final colors = scheme.copyWith(
-      primaryContainer: Color(dark ? 0xff2e4438 : 0xffe3eee4),
+      primaryContainer: Color(dark ? 0xff2d4435 : 0xffedf4ee),
+      outlineVariant: Color(dark ? 0xff344137 : 0xffe6e9e2),
+      onSurfaceVariant: Color(dark ? 0xffa2aea3 : 0xff778078),
     );
     return ThemeData(
       useMaterial3: true,
-      fontFamily: 'Roboto',
+      fontFamily: 'DM Sans',
       colorScheme: colors,
       scaffoldBackgroundColor: Color(dark ? 0xff151d19 : 0xfff6f7f4),
       textTheme: TextTheme(
-        bodyLarge: TextStyle(fontSize: 16, height: 1.5, color: ink),
+        bodyLarge: TextStyle(fontSize: 14, height: 1.5, color: ink),
         bodyMedium: TextStyle(fontSize: 14, height: 1.5, color: ink),
         titleLarge: TextStyle(
-          fontSize: 22,
+          fontFamily: 'Manrope',
+          fontSize: 20,
           fontWeight: FontWeight.w600,
           color: ink,
         ),
         headlineMedium: TextStyle(
-          fontSize: 30,
-          fontWeight: FontWeight.w600,
+          fontFamily: 'Manrope',
+          fontSize: 29,
+          letterSpacing: -1.1,
+          fontWeight: FontWeight.w700,
           color: ink,
         ),
       ),
@@ -42,8 +47,8 @@ abstract final class TallyTheme {
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .5)),
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: colors.outlineVariant),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -51,12 +56,17 @@ abstract final class TallyTheme {
           minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
@@ -64,8 +74,18 @@ abstract final class TallyTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scheme.surface,
       ),
-      dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant.withValues(alpha: .5),
+      dividerTheme: DividerThemeData(color: colors.outlineVariant),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: colors.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: colors.outlineVariant),
+        ),
       ),
     );
   }

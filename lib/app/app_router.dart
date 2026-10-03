@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,16 +11,37 @@ import '../features/obligations/presentation/obligations_screen.dart';
 import '../features/people/presentation/people_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../shared/widgets/empty_state.dart';
+import '../core/config/environment.dart';
+import '../core/config/environment_providers.dart';
+import '../features/auth/presentation/auth_providers.dart';
+import '../features/auth/presentation/auth_screen.dart';
+import '../features/auth/presentation/onboarding_screen.dart';
+import '../features/auth/presentation/startup_screen.dart';
+import '../features/auth/domain/session_state.dart';
+import 'session_route_gate.dart';
 import 'responsive_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final router = createAppRouter();
+  SessionRouteGate? gate;
+  if (ref.watch(environmentProvider).mode != AppEnvironment.preview) {
+    final controller = ref.watch(sessionControllerProvider);
+    gate = SessionRouteGate()..update(controller.state);
+    final subscription = controller.watch().listen(gate.update);
+    ref.onDispose(() => unawaited(subscription.cancel()));
+    ref.onDispose(gate.dispose);
+  }
+  final router = createAppRouter(gate: gate);
   ref.onDispose(router.dispose);
   return router;
 });
 
-GoRouter createAppRouter({String initialLocation = '/home'}) => GoRouter(
+GoRouter createAppRouter({
+  String initialLocation = '/home',
+  SessionRouteGate? gate,
+}) => GoRouter(
   initialLocation: initialLocation,
+  refreshListenable: gate,
+  redirect: gate == null ? null : (_, state) => gate.redirect(state.uri),
   errorBuilder: (context, state) => Scaffold(
     body: SingleChildScrollView(
       child: EmptyState(
@@ -31,9 +54,16 @@ GoRouter createAppRouter({String initialLocation = '/home'}) => GoRouter(
     ),
   ),
   routes: [
+    if (gate != null) ...[
+      GoRoute(path: '/startup', builder: (_, _) => const StartupScreen()),
+      GoRoute(path: '/sign-in', builder: (_, _) => const AuthScreen()),
+      GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
+    ],
     GoRoute(path: '/', redirect: (_, _) => '/home'),
     StatefulShellRoute.indexedStack(
-      builder: (_, _, shell) => ResponsiveShell(navigationShell: shell),
+      builder: (_, _, shell) => gate == null
+          ? ResponsiveShell(navigationShell: shell)
+          : _PrivateWorkspace(navigationShell: shell),
       branches: [
         StatefulShellBranch(
           routes: [
@@ -83,3 +113,26 @@ GoRouter createAppRouter({String initialLocation = '/home'}) => GoRouter(
     ),
   ],
 );
+
+class _PrivateWorkspace extends ConsumerWidget {
+  const _PrivateWorkspace({required this.navigationShell});
+  final StatefulNavigationShell navigationShell;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session =
+        ref.watch(sessionStateProvider).value ??
+        ref.read(sessionControllerProvider).state;
+    final profile = session.profile;
+    if (session.stage != SessionStage.ready || profile == null) {
+      return const StartupScreen();
+    }
+    return ProviderScope(
+      key: ValueKey(profile.uid),
+      overrides: [
+        ownerUidProvider.overrideWithValue(profile.uid),
+        userProfileProvider.overrideWithValue(profile),
+      ],
+      child: ResponsiveShell(navigationShell: navigationShell),
+    );
+  }
+}

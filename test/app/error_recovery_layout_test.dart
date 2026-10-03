@@ -66,7 +66,9 @@ void main() {
     expect(find.text('Tally couldn’t start'), findsOneWidget);
     await activateRecovery(tester);
     expect(initializer.attempts, 2);
-    expect(find.text('Your overview starts here'), findsOneWidget);
+    // The initializer is a test double with no SDK clients. Recovery retries
+    // initialization, then remains fail-closed until real clients are available.
+    expect(find.text('Tally couldn’t start'), findsOneWidget);
   });
   testWidgets('Dashboard recovery reachable at 320×568 and 200% text', (
     tester,

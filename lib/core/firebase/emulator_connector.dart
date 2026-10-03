@@ -54,7 +54,10 @@ class FlutterFireSdkGateway implements FirebaseSdkGateway {
     _app = await Firebase.initializeApp(demoProjectId: projectId);
     _auth = FirebaseAuth.instanceFor(app: _app);
     _firestore = FirebaseFirestore.instanceFor(app: _app);
-    _functions = FirebaseFunctions.instanceFor(app: _app);
+    _functions = FirebaseFunctions.instanceFor(
+      app: _app,
+      region: 'asia-southeast1',
+    );
     _storage = FirebaseStorage.instanceFor(
       app: _app,
       bucket: 'gs://$projectId.appspot.com',

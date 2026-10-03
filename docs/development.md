@@ -37,7 +37,7 @@ For a browser-independent debug server:
 flutter run -d web-server --web-hostname=127.0.0.1 --web-port=7357 --target lib/main_preview.dart
 ```
 
-Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data. Other destinations have purposeful empty states; Add returns an action choice and does not save a financial record. Theme/currency preferences last for the session. Roboto is bundled with its license; the app does not request Google Fonts at runtime. Preview imports no active Firebase initialization path.
+Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data. Other destinations have purposeful empty states; Add returns an action choice and does not save a financial record. Theme/currency preferences last for the session. DM Sans, Manrope and the fallback Roboto fonts are bundled with their licenses; the app does not request Google Fonts at runtime. Preview imports no active Firebase initialization path. The original visual authority remains `.lavish/tally-design.html` with its CSS/JavaScript companions.
 
 ## Deploy the web preview
 
@@ -87,12 +87,12 @@ npx --no-install firebase emulators:start --project demo-tally --only auth,fires
 In a separate terminal:
 
 ```sh
-flutter run -d chrome --target lib/main_dev.dart
+flutter run -d web-server --web-hostname=localhost --web-port=7358 --target lib/main_dev.dart
 ```
 
-Ports: Auth 9099, Firestore 8080, Functions 5001, Storage 9199, UI 4000, all bound to loopback. `demo-tally` cannot access real Firebase resources. The emulator foundation has no sign-in UI or financial repository yet; its Home is empty rather than displaying preview records. The authenticated `emulatorHealth` callable accepts `{}` only, derives UID from verified Auth, rejects real runtimes/projects, and enables App Check enforcement outside the actual emulator.
+Open `http://localhost:7358`. Emulator web startup requires the localhost browser origin because the installed FlutterFire Auth web adapter restores its saved emulator binding only there; other browser origins fail before SDK initialization. Native emulator endpoints remain configurable. Ports: Auth 9099, Firestore 8080, Functions 5001, Storage 9199, UI 4000, all bound to loopback. `demo-tally` cannot access real Firebase resources. Email/Google sign-in, trusted profile bootstrap, onboarding, saved preferences and logout are implemented. Personal financial records follow in the next increment; emulator Home never substitutes sample data. Account callables use `asia-southeast1`; the foundation `emulatorHealth` probe remains in `us-central1`.
 
-Firestore and Storage **deny every read and write** in M0. M1/M6 replace that baseline with tested owner/attachment rules. No composite index is needed by the M0 UI; the planned queries/indexes are in the Firebase blueprint. Emulator Firestore persistence is disabled to avoid retained local fixtures. Production offline persistence/outbox behavior is a later milestone.
+Firestore permits active owners to read allowlisted user-scoped collections with explicit limits; direct client writes remain denied. Trusted account commands write profiles/defaults with revisions and idempotency receipts. Storage remains deny-all until the complete private attachment workflow is implemented. No composite index is needed by the account UI; planned financial queries/indexes are in the Firebase blueprint. Emulator Firestore persistence is disabled to avoid retained local fixtures. Production offline persistence/outbox behavior is a later milestone.
 
 Android emulators reach the host through `10.0.2.2`:
 

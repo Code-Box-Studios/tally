@@ -26,17 +26,19 @@ class ResponsiveShell extends StatelessWidget {
       context: context,
       showDragHandle: true,
       useSafeArea: true,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 4; i < 6; i++)
-            ListTile(
-              leading: Icon(_destinations[i].$2),
-              title: Text(_destinations[i].$1),
-              onTap: () => Navigator.pop(context, i),
-            ),
-          const SizedBox(height: 16),
-        ],
+      builder: (context) => SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 4; i < 6; i++)
+              ListTile(
+                leading: Icon(_destinations[i].$2),
+                title: Text(_destinations[i].$1),
+                onTap: () => Navigator.pop(context, i),
+              ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
     if (chosen != null && context.mounted) {

@@ -30,7 +30,29 @@ flutter:
   uses-material-design: true
   assets:
     - assets/fonts/LICENSE.txt
+    - assets/fonts/dmsans-OFL.txt
+    - assets/fonts/manrope-OFL.txt
   fonts:
+    - family: DM Sans
+      fonts:
+        - asset: assets/fonts/DMSans.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans.ttf
+          weight: 600
+        - asset: assets/fonts/DMSans.ttf
+          weight: 700
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope.ttf
+          weight: 800
     - family: Roboto
       fonts:
         - asset: assets/fonts/Roboto-Regular.ttf

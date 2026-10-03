@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tally/features/auth/presentation/auth_providers.dart';
+
+import 'auth/session_controller_test.dart' show AuthFixture, ProfileFixture;
+
 import 'package:tally/app/tally_app.dart';
 import 'package:tally/core/config/environment.dart';
 import 'package:tally/core/config/environment_providers.dart';
@@ -73,9 +77,13 @@ void main() {
   testWidgets('Emulator home never displays sample names or activities', (
     tester,
   ) async {
+    final auth = AuthFixture();
+    addTearDown(auth.identities.close);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          authRepositoryProvider.overrideWithValue(auth),
+          profileRepositoryProvider.overrideWithValue(ProfileFixture()),
           environmentProvider.overrideWithValue(
             const EnvironmentConfig.emulator(
               projectId: 'demo-tally',
@@ -86,10 +94,12 @@ void main() {
         child: const TallyApp(),
       ),
     );
+    await tester.pump();
+    auth.identities.add(null);
     await tester.pumpAndSettle();
     expect(find.text('Sample data'), findsNothing);
     expect(find.textContaining('John'), findsNothing);
     expect(find.textContaining('Netflix'), findsNothing);
-    expect(find.text('Your overview starts here'), findsOneWidget);
+    expect(find.text('Welcome back.'), findsOneWidget);
   });
 }

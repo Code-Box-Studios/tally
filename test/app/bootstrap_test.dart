@@ -7,6 +7,31 @@ import 'package:tally/core/errors/app_failure.dart';
 import '../support/recording_initializer.dart';
 
 void main() {
+  test(
+    'web emulator startup rejects origins the SDK cannot safely restore',
+    () async {
+      final initializer = RecordingInitializer();
+      final configuration = EnvironmentConfig.emulator(
+        projectId: 'demo-tally',
+        endpoints: EmulatorEndpoints(host: '127.0.0.1'),
+      );
+      await expectLater(
+        prepareBackend(
+          configuration: configuration,
+          initializer: initializer,
+          browserOrigin: Uri.parse('http://127.0.0.1:7358'),
+        ),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(initializer.calls, isEmpty);
+      await prepareBackend(
+        configuration: configuration,
+        initializer: initializer,
+        browserOrigin: Uri.parse('http://localhost:7358'),
+      );
+      expect(initializer.calls, [configuration]);
+    },
+  );
   test('preview never initializes a Firebase SDK', () async {
     final initializer = RecordingInitializer();
     await prepareBackend(
