@@ -15,17 +15,21 @@ Future<void> prepareBackend({
   required EnvironmentConfig configuration,
   required FirebaseInitializer initializer,
   Uri? browserOrigin,
+  bool debugBuild = kDebugMode,
 }) async {
   configuration.validate();
   if (configuration.mode == AppEnvironment.emulator) {
     // firebase_auth_web restores its saved emulator binding only on localhost.
     // Reject other web origins before SDK initialization can contact live Auth.
-    if (browserOrigin != null && browserOrigin.host != 'localhost') {
+    if (browserOrigin != null &&
+        (browserOrigin.host != 'localhost' || !debugBuild)) {
       throw AppFailure(
         AppFailureCode.invalidEnvironment,
         messageKey: 'startup.emulatorOrigin',
       );
     }
+  }
+  if (configuration.mode != AppEnvironment.preview) {
     await initializer.initialize(configuration);
   }
 }
@@ -38,7 +42,7 @@ Future<void> bootstrap(
   WidgetsFlutterBinding.ensureInitialized();
   try {
     configuration.validate();
-    if (configuration.mode == AppEnvironment.emulator) {
+    if (configuration.mode != AppEnvironment.preview) {
       if (initializer == null) {
         throw AppFailure(
           AppFailureCode.invalidEnvironment,

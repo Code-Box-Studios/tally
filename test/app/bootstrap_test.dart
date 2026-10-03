@@ -8,6 +8,25 @@ import '../support/recording_initializer.dart';
 
 void main() {
   test(
+    'release web cannot use the debug-only Auth emulator restoration',
+    () async {
+      final initializer = RecordingInitializer();
+      await expectLater(
+        prepareBackend(
+          configuration: const EnvironmentConfig.emulator(
+            projectId: 'demo-tally',
+            endpoints: EmulatorEndpoints(host: 'localhost'),
+          ),
+          initializer: initializer,
+          browserOrigin: Uri.parse('http://localhost:7358'),
+          debugBuild: false,
+        ),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(initializer.calls, isEmpty);
+    },
+  );
+  test(
     'web emulator startup rejects origins the SDK cannot safely restore',
     () async {
       final initializer = RecordingInitializer();

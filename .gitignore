@@ -63,3 +63,4 @@ node_modules/
 # Generated native Kotlin cache
 /android/.kotlin/
 .env*
+/config/*.local.json

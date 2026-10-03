@@ -1,4 +1,5 @@
 {
+  "auth": {"providers": {"emailPassword": true, "googleSignIn": {"oAuthBrandDisplayName": "Tally", "supportEmail": "codeboxstudios.official@gmail.com"}}},
   "hosting": {
     "public": "build/web-preview",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
