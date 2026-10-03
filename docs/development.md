@@ -41,7 +41,7 @@ Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data
 
 ## Deploy the web preview
 
-The current web release is a sample-data preview hosted on Firebase Hosting. This deployment does not enable authentication or financial writes.
+The current web release is a sample-data preview hosted at [tally-codebox-preview.web.app](https://tally-codebox-preview.web.app) on Firebase Hosting. This deployment does not enable authentication or financial writes. See the [deployment verification](quality/web-deployment.md).
 
 With Node 22 selected, build the Flutter release:
 
@@ -131,4 +131,4 @@ iOS commands require macOS, Xcode and CocoaPods. The committed CI workflow pins 
 
 App/tooling lockfiles are committed. Tested transitive overrides remove resolved grpc-js, basic-ftp, OpenTelemetry and uuid advisories. The Functions package audit is clean. Firebase CLI still carries an unpatched `braces <=3.0.3` advisory through chokidar; use only trusted local paths/patterns and re-evaluate the CLI before release. Do not apply `npm audit fix --force` downgrades to the current Firebase SDK/tooling stack. This is development tooling, not an exposed deployed endpoint.
 
-See [the verification record](quality/foundation-verification.md) for exact evidence, screenshots, independent-review results, decisions and pending platform/release checks. No Firebase projects have been provisioned or deployed.
+See [the verification record](quality/foundation-verification.md) for exact evidence, screenshots, independent-review results, decisions and pending platform/release checks. A separate Firebase preview project has now been provisioned for Hosting; application backend configuration and production financial workflows remain pending.

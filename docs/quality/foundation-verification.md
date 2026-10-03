@@ -1,6 +1,6 @@
 # Tally foundation verification
 
-Verified locally on 2026-10-03 on Linux. This is the first runnable foundation increment; the full MVP and full M0 platform acceptance remain open.
+Verified locally on 2026-10-03 on Linux. This is the first runnable foundation increment; the full MVP and full M0 platform acceptance remain open. The subsequent public web preview is recorded in [Firebase Hosting deployment verification](web-deployment.md).
 
 ## Delivered
 
