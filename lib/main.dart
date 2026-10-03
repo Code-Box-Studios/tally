@@ -1,8 +1,3 @@
-import 'package:flutter/material.dart';
+import 'main_preview.dart' as preview;
 
-import 'app/tally_app.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const TallyApp());
-}
+Future<void> main() => preview.main();

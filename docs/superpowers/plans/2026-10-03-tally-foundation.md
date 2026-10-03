@@ -170,11 +170,11 @@ Also assert zero-entry rejection/explicit `allowZero`, exact `0.01`, upper-limit
 - `Future<void> prepareBackend({required EnvironmentConfig configuration, required FirebaseInitializer initializer})` validates first, invokes the initializer only for emulator, and performs no Firebase action in preview.
 - `environmentProvider` injects EnvironmentConfig; default is preview. `Future<void> bootstrap(EnvironmentConfig configuration, {FirebaseInitializer? initializer})` prepares the backend then launches ProviderScope/TallyApp. An emulator initializer is supplied by main_dev in Task 8; if absent, emulator startup fails safely. Preview requires no initializer. Bootstrap catches safe startup failures into a dedicated startup error view rather than silently switching modes.
 
-- [ ] **Step 1: Write failing mode and initialization tests.** A recording fake counts initialization calls. Preview has zero calls; valid `demo-tally` emulator has one. A real project in emulator, missing/invalid endpoints, and unconfigured staging/production each fail with zero calls. Assert explicit host selection keeps `10.0.2.2` and a supplied LAN host instead of replacing either with loopback.
-- [ ] **Step 2: Run `flutter test test/core/environment_test.dart test/app/bootstrap_test.dart`.** Expected failure: missing configuration/bootstrap.
-- [ ] **Step 3: Implement the interfaces and entry points.** Default `main.dart` delegates to `main_preview.dart`; `main_dev.dart` selects demo-tally and `TALLY_EMULATOR_HOST` (127.0.0.1 unless explicitly set). Staging/prod start in a safe unconfigured error state and make no network calls. Do not create placeholder production API keys. Widget text explains recovery without exposing raw errors or keys. Update the launch-test harness to use ProviderScope.
-- [ ] **Step 4: Run the two test files plus the launch test.** The valid/invalid mode call counts match exactly.
-- [ ] **Step 5: Commit.** Message: `feat: add explicit preview and emulator bootstrap modes`.
+- [x] **Step 1: Write failing mode and initialization tests.** A recording fake counts initialization calls. Preview has zero calls; valid `demo-tally` emulator has one. A real project in emulator, missing/invalid endpoints, and unconfigured staging/production each fail with zero calls. Assert explicit host selection keeps `10.0.2.2` and a supplied LAN host instead of replacing either with loopback.
+- [x] **Step 2: Run `flutter test test/core/environment_test.dart test/app/bootstrap_test.dart`.** Expected failure: missing configuration/bootstrap.
+- [x] **Step 3: Implement the interfaces and entry points.** Default `main.dart` delegates to `main_preview.dart`; `main_dev.dart` selects demo-tally and `TALLY_EMULATOR_HOST` (127.0.0.1 unless explicitly set). Staging/prod start in a safe unconfigured error state and make no network calls. Do not create placeholder production API keys. Widget text explains recovery without exposing raw errors or keys. Update the launch-test harness to use ProviderScope.
+- [x] **Step 4: Run the two test files plus the launch test.** The valid/invalid mode call counts match exactly.
+- [x] **Step 5: Commit.** Message: `feat: add explicit preview and emulator bootstrap modes`.
 
 ### Task 5: Material 3 design tokens and reusable accessible widgets
 

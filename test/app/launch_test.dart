@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tally/app/tally_app.dart';
 
 void main() {
   testWidgets('launch displays the Tally brand and purpose', (tester) async {
-    await tester.pumpWidget(const TallyApp());
+    await tester.pumpWidget(const ProviderScope(child: TallyApp()));
     expect(find.text('Tally'), findsOneWidget);
     expect(find.text('Know what’s due.'), findsOneWidget);
   });
