@@ -1,0 +1,7 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // M0 has no authenticated financial repositories. M1 adds tested owner rules.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -52,3 +52,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local Firebase / Node build output
+node_modules/
+/functions/lib/
+/.firebase/
+*-debug.log

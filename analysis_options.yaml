@@ -2,6 +2,9 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
+    - node_modules/**
+    - functions/node_modules/**
+    - .worktrees/**
     - build/**
     - android/**
     - ios/**

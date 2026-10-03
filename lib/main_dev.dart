@@ -1,5 +1,6 @@
 import 'app/bootstrap.dart';
 import 'core/config/environment.dart';
+import 'core/firebase/emulator_connector.dart';
 
 Future<void> main() => bootstrap(
   const EnvironmentConfig.emulator(
@@ -11,4 +12,5 @@ Future<void> main() => bootstrap(
       ),
     ),
   ),
+  initializer: EmulatorConnector(FlutterFireSdkGateway()),
 );

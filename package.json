@@ -1,0 +1,24 @@
+{
+  "name": "tally-development",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "check:functions": "npm --prefix functions run check",
+    "test:emulators": "npm --prefix functions run build && firebase emulators:exec --project demo-tally --only auth,firestore,functions,storage \"node --test --test-concurrency=1 firebase/rules-tests/*.test.mjs firebase/emulator-tests/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
+    "firebase": "12.19.0",
+    "firebase-tools": "15.32.1"
+  },
+  "overrides": {
+    "gaxios": {
+      "uuid": "11.1.1"
+    },
+    "@grpc/grpc-js": "1.14.5",
+    "basic-ftp": "6.2.1",
+    "@opentelemetry/core": "2.11.0"
+  }
+}

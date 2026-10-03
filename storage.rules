@@ -1,0 +1,7 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Keep all uploads and downloads private until M1/M6 ownership checks exist.
+    match /{path=**} { allow read, write: if false; }
+  }
+}
