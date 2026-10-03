@@ -19,6 +19,7 @@ abstract final class TallyTheme {
     );
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Roboto',
       colorScheme: colors,
       scaffoldBackgroundColor: Color(dark ? 0xff151d19 : 0xfff6f7f4),
       textTheme: TextTheme(

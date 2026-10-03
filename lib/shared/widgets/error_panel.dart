@@ -12,7 +12,7 @@ class ErrorPanel extends StatelessWidget {
   final VoidCallback? onRetry;
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => SingleChildScrollView(
     padding: const EdgeInsets.all(24),
     child: Column(
       mainAxisSize: MainAxisSize.min,

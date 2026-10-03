@@ -37,7 +37,7 @@ For a browser-independent debug server:
 flutter run -d web-server --web-hostname=127.0.0.1 --web-port=7357 --target lib/main_preview.dart
 ```
 
-Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data. Other destinations have purposeful empty states; Add returns an action choice and does not save a financial record. Theme/currency preferences last for the session. Preview imports no active Firebase initialization path.
+Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data. Other destinations have purposeful empty states; Add returns an action choice and does not save a financial record. Theme/currency preferences last for the session. Roboto is bundled with its license; the app does not request Google Fonts at runtime. Preview imports no active Firebase initialization path.
 
 ## Local Firebase development
 
