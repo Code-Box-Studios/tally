@@ -89,12 +89,12 @@ Brace notation abbreviates separate files; create only files named by a task. No
 
 **Interfaces:** Produces `TallyApp extends StatelessWidget` with `const TallyApp({super.key})`. It initially renders the Tally brand/tagline; Task 6 replaces its interior without changing its constructor.
 
-- [ ] **Step 1: Generate an empty Android/iOS/web project in a temporary directory.** Run `flutter create --empty --platforms=android,ios,web --project-name=tally --org=dev.tally <temporary-directory>`. Copy only generated application/platform files into the repository; preserve existing README/docs/design assets. Set Android minimum SDK to at least 23 and iOS deployment target to at least 15, respecting stricter resolved plugin requirements.
-- [ ] **Step 2: Add the failing launch test.** In `test/app/launch_test.dart`, pump `const TallyApp()` and assert one `Tally` brand and one `Know what’s due.` tagline. Remove the generated counter test. Task 4 updates its harness to wrap TallyApp in ProviderScope once injection is introduced.
-- [ ] **Step 3: Run the launch test.** `flutter test test/app/launch_test.dart` must fail because the Tally app/brand is absent.
-- [ ] **Step 4: Implement the root app and resolve the initial dependencies.** Add `flutter_riverpod: ^3.4.3`, `go_router: ^18.0.2`, and the five official FlutterFire packages listed above. `main()` initializes Flutter and launches the branded root. Commit the resolved lockfile; do not add unused notification/analytics packages yet.
-- [ ] **Step 5: Verify the baseline.** `flutter test test/app/launch_test.dart`, `flutter analyze`, and `flutter build web` pass. Record the resolved SDK/package versions in `docs/development.md`.
-- [ ] **Step 6: Commit only this task's files.** Message: `build: initialize Tally Flutter targets and dependencies`.
+- [x] **Step 1: Generate an empty Android/iOS/web project in a temporary directory.** Run `flutter create --empty --platforms=android,ios,web --project-name=tally --org=dev.tally <temporary-directory>`. Copy only generated application/platform files into the repository; preserve existing README/docs/design assets. Set Android minimum SDK to at least 23 and iOS deployment target to at least 15, respecting stricter resolved plugin requirements.
+- [x] **Step 2: Add the failing launch test.** In `test/app/launch_test.dart`, pump `const TallyApp()` and assert one `Tally` brand and one `Know what’s due.` tagline. Remove the generated counter test. Task 4 updates its harness to wrap TallyApp in ProviderScope once injection is introduced.
+- [x] **Step 3: Run the launch test.** `flutter test test/app/launch_test.dart` must fail because the Tally app/brand is absent.
+- [x] **Step 4: Implement the root app and resolve the initial dependencies.** Add `flutter_riverpod: ^3.4.3`, `go_router: ^18.0.2`, and the five official FlutterFire packages listed above. `main()` initializes Flutter and launches the branded root. Commit the resolved lockfile; do not add unused notification/analytics packages yet.
+- [x] **Step 5: Verify the baseline.** `flutter test test/app/launch_test.dart`, `flutter analyze`, and `flutter build web` pass. Record the resolved SDK/package versions in `docs/development.md`.
+- [x] **Step 6: Commit only this task's files.** Message: `build: initialize Tally Flutter targets and dependencies`.
 
 ### Task 2: Exact money, currency separation and safe arithmetic
 
@@ -108,7 +108,7 @@ Brace notation abbreviates separate files; create only files named by a task. No
 - `Money.fromMinorUnits(int minorUnits, CurrencyCode currency)` validates the signed safe-integer range. `Money.parse(String text, CurrencyCode currency, {bool allowZero = false})` validates positive entry amounts up to the financial limit. `Money add(Money other)`, `Money subtract(Money other)`, value equality and immutable `minorUnits`/`currency` fields.
 - `MoneyFormatter.format(Money money, {bool includeCode = false}) -> String` groups integer digits, omits an all-zero decimal portion, and retains the full nonzero fractional exponent. Examples: `₱10,000`, `₱2,500.50`, `-₱500`, `¥1,234`, `$500 USD` when including the code.
 
-- [ ] **Step 1: Write financial tests with explicit assertions.**
+- [x] **Step 1: Write financial tests with explicit assertions.**
 
 ```dart
 test('partial and multiple payment arithmetic is exact', () {
@@ -136,10 +136,10 @@ test('currency and safe-integer failures are explicit', () {
 ```
 
 Also assert zero-entry rejection/explicit `allowZero`, exact `0.01`, upper-limit acceptance, signed aggregate subtraction, currency equality and every formatter example in the interface.
-- [ ] **Step 2: Run `flutter test test/core/money_test.dart test/core/money_formatter_test.dart`.** Expected failure: missing types/implementation.
-- [ ] **Step 3: Implement the declared types.** Trim exterior input whitespace; accept ungrouped ASCII digits with an optional decimal fraction no longer than the currency exponent. Use `BigInt` for parsing and arithmetic range checks before converting to `int`, including on web. Money subtraction can be signed; obligation remaining-balance validation belongs to the later payment service.
-- [ ] **Step 4: Run the two test files on the Dart VM and web.** All cases pass with the expected failure codes; no floating-point conversion appears in parsing/formatting. Also run `flutter test --platform chrome test/core/money_test.dart test/core/money_formatter_test.dart` with the available Chromium selected through CHROME_EXECUTABLE; near-safe-integer assertions must pass in the JavaScript runtime, not only native Dart.
-- [ ] **Step 5: Commit.** Message: `feat: add exact currency values and checked money arithmetic`.
+- [x] **Step 2: Run `flutter test test/core/money_test.dart test/core/money_formatter_test.dart`.** Expected failure: missing types/implementation.
+- [x] **Step 3: Implement the declared types.** Trim exterior input whitespace; accept ungrouped ASCII digits with an optional decimal fraction no longer than the currency exponent. Use `BigInt` for parsing and arithmetic range checks before converting to `int`, including on web. Money subtraction can be signed; obligation remaining-balance validation belongs to the later payment service.
+- [x] **Step 4: Run the two test files on the Dart VM and web.** All cases pass with the expected failure codes; no floating-point conversion appears in parsing/formatting. Also run `dart test --platform chrome test/core/money_test.dart test/core/money_formatter_test.dart` with the available Chromium selected through CHROME_EXECUTABLE; near-safe-integer assertions must pass in the JavaScript runtime, not only native Dart.
+- [x] **Step 5: Commit.** Message: `feat: add exact currency values and checked money arithmetic`.
 
 ### Task 3: Civil dates, months and distinct safe identifiers
 
@@ -267,4 +267,4 @@ All five Review Focus conditions have named assertions in their owning tasks. Sh
 
 Execution recommendation: **Native** execution in this session. These tasks share foundation interfaces and are sequential enough that one implementer is efficient; use the required independent final review before reporting the milestone complete. Subagent-driven execution is an available alternative if the user prefers an independent review after every task.
 
-Plan status: written and self-reviewed; awaiting the user's plan review/execution-method choice. No application scaffold, product dependency installation, Firebase provisioning or production code has been performed under this plan.
+Plan status: approved by the user’s “go”; Native execution in progress. Task checkboxes track verified steps; actual evidence and rulings are in the execution ledger until the final completion record is written.
