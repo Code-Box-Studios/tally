@@ -8,7 +8,7 @@ The planned application uses Flutter, Material 3, Riverpod, go_router, and Fireb
 
 ## Project status
 
-The product and technical blueprint is ready for review. Application implementation has not started. No Firebase projects have been provisioned and no production data is accessed.
+The product and technical blueprint has been accepted for implementation planning, and an interactive HTML design preview is available in `.lavish/`. The first [Flutter foundation implementation plan](docs/superpowers/plans/2026-10-03-tally-foundation.md) is written and awaiting plan review. Flutter application implementation has not started. No Firebase projects have been provisioned and no production data is accessed.
 
 Start with the [design overview and requirements coverage](docs/superpowers/specs/2026-10-03-tally-design.md).
 
@@ -22,4 +22,4 @@ Start with the [design overview and requirements coverage](docs/superpowers/spec
 | [Testing and operations](docs/quality/testing-and-operations.md) | Offline synchronization, errors, validation, tests, emulators, environments, release gates |
 | [Development roadmap](docs/roadmap.md) | Incremental deliverables, dependencies, verification and completion criteria |
 
-The roadmap describes delivery order. Detailed implementation plans will be written for one milestone at a time after design review.
+The roadmap describes delivery order. Detailed implementation plans are written for one milestone at a time; the foundation plan is the first runnable Flutter increment.

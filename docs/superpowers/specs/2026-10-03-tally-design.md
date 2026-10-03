@@ -1,6 +1,6 @@
 # Tally product and technical design
 
-Date: 2026-10-03. Status: proposed design awaiting review. This document and its linked specifications form one blueprint; none of the proposed application code or infrastructure has been implemented.
+Date: 2026-10-03. Status: design accepted for implementation planning following the visual preview and the user's request to build. This document and its linked specifications form one blueprint; production application code and infrastructure have not yet been implemented.
 
 Tally helps an individual answer what they owe, what others owe them, what is due next, what has been paid, what will be deducted automatically, and what remains. The intended result is a secure, responsive Flutter application backed by Firebase, with trustworthy payment history and recurring processing that works without an open client.
 
@@ -81,10 +81,10 @@ Read [requirements](../../product/requirements.md) and [experience](../../produc
 
 The proposed MVP rejects overpayments after a clear warning, stores interest information without calculating interest accrual, supports custom recurrence as every N days/weeks/months/years, and uses a five-item mobile bar with Activity and Settings under More. All six requested primary destinations are directly visible on tablet/desktop navigation. These are explicit product choices for review, not claims that the original brief prescribed these details.
 
-The initial repository has a README and no application. Flutter, Dart, and Firebase CLI are not available on PATH in this workspace; Node and Java are available. Android builds need Android tooling; iOS builds and signing need a macOS runner with Xcode. Toolchain setup belongs to the first implementation milestone.
+The repository has documentation and an HTML design preview, with no Flutter application yet. A toolchain recheck on 2026-10-03 found Flutter 3.47.6, Dart 3.13.5, Node 24.21.0 and Java 25.0.4.1 available. Firebase CLI and Android SDK remain absent. Android builds need Android tooling; iOS builds and signing need a macOS runner with Xcode. Toolchain verification/setup belongs to the first implementation milestone.
 
 Before provisioning, choose real dev/staging/prod Firebase project IDs, app identifiers, and a data region. The proposed region for a Manila-first audience is Singapore where supported, subject to service availability and the intended users' data-location requirements. Web OAuth domains, App Check providers, APNs credentials, and notification permissions are environment setup, not secrets to embed in source.
 
 Apple's current login-services guideline affects an iOS application offering Google Sign-In. This design treats evaluation of an equivalent privacy-preserving login, usually Sign in with Apple, as an iOS store release dependency; Apple login can remain outside the early development milestones. This is a release-planning inference from [Apple guideline 4.8](https://developer.apple.com/app-store/review/guidelines/#login-services).
 
-Review this blueprint before writing the first detailed milestone implementation plan. Production readiness requires the implemented release gates, not approval of documentation alone.
+The first [foundation implementation plan](../plans/2026-10-03-tally-foundation.md) is now written for review. Production readiness requires the implemented release gates, not approval of documentation alone.
