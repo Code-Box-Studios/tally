@@ -38,7 +38,8 @@ test('private account bootstrap is isolated, concurrent-safe and preserves revis
     const stored = (await userRef.get()).data();
     assert.equal(typeof stored.createdAt.toMillis(), 'number');
     assert.equal(stored.schemaVersion, 1);
-    const payload = {commandId:'onboard-1', expectedRevision:1, defaultCurrency:'USD',timezone:'America/New_York',themeMode:'dark',onboardingComplete:true};
+    const payload = {commandId:'onboard-1', expectedOwnerUid:user.uid, expectedRevision:1, defaultCurrency:'USD',timezone:'America/New_York',themeMode:'dark',onboardingComplete:true};
+    await assert.rejects(update({...payload,expectedOwnerUid:'bob'}),{code:'functions/permission-denied'});
     const updated = await update(payload);
     assert.equal(updated.data.profile.revision, 2);
     assert.equal(updated.data.profile.defaultCurrency, 'USD');

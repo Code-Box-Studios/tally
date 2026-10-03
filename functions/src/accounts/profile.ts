@@ -22,6 +22,7 @@ export interface ProfileView {
 }
 export interface ProfileUpdate {
   commandId: string;
+  expectedOwnerUid: string;
   expectedRevision: number;
   defaultCurrency: Currency;
   timezone: string;
@@ -36,8 +37,9 @@ const categoryDefaults = [
 ] as const;
 
 export function validateProfileUpdate(input: unknown): ProfileUpdate {
-  const data = exactObject(input,['commandId','expectedRevision','defaultCurrency','timezone','themeMode','onboardingComplete']);
+  const data = exactObject(input,['commandId','expectedOwnerUid','expectedRevision','defaultCurrency','timezone','themeMode','onboardingComplete']);
   if (typeof data.commandId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(data.commandId) ||
+      typeof data.expectedOwnerUid !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(data.expectedOwnerUid) ||
       typeof data.expectedRevision !== 'number' || !Number.isSafeInteger(data.expectedRevision) || data.expectedRevision < 1 || data.expectedRevision >= Number.MAX_SAFE_INTEGER ||
       !currencies.includes(data.defaultCurrency as Currency) || !themes.includes(data.themeMode as Theme) ||
       typeof data.onboardingComplete !== 'boolean' || typeof data.timezone !== 'string' || data.timezone.length > 100) {
@@ -98,6 +100,8 @@ export async function bootstrapProfile(uid: string, identity: {displayName:strin
 
 export async function updateProfile(uid: string, input: unknown, db: Firestore): Promise<ProfileView> {
   const data = validateProfileUpdate(input);
+  // This is a session fence, never an authoritative owner. All paths use uid.
+  if (data.expectedOwnerUid !== uid) throw new HttpsError('permission-denied','Your sign-in changed. Please try again.');
   // Explicit field order is stable across retries and client map order.
   const payloadHash = createHash('sha256').update(JSON.stringify([
     'updateProfile',data.expectedRevision,data.defaultCurrency,data.timezone,data.themeMode,data.onboardingComplete,
