@@ -188,11 +188,11 @@ Also assert zero-entry rejection/explicit `allowZero`, exact `0.01`, upper-limit
 - `StatusBadge({required String label, required IconData icon, required StatusTone tone})`, with `StatusTone { neutral, positive, caution, danger, automatic }`; state always has text/icon.
 - `EmptyState({required IconData icon, required String title, required String description, String? actionLabel, VoidCallback? onAction})`.
 
-- [ ] **Step 1: Write failing component/provider tests.** Assert MoneyText displays/announces PHP and USD distinctly, Overdue badge has visible text and an icon, the empty CTA invokes once, theme updates light/dark/system, and width thresholds 599/600/1023/1024 match. Pump the components at width 320 and text scale 2.0; assert no Flutter layout exceptions and all monetary text remains present.
-- [ ] **Step 2: Run `flutter test test/shared/financial_widgets_test.dart test/core/theme_controller_test.dart`.** Expected failure: missing widgets/provider.
-- [ ] **Step 3: Implement the interfaces using Material 3.** Translate preview tokens: light background `#F6F7F4`, surface `#FFFFFF`, ink `#26332D`, primary `#3C6653`; dark background `#151D19`, surface `#1D2721`, ink `#E6ECE5`, primary `#9DC4A8`. Use accessible contrast for secondary text rather than copying low-contrast preview small text. Base font sizes 14/16, body line-height 1.5, cards radius 16, controls at least 48 logical pixels. Keep typography bundled/system-local rather than requiring runtime font downloads. Allow money wrapping/reflow instead of shrinking until unreadable.
-- [ ] **Step 4: Run both test files and `flutter analyze`.** All assertions pass in both themes.
-- [ ] **Step 5: Commit.** Message: `feat: establish Tally Material 3 theme and financial widgets`.
+- [x] **Step 1: Write failing component/provider tests.** Assert MoneyText displays/announces PHP and USD distinctly, Overdue badge has visible text and an icon, the empty CTA invokes once, theme updates light/dark/system, and width thresholds 599/600/1023/1024 match. Pump the components at width 320 and text scale 2.0; assert no Flutter layout exceptions and all monetary text remains present.
+- [x] **Step 2: Run `flutter test test/shared/financial_widgets_test.dart test/core/theme_controller_test.dart`.** Expected failure: missing widgets/provider.
+- [x] **Step 3: Implement the interfaces using Material 3.** Translate preview tokens: light background `#F6F7F4`, surface `#FFFFFF`, ink `#26332D`, primary `#3C6653`; dark background `#151D19`, surface `#1D2721`, ink `#E6ECE5`, primary `#9DC4A8`. Use accessible contrast for secondary text rather than copying low-contrast preview small text. Base font sizes 14/16, body line-height 1.5, cards radius 16, controls at least 48 logical pixels. Keep typography bundled/system-local rather than requiring runtime font downloads. Allow money wrapping/reflow instead of shrinking until unreadable.
+- [x] **Step 4: Run both test files and `flutter analyze`.** All assertions pass in both themes.
+- [x] **Step 5: Commit.** Message: `feat: establish Tally Material 3 theme and financial widgets`.
 
 ### Task 6: Responsive navigation, URL routing and initial destinations
 
