@@ -22,6 +22,7 @@
 - Firebase project is `tally-codebox-preview`; backend deployment requires the user's Blaze billing setup. Do not enable billing automatically.
 - No production database is created before the user confirms its immutable region. Proposed region is `asia-southeast1`.
 - Web launch is already authorized. Preserve the sample deployment until real records are usable and verified; authentication alone is not launch completion.
+- Visual authority is the original Lavish design in `.lavish/tally-design.html`, `.lavish/tally-design.css`, and `.lavish/tally-design.js`, reaffirmed by the user. Carry its typography, palette, branding, spacing and layouts into Flutter throughout the remaining milestones.
 
 ## Review Focus
 

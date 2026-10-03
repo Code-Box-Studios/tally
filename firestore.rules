@@ -1,7 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // M0 has no authenticated financial repositories. M1 adds tested owner rules.
+    function owns(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function active(uid) {
+      return owns(uid)
+        && get(/databases/$(database)/documents/users/$(uid)).data.userId == uid
+        && get(/databases/$(database)/documents/users/$(uid)).data.accountStatus == 'active';
+    }
+    function readable(collection) {
+      return collection in ['contacts', 'obligations', 'obligationInstances',
+        'payments', 'paymentEvidence', 'deductionAttempts', 'categories',
+        'paymentSources', 'attachments', 'reminders', 'activities',
+        'notificationPreferences', 'commandReceipts', 'ledgerState', 'summaries'];
+    }
+    match /users/{uid} {
+      allow get: if owns(uid) && resource.data.userId == uid
+        && resource.data.accountStatus == 'active';
+      allow list, write: if false;
+      match /{collection}/{documentId} {
+        allow get: if readable(collection) && active(uid) && resource.data.userId == uid;
+        // Only trusted commands populate these collections. Path ownership
+        // authorizes bounded lists without a redundant userId query filter.
+        allow list: if readable(collection) && active(uid)
+          && request.query.limit != null && request.query.limit <= 200;
+        allow write: if false;
+      }
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }
