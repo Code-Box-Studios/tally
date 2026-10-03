@@ -4,11 +4,13 @@
 
 Tally is a personal obligation tracker for loans, debts, money owed, monthly dues, recurring bills, installments, manual payments, and automatic deductions.
 
-The planned application uses Flutter, Material 3, Riverpod, go_router, and Firebase. It targets Android, iOS, web, tablets, and responsive desktop browsers.
+The application uses Flutter, Material 3, Riverpod, go_router, and Firebase. It targets Android, iOS, web, tablets, and responsive desktop browsers.
 
 ## Project status
 
-The product and technical blueprint has been accepted for implementation planning, and an interactive HTML design preview is available in `.lavish/`. The first [Flutter foundation implementation plan](docs/superpowers/plans/2026-10-03-tally-foundation.md) is written and awaiting plan review. Flutter application implementation has not started. No Firebase projects have been provisioned and no production data is accessed.
+The first Flutter foundation is implemented: responsive navigation, a sample dashboard, light/dark/system themes, exact money and civil-date values, and Firebase emulator wiring with deny-all security rules. Authentication, real obligation entry, immutable payment persistence, recurrence and notifications follow in the [roadmap](docs/roadmap.md). Production configuration remains unavailable.
+
+Run `flutter pub get`, then `flutter run -d chrome --target lib/main_preview.dart`. The default `lib/main.dart` also runs preview mode. See [development instructions](docs/development.md) for tool versions, emulator commands, native targets and checks. The [foundation verification record](docs/quality/foundation-verification.md) distinguishes verified results from pending platform checks.
 
 Start with the [design overview and requirements coverage](docs/superpowers/specs/2026-10-03-tally-design.md).
 

@@ -58,3 +58,6 @@ node_modules/
 /functions/lib/
 /.firebase/
 *-debug.log
+
+# Generated native Kotlin cache
+/android/.kotlin/
