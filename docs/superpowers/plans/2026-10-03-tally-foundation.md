@@ -151,11 +151,11 @@ Also assert zero-entry rejection/explicit `allowZero`, exact `0.01`, upper-limit
 - `YearMonth.parse(String value)`, `YearMonth.fromParts(int year, int month)`, `LocalDate get firstDay`, `LocalDate get lastDay`, canonical `toString()`/comparison/equality. Same year bounds as LocalDate.
 - Distinct immutable `OwnerUid`, `ObligationId`, `InstanceId`, `PaymentId`, `ContactId`, `SourceId`, `CategoryId`, `AttachmentId`, `CommandId`, each with a validating constructor taking `String value` and exposing that value. IDs accept 1–128 ASCII letters/digits/underscore/hyphen; other forms fail with `invalidId`.
 
-- [ ] **Step 1: Write the failing date/ID tests.** Assert `2026-10-05` round-trips unchanged; `2024-02-29` is valid; `2026-02-29`, `2026-02-30`, `2026-2-05`, years 1899/2200, month 13 and trailing timezone text fail. Assert `2026-12-31 + 1 day = 2027-01-01`, February 2024/2026 month ends, and leaving the supported range fails. Assert empty, slash, `..`, whitespace, controls, and 129-character IDs fail; `payment_01-A` succeeds. Equal IDs of the same type compare equal, while PaymentId and ObligationId are distinct types/values.
-- [ ] **Step 2: Run `flutter test test/core/local_date_test.dart test/core/entity_ids_test.dart`.** Expected failure: missing values.
-- [ ] **Step 3: Implement the interfaces.** Internal UTC DateTime arithmetic is allowed only after checking Gregorian parts and revalidating output; expose no DateTime serialization/conversion API for civil dates. Each ID type includes its own type in equality.
-- [ ] **Step 4: Run the tests.** All boundary/canonical-form assertions pass.
-- [ ] **Step 5: Commit.** Message: `feat: introduce validated civil dates and entity identifiers`.
+- [x] **Step 1: Write the failing date/ID tests.** Assert `2026-10-05` round-trips unchanged; `2024-02-29` is valid; `2026-02-29`, `2026-02-30`, `2026-2-05`, years 1899/2200, month 13 and trailing timezone text fail. Assert `2026-12-31 + 1 day = 2027-01-01`, February 2024/2026 month ends, and leaving the supported range fails. Assert empty, slash, `..`, whitespace, controls, and 129-character IDs fail; `payment_01-A` succeeds. Equal IDs of the same type compare equal, while PaymentId and ObligationId are distinct types/values.
+- [x] **Step 2: Run `flutter test test/core/local_date_test.dart test/core/entity_ids_test.dart`.** Expected failure: missing values.
+- [x] **Step 3: Implement the interfaces.** Internal UTC DateTime arithmetic is allowed only after checking Gregorian parts and revalidating output; expose no DateTime serialization/conversion API for civil dates. Each ID type includes its own type in equality.
+- [x] **Step 4: Run the tests.** All boundary/canonical-form assertions pass.
+- [x] **Step 5: Commit.** Message: `feat: introduce validated civil dates and entity identifiers`.
 
 ### Task 4: Explicit startup modes with zero unsafe fallbacks
 
