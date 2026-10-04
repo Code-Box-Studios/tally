@@ -69,6 +69,7 @@ final class Obligation {
     required this.defaultAmount,
     required this.amountKind,
     required this.originationDate,
+    required this.timezone,
     required this.dueDate,
     required this.nextDueDate,
     required this.lifecycle,
@@ -97,6 +98,7 @@ final class Obligation {
   final Money? originalAmount, paidAmount, remainingAmount, defaultAmount;
   final AmountKind amountKind;
   final LocalDate originationDate;
+  final String timezone;
   final LocalDate? dueDate, nextDueDate;
   final ObligationLifecycle lifecycle;
   final FinancialStatus status;

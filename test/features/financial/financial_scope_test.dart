@@ -28,6 +28,43 @@ ObligationDraft draft() => ObligationDraft(
   interestInfo: null,
 );
 void main() {
+  test(
+    'an uncertain command retains its identity after all form listeners leave',
+    () async {
+      final owner = OwnerUid('alice');
+      final commands = FakeCommands(owner);
+      final container = ProviderContainer(
+        overrides: [
+          ownerUidProvider.overrideWithValue(owner),
+          ownerDocumentsFactoryProvider.overrideWithValue(
+            (_) => FakeDocuments(owner),
+          ),
+          ownerCommandsFactoryProvider.overrideWithValue((_) => commands),
+        ],
+      );
+      addTearDown(container.dispose);
+      var subscription = container.listen(financialActionsProvider, (_, _) {});
+      commands.failNext = true;
+      expect(
+        await container
+            .read(financialActionsProvider.notifier)
+            .createObligation(draft()),
+        isNull,
+      );
+      subscription.close();
+      await container.pump();
+      await container.pump();
+      subscription = container.listen(financialActionsProvider, (_, _) {});
+      addTearDown(subscription.close);
+      expect(
+        await container
+            .read(financialActionsProvider.notifier)
+            .createObligation(draft()),
+        isNotNull,
+      );
+      expect(commands.commandIds.last, commands.commandIds.first);
+    },
+  );
   test('owner-scoped repositories and uncertain command retries cannot leak between accounts', () async {
     final root = ProviderContainer(
       overrides: [

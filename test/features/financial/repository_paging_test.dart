@@ -44,14 +44,16 @@ class FakeDocuments implements OwnerDocumentGateway {
   @override
   Future<RawPage> getPage(DocumentQuery query) async => page(query);
   @override
-  Stream<RawDocument?> watchDocument(String collection, String id) =>
-      Stream.value(
-        RawDocument(id, {
-          ...obligationData(),
-          'userId': owner.value,
-          'obligationId': id,
-        }),
-      );
+  Stream<RawRecord> watchDocument(String collection, String id) => Stream.value(
+    RawRecord(
+      RawDocument(id, {
+        ...obligationData(),
+        'userId': owner.value,
+        'obligationId': id,
+      }),
+      isFromCache: false,
+    ),
+  );
 }
 
 class FakeCommands implements OwnerCommandGateway {

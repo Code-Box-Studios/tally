@@ -99,7 +99,7 @@ final class FirebaseOwnerDocuments implements OwnerDocumentGateway {
   }
 
   @override
-  Stream<RawDocument?> watchDocument(String collection, String id) async* {
+  Stream<RawRecord> watchDocument(String collection, String id) async* {
     if (!DocumentQuery.collections.contains(collection)) {
       throw ArgumentError('Invalid collection.');
     }
@@ -112,10 +112,13 @@ final class FirebaseOwnerDocuments implements OwnerDocumentGateway {
               .doc(owner.value)
               .collection(collection)
               .doc(id)
-              .snapshots()) {
-        yield doc.exists
-            ? RawDocument(doc.id, Map<String, Object?>.from(doc.data()!))
-            : null;
+              .snapshots(includeMetadataChanges: true)) {
+        yield RawRecord(
+          doc.exists
+              ? RawDocument(doc.id, Map<String, Object?>.from(doc.data()!))
+              : null,
+          isFromCache: doc.metadata.isFromCache,
+        );
       }
     } catch (error) {
       throw financialFailure(error);

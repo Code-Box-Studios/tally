@@ -29,4 +29,9 @@ abstract final class TimezoneCatalog {
     _initialize();
     return tz.TZDateTime.now(tz.getLocation(name));
   }
+
+  static tz.TZDateTime at(DateTime instant, String name) {
+    _initialize();
+    return tz.TZDateTime.from(instant, tz.getLocation(name));
+  }
 }

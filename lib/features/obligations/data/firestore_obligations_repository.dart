@@ -46,13 +46,17 @@ final class FirestoreObligationsRepository extends FinancialRepositoryBase
     PageCursor? after,
   }) => get(_obligations(section, contact, limit, after), _obligation);
   @override
-  Stream<Obligation?> watchObligation(ObligationId id) async* {
+  Stream<DataRecord<Obligation?>> watchObligation(ObligationId id) async* {
     try {
-      await for (final doc in documents.watchDocument(
+      await for (final record in documents.watchDocument(
         'obligations',
         id.value,
       )) {
-        yield doc == null ? null : _obligation(doc);
+        final doc = record.document;
+        yield DataRecord(
+          doc == null ? null : _obligation(doc),
+          isFromCache: record.isFromCache,
+        );
       }
     } catch (error) {
       throw financialFailure(error);

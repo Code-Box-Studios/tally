@@ -17,7 +17,7 @@ abstract interface class ObligationsRepository {
     int limit = 50,
     PageCursor? after,
   });
-  Stream<Obligation?> watchObligation(ObligationId id);
+  Stream<DataRecord<Obligation?>> watchObligation(ObligationId id);
   Stream<DataPage<ObligationInstance>> watchInstances(
     ObligationId id, {
     int limit = 50,

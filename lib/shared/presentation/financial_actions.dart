@@ -11,16 +11,15 @@ import '../data/financial_failure_mapper.dart';
 import '../domain/catalog.dart';
 import 'financial_providers.dart';
 
-final financialActionsProvider =
-    AsyncNotifierProvider.autoDispose<FinancialActions, void>(
-      FinancialActions.new,
-      dependencies: [
-        ownerUidProvider,
-        obligationsRepositoryProvider,
-        paymentsRepositoryProvider,
-        catalogRepositoryProvider,
-      ],
-    );
+final financialActionsProvider = AsyncNotifierProvider<FinancialActions, void>(
+  FinancialActions.new,
+  dependencies: [
+    ownerUidProvider,
+    obligationsRepositoryProvider,
+    paymentsRepositoryProvider,
+    catalogRepositoryProvider,
+  ],
+);
 
 class FinancialActions extends AsyncNotifier<void> {
   final _attempts = <String, CommandId>{};

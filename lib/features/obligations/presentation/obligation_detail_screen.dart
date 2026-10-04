@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/dates/financial_clock.dart';
+import '../domain/visible_financial_status.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../../core/identifiers/entity_ids.dart';
@@ -42,7 +46,8 @@ class ObligationDetailScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (parent) {
+        data: (record) {
+          final parent = record.value;
           if (parent == null) {
             return const EmptyState(
               icon: Icons.search_off,
@@ -51,7 +56,20 @@ class ObligationDetailScreen extends ConsumerWidget {
             );
           }
           if (editing) {
-            return ObligationEditor(key: ValueKey(id), initial: parent);
+            return Column(
+              children: [
+                if (record.isFromCache)
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text(
+                      'Cached balances · reconnect to confirm current records.',
+                    ),
+                  ),
+                Expanded(
+                  child: ObligationEditor(key: ValueKey(id), initial: parent),
+                ),
+              ],
+            );
           }
           final active = parent.lifecycle == ObligationLifecycle.active;
           final received = parent.direction == ObligationDirection.owedToMe;
@@ -61,12 +79,24 @@ class ObligationDetailScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (record.isFromCache)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Cached balances · reconnect to confirm current records.',
+                    ),
+                  ),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    FinancialStatusChip(parent.status),
+                    FinancialStatusChip(
+                      visibleFinancialStatus(
+                        parent,
+                        ref.watch(financialClockProvider),
+                      ),
+                    ),
                     if (active &&
                         parent.remainingAmount != null &&
                         parent.remainingAmount!.minorUnits > 0)

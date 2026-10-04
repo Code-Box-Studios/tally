@@ -11,6 +11,7 @@ import 'package:tally/features/auth/presentation/auth_providers.dart';
 import 'package:tally/features/obligations/domain/obligation.dart';
 import 'package:tally/features/obligations/presentation/obligation_editor.dart';
 import 'package:tally/features/obligations/presentation/obligation_detail_screen.dart';
+import 'package:tally/features/payments/presentation/payment_editor.dart';
 import 'package:tally/shared/data/owner_command_gateway.dart';
 import 'package:tally/shared/data/owner_document_gateway.dart';
 import 'package:tally/shared/domain/financial_failure.dart';
@@ -31,6 +32,7 @@ class UiDocuments implements OwnerDocumentGateway {
   final OwnerUid owner;
   final changes = StreamController<void>.broadcast(sync: true);
   Object? documentFailure;
+  bool isFromCache = false;
   final data = <String, Map<String, Map<String, Object?>>>{
     'categories': {
       'default-personal-loan': {
@@ -73,14 +75,14 @@ class UiDocuments implements OwnerDocumentGateway {
   @override
   Future<RawPage> getPage(DocumentQuery query) async => page(query);
   @override
-  Stream<RawDocument?> watchDocument(String collection, String id) async* {
+  Stream<RawRecord> watchDocument(String collection, String id) async* {
     if (documentFailure != null) throw documentFailure!;
     RawDocument? read() => data[collection]?[id] == null
         ? null
         : RawDocument(id, data[collection]![id]!);
-    yield read();
+    yield RawRecord(read(), isFromCache: isFromCache);
     await for (final _ in changes.stream) {
-      yield read();
+      yield RawRecord(read(), isFromCache: isFromCache);
     }
   }
 }
@@ -196,6 +198,76 @@ Future<void> tap(WidgetTester tester, String key) async {
 }
 
 void main() {
+  testWidgets(
+    'cached detail balances reconcile when only server metadata changes',
+    (tester) async {
+      final docs = UiDocuments()..isFromCache = true;
+      final commands = UiCommands(docs);
+      addTearDown(docs.changes.close);
+      docs.data['obligations']!['loan-1'] = obligationData();
+      await host(
+        tester,
+        docs,
+        commands,
+        ObligationDetailScreen(id: ObligationId('loan-1')),
+      );
+      expect(
+        find.text('Cached balances · reconnect to confirm current records.'),
+        findsOneWidget,
+      );
+      docs.isFromCache = false;
+      docs.changes.add(null);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Cached balances · reconnect to confirm current records.'),
+        findsNothing,
+      );
+    },
+  );
+  testWidgets(
+    'a submitting payment cannot be dismissed or open a nested picker',
+    (tester) async {
+      final docs = UiDocuments();
+      final commands = UiCommands(docs);
+      addTearDown(docs.changes.close);
+      docs.data['obligations']!['loan-1'] = {
+        ...obligationData(),
+        'totalPaidMinor': 0,
+        'remainingMinor': 1000000,
+        'hasPaymentHistory': false,
+      };
+      await host(
+        tester,
+        docs,
+        commands,
+        ObligationDetailScreen(id: ObligationId('loan-1')),
+      );
+      await tap(tester, 'record-payment');
+      await enter(tester, 'payment-amount', '3000');
+      commands.delay = Completer<void>();
+      addTearDown(() {
+        if (!commands.delay!.isCompleted) commands.delay!.complete();
+      });
+      await tester.ensureVisible(find.byKey(const Key('payment-save')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('payment-save')));
+      await tester.pump();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(PaymentEditor), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(PaymentEditor), findsOneWidget);
+      await tester.tap(find.text('No source selected'), warnIfMissed: false);
+      await tester.pump();
+      expect(find.text('Choose a payment source'), findsNothing);
+      commands.delay!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(PaymentEditor), findsNothing);
+      expect(commands.requests, ['recordPayment']);
+      expect(docs.data['obligations']!['loan-1']!['remainingMinor'], 700000);
+    },
+  );
   for (final incoming in [false, true]) {
     testWidgets(
       '${incoming ? 'Lent 5000 repaid 2000 leaves 3000' : 'Borrowed 10000 paid 3000 leaves 7000'} through working forms',

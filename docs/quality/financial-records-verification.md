@@ -28,8 +28,12 @@ Browser automation's Control+A modifier events produced a Flutter engine asserti
 
 ## Automated checks
 
-At the completed UI increment: `flutter analyze` reports no issues; 163 Flutter tests, 28 Functions tests and 14 Firebase emulator/rules tests pass. Exact final task checks are recorded in the execution ledger and commit history. Added financial tests were run failing before their implementations, including immediate denied-read handling and paginated freshness.
+At the completed UI increment before review fixes: `flutter analyze` reports no issues; 163 Flutter tests, 28 Functions tests and 14 Firebase emulator/rules tests pass. Exact final task checks are recorded in the execution ledger and commit history. Added financial tests were run failing before their implementations, including immediate denied-read handling and paginated freshness.
 
 ## Remaining launch work
+
+Final review-fix verification: 170 Flutter tests, 28 Functions tests, 14 rules/emulator tests and clean Flutter analysis. The independent M2 review found five Important client issues, all covered by failing regression tests before fixes: live catalog picker reconciliation, retry identity after form listeners leave plus guarded modal/back/nested-picker submission, query-intent editor identity, date-based visible status using a preserved schedule timezone and clock rollover/resume, and single-record cache metadata with cached balance/contact labels. No Critical server atomicity or ownership defect was identified in the inspected paths. The reviewer did not independently rerun the suites. One Minor remains deferred: a live “After this payment” remaining-balance preview.
+
+The parent obligation now snapshots its instance's schedule timezone for accurate list/detail status without one query per row; editing profile preferences does not shift it. This canonical financial contract has not yet been deployed to a live private database. Future deployed schema upgrades must backfill from the preserved instance zone before requiring the field.
 
 This is the one-time financial slice, not completion of the MVP. Installments, dashboard projections/activity, recurrence and automatic deductions, calendars/reminders/FCM, private attachments, a durable offline outbox, account deletion and production release checks remain required milestones. Financial commands currently require connectivity and do not claim durable offline saves. The public hosted site still serves the earlier preview; the production database region and Blaze billing inputs remain pending. Real Google/App Check/FCM and native-device checks require configured release environments.

@@ -10,6 +10,7 @@ test('catalog and one-time obligations are owner-bound atomic revisioned and ret
  const parentRef=root.collection('obligations').doc(created.obligationId);
  const instanceRef=root.collection('obligationInstances').doc(created.obligationInstanceId);
  const parent=(await parentRef.get()).data();const instance=(await instanceRef.get()).data();
+ assert.equal(parent.timezone,'Asia/Manila');
  assert.equal(parent.userId,user.uid);assert.equal(parent.originalAmountMinor,1_000_000);assert.equal(parent.remainingMinor,1_000_000);assert.equal(parent.totalPaidMinor,0);assert.equal(parent.contactSnapshot.displayName,'John');
  assert.equal(instance.obligationId,created.obligationId);assert.equal(instance.amountMinor,1_000_000);assert.equal(instance.remainingMinor,1_000_000);
  assert.equal((await root.collection('obligations').get()).size,1);assert.equal((await root.collection('activities').where('type','==','obligationCreated').get()).size,1);

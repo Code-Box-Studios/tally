@@ -22,7 +22,8 @@ class ContactDetailScreen extends ConsumerWidget {
       .when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: FinancialActionError(error: error)),
-        data: (contact) {
+        data: (record) {
+          final contact = record.value;
           if (contact == null) {
             return const EmptyState(
               icon: Icons.person_off_outlined,
@@ -40,6 +41,13 @@ class ContactDetailScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (record.isFromCache)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Cached contact · reconnect to confirm current records.',
+                    ),
+                  ),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: OutlinedButton.icon(

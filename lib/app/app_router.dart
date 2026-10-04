@@ -88,6 +88,11 @@ GoRouter createAppRouter({
                   path: 'new',
                   builder: (_, state) => _FinancialRoute(
                     child: ObligationEditor(
+                      key: ValueKey(
+                        state.uri.queryParameters['kind'] == 'lend'
+                            ? 'lend'
+                            : 'borrow',
+                      ),
                       direction: state.uri.queryParameters['kind'] == 'lend'
                           ? ObligationDirection.owedToMe
                           : ObligationDirection.owedByMe,

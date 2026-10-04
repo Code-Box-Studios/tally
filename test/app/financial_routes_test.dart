@@ -71,6 +71,18 @@ void main() {
       );
       expect(find.byKey(const Key('obligation-save')), findsOneWidget);
       expect(find.text('I lent money'), findsWidgets);
+      await tester.tap(find.byKey(const Key('add-action')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('I borrowed money'));
+      await tester.pumpAndSettle();
+      expect(find.text('I borrowed money'), findsWidgets);
+      expect(find.text('I lent money'), findsNothing);
+      await tester.tap(find.byKey(const Key('add-action')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('I lent money'));
+      await tester.pumpAndSettle();
+      expect(find.text('I lent money'), findsWidgets);
+      expect(find.text('I borrowed money'), findsNothing);
       router.go('/obligations/bad%20id');
       await tester.pumpAndSettle();
       expect(find.text('This link isn’t available'), findsOneWidget);

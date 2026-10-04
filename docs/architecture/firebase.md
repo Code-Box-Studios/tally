@@ -52,6 +52,8 @@ Amounts use suffix `Minor` and are Firestore integers within the financial-engin
 
 ### Obligations
 
+The parent also stores `timezone`, the preserved schedule IANA zone used for finite debt due-status presentation. It is initialized from the same verified zone as its instances and does not change with profile preferences. Document-read metadata is transported separately from the entity as `DataRecord<T>`; cache/server transitions with unchanged content still reach the presentation layer.
+
 | Field | Type and meaning |
 | --- | --- |
 | `obligationId`, `userId` | Strings matching path/owner |

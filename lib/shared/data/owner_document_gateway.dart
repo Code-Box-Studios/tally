@@ -7,6 +7,12 @@ final class RawDocument {
   final Map<String, Object?> data;
 }
 
+final class RawRecord {
+  const RawRecord(this.document, {required this.isFromCache});
+  final RawDocument? document;
+  final bool isFromCache;
+}
+
 final class RawPage {
   RawPage({
     required List<RawDocument> documents,
@@ -58,5 +64,5 @@ abstract interface class OwnerDocumentGateway {
   OwnerUid get owner;
   Stream<RawPage> watchPage(DocumentQuery query);
   Future<RawPage> getPage(DocumentQuery query);
-  Stream<RawDocument?> watchDocument(String collection, String id);
+  Stream<RawRecord> watchDocument(String collection, String id);
 }

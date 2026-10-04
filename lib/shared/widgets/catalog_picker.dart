@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../domain/data_page.dart';
@@ -19,6 +21,7 @@ Future<T?> pickCatalog<T>(
     label: label,
     active: active,
   ),
+  guardSubmission: false,
 );
 
 class _CatalogPicker<T> extends StatefulWidget {
@@ -43,6 +46,8 @@ class _CatalogPickerState<T> extends State<_CatalogPicker<T>> {
   DataPage<T>? _page;
   Object? _error;
   bool _busy = true;
+  StreamSubscription<DataPage<T>>? _subscription;
+  int _generation = 0;
   @override
   void initState() {
     super.initState();
@@ -50,16 +55,40 @@ class _CatalogPickerState<T> extends State<_CatalogPicker<T>> {
   }
 
   Future<void> _first() async {
-    try {
-      await _append(await widget.stream.first);
-    } catch (error) {
-      if (mounted) {
+    await _subscription?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    _subscription = widget.stream.listen(
+      (page) {
+        if (!mounted) return;
+        _generation++;
         setState(() {
-          _error = error;
+          _items
+            ..clear()
+            ..addAll(page.items);
+          _page = page;
           _busy = false;
+          _error = null;
         });
-      }
-    }
+      },
+      onError: (Object error) {
+        if (mounted) {
+          setState(() {
+            _error = error;
+            _busy = false;
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    unawaited(_subscription?.cancel());
+    super.dispose();
   }
 
   Future<void> _append(DataPage<T> page) async {
@@ -73,12 +102,14 @@ class _CatalogPickerState<T> extends State<_CatalogPicker<T>> {
   }
 
   Future<void> _more() async {
+    final generation = _generation;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await _append(await widget.more(_page!.nextCursor!));
+      final page = await widget.more(_page!.nextCursor!);
+      if (generation == _generation) await _append(page);
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -91,6 +122,7 @@ class _CatalogPickerState<T> extends State<_CatalogPicker<T>> {
 
   @override
   Widget build(BuildContext context) => FinancialDialogBody(
+    guardSubmission: false,
     title: widget.title,
     children: [
       if (_page?.isFromCache == true)

@@ -12,10 +12,17 @@ final class FirestoreCatalogRepository extends FinancialRepositoryBase
     implements CatalogRepository {
   FirestoreCatalogRepository(super.documents, super.commands);
   @override
-  Stream<Contact?> watchContact(ContactId id) async* {
+  Stream<DataRecord<Contact?>> watchContact(ContactId id) async* {
     try {
-      await for (final doc in documents.watchDocument('contacts', id.value)) {
-        yield doc == null ? null : _contact(doc);
+      await for (final record in documents.watchDocument(
+        'contacts',
+        id.value,
+      )) {
+        final doc = record.document;
+        yield DataRecord(
+          doc == null ? null : _contact(doc),
+          isFromCache: record.isFromCache,
+        );
       }
     } catch (error) {
       throw financialFailure(error);

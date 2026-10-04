@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/financial_labels.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../domain/obligation.dart';
+import '../domain/visible_financial_status.dart';
+import '../../../core/dates/financial_clock.dart';
 
-class ObligationRow extends StatelessWidget {
+class ObligationRow extends ConsumerWidget {
   const ObligationRow(this.obligation, {super.key, this.wide = false});
   final Obligation obligation;
   final bool wide;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = visibleFinancialStatus(
+      obligation,
+      ref.watch(financialClockProvider),
+    );
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => context.go('/obligations/${obligation.id.value}'),
@@ -20,7 +27,7 @@ class ObligationRow extends StatelessWidget {
           border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
         ),
         child: wide
-            ? _desktop(context)
+            ? _desktop(context, status)
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -43,7 +50,7 @@ class ObligationRow extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      FinancialStatusChip(obligation.status),
+                      FinancialStatusChip(status),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -104,7 +111,7 @@ class ObligationRow extends StatelessWidget {
     );
   }
 
-  Widget _desktop(BuildContext context) {
+  Widget _desktop(BuildContext context, FinancialStatus status) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
@@ -194,7 +201,7 @@ class ObligationRow extends StatelessWidget {
           flex: 2,
           child: Align(
             alignment: Alignment.centerLeft,
-            child: FinancialStatusChip(obligation.status),
+            child: FinancialStatusChip(status),
           ),
         ),
         const Icon(Icons.chevron_right, size: 18),

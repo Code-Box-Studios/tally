@@ -1,5 +1,11 @@
 abstract interface class PageCursor {}
 
+final class DataRecord<T> {
+  const DataRecord(this.value, {required this.isFromCache});
+  final T value;
+  final bool isFromCache;
+}
+
 final class DataPage<T> {
   DataPage({
     required Iterable<T> items,

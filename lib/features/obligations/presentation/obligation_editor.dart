@@ -141,6 +141,7 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   }
 
   Future<void> _pickContact() async {
+    if (ref.read(financialActionsProvider).isLoading) return;
     final catalog = ref.read(catalogRepositoryProvider);
     final selected = await pickCatalog<Contact>(
       context,
@@ -159,6 +160,7 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   }
 
   Future<void> _addContact() async {
+    if (ref.read(financialActionsProvider).isLoading) return;
     final selected = await showFinancialDialog<CatalogEditorResult>(
       context,
       const CatalogEditor(kind: CatalogEditorKind.contact),
@@ -172,6 +174,7 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   }
 
   Future<void> _pickCategory() async {
+    if (ref.read(financialActionsProvider).isLoading) return;
     final catalog = ref.read(catalogRepositoryProvider);
     final selected = await pickCatalog<Category>(
       context,
@@ -190,6 +193,7 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   }
 
   Future<void> _pickSource() async {
+    if (ref.read(financialActionsProvider).isLoading) return;
     final catalog = ref.read(catalogRepositoryProvider);
     final selected = await pickCatalog<PaymentSource>(
       context,

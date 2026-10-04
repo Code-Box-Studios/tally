@@ -72,6 +72,7 @@ abstract final class ObligationDto {
       ),
       amountKind: d.enumeration('amountKind', AmountKind.values),
       originationDate: origination,
+      timezone: d.timezone('timezone'),
       dueDate: due,
       nextDueDate: d.nullableDate('nextDueDate'),
       lifecycle: d.enumeration('lifecycle', ObligationLifecycle.values),
