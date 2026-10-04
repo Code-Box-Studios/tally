@@ -21,7 +21,7 @@ export function validateObligationCreation(input:unknown):ObligationInput {
   }
   return {title:textValue(raw.title,120,true),description:textValue(raw.description,1000),notes:textValue(raw.notes,4000),direction:enumValue(raw.direction,['owedByMe','owedToMe']),currency:currencyCode(raw.currency),amountMinor:moneyMinor(raw.amountMinor),originationDate,dueDate,contactId:nullableId(raw.contactId),categoryId:identifier(raw.categoryId),paymentSourceId:nullableId(raw.paymentSourceId),interestInfo};
 }
-async function references(context:OwnerCommandContext,payload:ObligationInput,existing?:{contactId:string|null;categoryId:string;paymentSourceId:string|null}){
+export async function references(context:OwnerCommandContext,payload:ObligationInput,existing?:{contactId:string|null;categoryId:string;paymentSourceId:string|null}){
   const [contact,category,source]=await Promise.all([
     payload.contactId ? context.read('contacts',payload.contactId) : null,
     context.read('categories',payload.categoryId),
@@ -36,7 +36,7 @@ async function references(context:OwnerCommandContext,payload:ObligationInput,ex
     sourceSnapshot:source ? {name:source.name,type:source.type,lastFour:source.lastFour} : null,
   };
 }
-function terms(payload:ObligationInput,snapshots:Awaited<ReturnType<typeof references>>){
+export function terms(payload:ObligationInput,snapshots:Awaited<ReturnType<typeof references>>){
   const {amountMinor,...rest}=payload;
   return {...rest,...snapshots,type:payload.direction,section:payload.direction==='owedByMe' ? 'iOwe' : 'owedToMe',originalAmountMinor:amountMinor,paymentMode:'manual',amountKind:'fixed',defaultAmountMinor:null,recurrence:null};
 }

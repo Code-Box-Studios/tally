@@ -5,7 +5,8 @@ import {bootstrapProfile,updateProfile as updateAccountProfile} from './accounts
 import {database,exactObject,ownerCallable} from './shared/callable.js';
 import {saveCatalog as saveOwnerCatalog} from './catalog/catalog.js';
 import {createObligation as createOwnerObligation,editObligation as editOwnerObligation,cancelObligation as cancelOwnerObligation} from './obligations/obligation_service.js';
-import {recordPayment as recordOwnerPayment} from './payments/payment_service.js';
+import {recordPayment as recordOwnerPayment,recordInstallmentPayment as recordOwnerInstallmentPayment} from './payments/payment_service.js';
+import {createInstallment as createOwnerInstallment,editInstallment as editOwnerInstallment,cancelInstallment as cancelOwnerInstallment} from './obligations/installment_service.js';
 import {correctPayment as correctOwnerPayment} from './payments/corrections.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
@@ -26,3 +27,8 @@ export const editObligation = ownerCallable((uid,data)=>editOwnerObligation(uid,
 export const cancelObligation = ownerCallable((uid,data)=>cancelOwnerObligation(uid,data,database));
 export const recordPayment = ownerCallable((uid,data)=>recordOwnerPayment(uid,data,database));
 export const correctPayment = ownerCallable((uid,data)=>correctOwnerPayment(uid,data,database));
+
+export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallment(uid,data,database));
+export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));
+export const cancelInstallment = ownerCallable((uid,data)=>cancelOwnerInstallment(uid,data,database));
+export const recordInstallmentPayment = ownerCallable((uid,data)=>recordOwnerInstallmentPayment(uid,data,database));
