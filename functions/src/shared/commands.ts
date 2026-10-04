@@ -15,13 +15,19 @@ function ordered(value:unknown):unknown {
 }
 export class OwnerCommandContext {
   private writes:Array<{kind:'create'|'update';ref:DocumentReference;data:DocumentData}> = [];
-  constructor(readonly transaction:Transaction,readonly root:DocumentReference,readonly uid:string,readonly commandId:string,readonly profile:DocumentData) {}
+  constructor(private readonly transaction:Transaction,readonly root:DocumentReference,readonly uid:string,readonly commandId:string,readonly profile:DocumentData) {}
   id(role:string):string {return commandDocumentId(`${this.uid}:${this.commandId}`,role);}
   ref(collection:string,id:string):DocumentReference {return this.root.collection(collection).doc(identifier(id));}
   audit():DocumentData {return {userId:this.uid,schemaVersion:1,createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()};}
-  async read(collection:string,id:string):Promise<DocumentData> {
+  async maybeRead(collection:string,id:string):Promise<DocumentData|null> {
     const snapshot=await this.transaction.get(this.ref(collection,id));const data=snapshot.data();
+    if(!snapshot.exists)return null;
     if(!data || data.userId!==this.uid || data.schemaVersion!==1)throw new HttpsError('failed-precondition','A linked record is unavailable.');
+    return data;
+  }
+  async read(collection:string,id:string):Promise<DocumentData> {
+    const data=await this.maybeRead(collection,id);
+    if(!data)throw new HttpsError('failed-precondition','A linked record is unavailable.');
     return data;
   }
   create(collection:string,id:string,data:DocumentData):void {this.writes.push({kind:'create',ref:this.ref(collection,id),data:{...data,...this.audit()}});}

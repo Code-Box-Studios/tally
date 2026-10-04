@@ -5,6 +5,8 @@ import {bootstrapProfile,updateProfile as updateAccountProfile} from './accounts
 import {database,exactObject,ownerCallable} from './shared/callable.js';
 import {saveCatalog as saveOwnerCatalog} from './catalog/catalog.js';
 import {createObligation as createOwnerObligation,editObligation as editOwnerObligation,cancelObligation as cancelOwnerObligation} from './obligations/obligation_service.js';
+import {recordPayment as recordOwnerPayment} from './payments/payment_service.js';
+import {correctPayment as correctOwnerPayment} from './payments/corrections.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -22,3 +24,5 @@ export const saveCatalog = ownerCallable((uid,data)=>saveOwnerCatalog(uid,data,d
 export const createObligation = ownerCallable((uid,data)=>createOwnerObligation(uid,data,database));
 export const editObligation = ownerCallable((uid,data)=>editOwnerObligation(uid,data,database));
 export const cancelObligation = ownerCallable((uid,data)=>cancelOwnerObligation(uid,data,database));
+export const recordPayment = ownerCallable((uid,data)=>recordOwnerPayment(uid,data,database));
+export const correctPayment = ownerCallable((uid,data)=>correctOwnerPayment(uid,data,database));
