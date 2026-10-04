@@ -1,0 +1,33 @@
+import {createRequire} from 'node:module';
+import {initializeApp,deleteApp} from 'firebase/app';
+import {getAuth,connectAuthEmulator,createUserWithEmailAndPassword,deleteUser} from 'firebase/auth';
+import {getFunctions,connectFunctionsEmulator,httpsCallable} from 'firebase/functions';
+import {getFirestore,connectFirestoreEmulator,terminate} from 'firebase/firestore';
+const require=createRequire(new URL('../../../functions/package.json',import.meta.url));
+const {initializeApp:initializeAdmin,deleteApp:deleteAdmin}=require('firebase-admin/app');
+const {getFirestore:adminFirestore}=require('firebase-admin/firestore');
+export async function withOwner(label,run){
+ for(const field of ['FIRESTORE_EMULATOR_HOST','FIREBASE_AUTH_EMULATOR_HOST']){
+  if(!/^127\.0\.0\.1:\d+$/.test(process.env[field]??''))throw new Error(`Set local ${field}; live data is prohibited.`);
+ }
+ const app=initializeApp({projectId:'demo-tally',apiKey:'demo-tally',appId:'demo-tally',authDomain:'demo-tally.firebaseapp.com'},`${label}-${Date.now()}-${Math.random()}`);
+ const auth=getAuth(app);connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});
+ const db=getFirestore(app);connectFirestoreEmulator(db,'127.0.0.1',8080);
+ const functions=getFunctions(app,'asia-southeast1');connectFunctionsEmulator(functions,'127.0.0.1',5001);
+ const admin=initializeAdmin({projectId:'demo-tally'},app.name);const adminDb=adminFirestore(admin);
+ let user;
+ try{
+  user=(await createUserWithEmailAndPassword(auth,`${label}-${Date.now()}-${Math.floor(Math.random()*1e6)}@example.test`,'local-test-password')).user;
+  const call=async(name,payload)=>(await httpsCallable(functions,name)(payload)).data;
+  await call('bootstrapUser',{});
+  const root=adminDb.doc(`users/${user.uid}`);
+  const command=(id,payload)=>({commandId:id,expectedOwnerUid:user.uid,payload});
+  return await run({user,call,command,root,adminDb,db});
+ }finally{
+  if(user){await adminDb.recursiveDelete(adminDb.doc(`users/${user.uid}`));await deleteUser(user);}
+  await terminate(db);await deleteApp(app);await deleteAdmin(admin);
+ }
+}
+export const loan=(overrides={})=>({title:'Personal loan',description:'Borrowed money',notes:'',direction:'owedByMe',currency:'PHP',amountMinor:1_000_000,originationDate:'2020-01-01',dueDate:'2026-10-15',contactId:null,categoryId:'default-personal-loan',paymentSourceId:null,interestInfo:null,...overrides});
+export const contact=(overrides={})=>({kind:'person',displayName:'John',organizationType:null,email:null,phone:null,address:null,notes:'',archived:false,...overrides});
+export const source=(overrides={})=>({name:'Cash',type:'cash',nickname:null,lastFour:null,notes:'',active:true,...overrides});
