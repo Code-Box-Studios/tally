@@ -31,7 +31,9 @@ final sessionStateProvider = StreamProvider<SessionState>(
 );
 final ownerUidProvider = Provider<OwnerUid>(
   (ref) => throw StateError('A private owner scope is required.'),
+  dependencies: [],
 );
 final userProfileProvider = Provider<UserProfile>(
   (ref) => throw StateError('A private owner scope is required.'),
+  dependencies: [],
 );

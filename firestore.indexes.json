@@ -1,1 +1,11 @@
-{"indexes":[],"fieldOverrides":[]}
+{
+  "indexes": [
+    {"collectionGroup":"obligations","queryScope":"COLLECTION","fields":[{"fieldPath":"archived","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"obligations","queryScope":"COLLECTION","fields":[{"fieldPath":"archived","order":"ASCENDING"},{"fieldPath":"section","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"obligations","queryScope":"COLLECTION","fields":[{"fieldPath":"archived","order":"ASCENDING"},{"fieldPath":"contactId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"obligations","queryScope":"COLLECTION","fields":[{"fieldPath":"archived","order":"ASCENDING"},{"fieldPath":"section","order":"ASCENDING"},{"fieldPath":"contactId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"obligationInstances","queryScope":"COLLECTION","fields":[{"fieldPath":"obligationId","order":"ASCENDING"},{"fieldPath":"dueDate","order":"ASCENDING"}]},
+    {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"obligationId","order":"ASCENDING"},{"fieldPath":"paymentDate","order":"DESCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]}
+  ],
+  "fieldOverrides": []
+}
