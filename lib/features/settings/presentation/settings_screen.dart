@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/presentation/catalog_manager.dart';
+
 import '../../../core/config/environment.dart';
 import '../../../core/config/environment_providers.dart';
 import '../../../core/theme/theme_controller.dart';
@@ -70,6 +72,10 @@ class SettingsScreen extends ConsumerWidget {
                 authFailureMessage(action.error!),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
+            const CatalogManager(kind: CatalogEditorKind.source),
+            const SizedBox(height: 24),
+            const CatalogManager(kind: CatalogEditorKind.category),
+            const SizedBox(height: 24),
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(

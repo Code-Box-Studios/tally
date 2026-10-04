@@ -49,10 +49,11 @@ abstract final class PaymentCalculator {
       for (var i = 0; i < entry.allocations.length; i++) {
         if (originalEntry.allocations[i].instanceId !=
                 entry.allocations[i].instanceId ||
-            originalEntry.allocations[i].amount != entry.allocations[i].amount) {
+            originalEntry.allocations[i].amount !=
+                entry.allocations[i].amount) {
           throw _invalid();
-      }
         }
+      }
       paid = paid.subtract(entry.amount);
     }
     if (paid.minorUnits < 0 || paid.minorUnits > original.minorUnits) {

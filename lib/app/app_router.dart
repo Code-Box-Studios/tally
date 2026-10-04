@@ -8,7 +8,13 @@ import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/calendar/presentation/calendar_screen.dart';
 import '../features/obligations/presentation/obligations_screen.dart';
+import '../features/obligations/presentation/obligation_editor.dart';
+import '../features/obligations/presentation/obligation_detail_screen.dart';
+import '../features/obligations/domain/obligation.dart';
+import '../core/identifiers/entity_ids.dart';
+import '../core/errors/app_failure.dart';
 import '../features/people/presentation/people_screen.dart';
+import '../features/people/presentation/contact_detail_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../shared/widgets/empty_state.dart';
 import '../core/config/environment.dart';
@@ -77,12 +83,56 @@ GoRouter createAppRouter({
               builder: (_, state) => ObligationsScreen(
                 section: state.uri.queryParameters['section'] ?? 'owe',
               ),
+              routes: [
+                GoRoute(
+                  path: 'new',
+                  builder: (_, state) => _FinancialRoute(
+                    child: ObligationEditor(
+                      direction: state.uri.queryParameters['kind'] == 'lend'
+                          ? ObligationDirection.owedToMe
+                          : ObligationDirection.owedByMe,
+                    ),
+                  ),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => _entityRoute(
+                    () => ObligationDetailScreen(
+                      id: ObligationId(state.pathParameters['id']!),
+                    ),
+                  ),
+                  routes: [
+                    GoRoute(
+                      path: 'edit',
+                      builder: (_, state) => _entityRoute(
+                        () => ObligationDetailScreen(
+                          id: ObligationId(state.pathParameters['id']!),
+                          editing: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
         StatefulShellBranch(
           routes: [
-            GoRoute(path: '/people', builder: (_, _) => const PeopleScreen()),
+            GoRoute(
+              path: '/people',
+              builder: (_, _) => const PeopleScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => _entityRoute(
+                    () => ContactDetailScreen(
+                      id: ContactId(state.pathParameters['id']!),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
         StatefulShellBranch(
@@ -114,6 +164,33 @@ GoRouter createAppRouter({
   ],
 );
 
+Widget _entityRoute(Widget Function() child) {
+  try {
+    return _FinancialRoute(child: child());
+  } on AppFailure {
+    return const EmptyState(
+      icon: Icons.explore_off_outlined,
+      title: 'This link isn’t available',
+      description: 'Choose an obligation or person from your workspace.',
+    );
+  }
+}
+
+class _FinancialRoute extends ConsumerWidget {
+  const _FinancialRoute({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      ref.watch(environmentProvider).mode == AppEnvironment.preview
+      ? const EmptyState(
+          icon: Icons.lock_outline,
+          title: 'Your personal workspace needs sign-in',
+          description:
+              'Use the connected Tally app to save obligations and payments.',
+        )
+      : child;
+}
+
 class _PrivateWorkspace extends ConsumerWidget {
   const _PrivateWorkspace({required this.navigationShell});
   final StatefulNavigationShell navigationShell;
@@ -128,6 +205,9 @@ class _PrivateWorkspace extends ConsumerWidget {
     }
     return ProviderScope(
       key: ValueKey(profile.uid),
+      // Firestore manages reconnects. Surface terminal read errors immediately
+      // so private screens can offer an explicit, owner-scoped retry.
+      retry: (_, _) => null,
       overrides: [
         ownerUidProvider.overrideWithValue(profile.uid),
         userProfileProvider.overrideWithValue(profile),

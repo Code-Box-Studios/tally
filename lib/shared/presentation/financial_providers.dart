@@ -89,6 +89,17 @@ final sourcesPageProvider = StreamProvider.autoDispose<DataPage<PaymentSource>>(
   (ref) => ref.watch(catalogRepositoryProvider).watchSources(),
   dependencies: [catalogRepositoryProvider],
 );
+final contactProvider = StreamProvider.autoDispose.family<Contact?, ContactId>(
+  (ref, id) => ref.watch(catalogRepositoryProvider).watchContact(id),
+  dependencies: [catalogRepositoryProvider],
+);
+final contactObligationsProvider = StreamProvider.autoDispose
+    .family<DataPage<Obligation>, ContactId>(
+      (ref, id) => ref
+          .watch(obligationsRepositoryProvider)
+          .watchObligations(contact: id),
+      dependencies: [obligationsRepositoryProvider],
+    );
 final categoriesPageProvider = StreamProvider.autoDispose<DataPage<Category>>(
   (ref) => ref.watch(catalogRepositoryProvider).watchCategories(),
   dependencies: [catalogRepositoryProvider],

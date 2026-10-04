@@ -4,6 +4,7 @@ import 'data_page.dart';
 
 abstract interface class CatalogRepository {
   OwnerUid get owner;
+  Stream<Contact?> watchContact(ContactId id);
   Stream<DataPage<Contact>> watchContacts({int limit = 50});
   Future<DataPage<Contact>> getContacts({int limit = 50, PageCursor? after});
   Stream<DataPage<PaymentSource>> watchSources({int limit = 50});

@@ -12,16 +12,26 @@ class PageBody extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 28, 24, 112),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 6),
-        Text(subtitle),
-        const SizedBox(height: 28),
-        child,
-      ],
+    padding: EdgeInsets.fromLTRB(
+      MediaQuery.sizeOf(context).width < 600 ? 20 : 40,
+      33,
+      MediaQuery.sizeOf(context).width < 600 ? 20 : 40,
+      112,
+    ),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1360),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 6),
+            Text(subtitle),
+            const SizedBox(height: 28),
+            child,
+          ],
+        ),
+      ),
     ),
   );
 }

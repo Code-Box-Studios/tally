@@ -5,11 +5,23 @@ import '../domain/data_page.dart';
 import 'catalog_dto.dart';
 import 'document_reader.dart';
 import 'financial_repository_base.dart';
+import 'financial_failure_mapper.dart';
 import 'owner_document_gateway.dart';
 
 final class FirestoreCatalogRepository extends FinancialRepositoryBase
     implements CatalogRepository {
   FirestoreCatalogRepository(super.documents, super.commands);
+  @override
+  Stream<Contact?> watchContact(ContactId id) async* {
+    try {
+      await for (final doc in documents.watchDocument('contacts', id.value)) {
+        yield doc == null ? null : _contact(doc);
+      }
+    } catch (error) {
+      throw financialFailure(error);
+    }
+  }
+
   DocumentQuery _query(String collection, int limit, PageCursor? after) =>
       DocumentQuery(
         collection,

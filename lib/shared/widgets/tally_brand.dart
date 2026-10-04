@@ -20,22 +20,30 @@ class TallyBrand extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 10),
-      Text.rich(
-        textScaler: TextScaler.noScaling,
-        TextSpan(
-          text: 'tally',
-          children: [
+      Flexible(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text.rich(
+            textScaler: TextScaler.noScaling,
             TextSpan(
-              text: '.',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              text: 'tally',
+              children: [
+                TextSpan(
+                  text: '.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        style: TextStyle(
-          fontFamily: 'Manrope',
-          fontSize: size,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -1.8,
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: size,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.8,
+            ),
+          ),
         ),
       ),
     ],

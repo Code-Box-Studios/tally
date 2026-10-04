@@ -6,7 +6,7 @@ void main() {
   testWidgets('launch displays the Tally brand and purpose', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: TallyApp()));
     await tester.pumpAndSettle();
-    expect(find.text('Tally'), findsOneWidget);
+    expect(find.text('tally.', findRichText: true), findsOneWidget);
     expect(find.textContaining('Know what’s due.'), findsOneWidget);
   });
 }

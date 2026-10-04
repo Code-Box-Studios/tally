@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config/environment.dart';
+import '../core/config/environment_providers.dart';
+import '../core/dates/timezone_catalog.dart';
+import '../features/auth/presentation/auth_providers.dart';
 import '../features/obligations/presentation/add_action_sheet.dart';
 import '../shared/layout/breakpoints.dart';
+import '../shared/widgets/tally_brand.dart';
+import 'shell_sidebar.dart';
 
-const _destinations = [
+const shellDestinations = [
   ('Home', Icons.home_outlined),
   ('Obligations', Icons.wallet_outlined),
   ('People', Icons.people_outline),
@@ -13,7 +20,7 @@ const _destinations = [
   ('Settings', Icons.settings_outlined),
 ];
 
-class ResponsiveShell extends StatelessWidget {
+class ResponsiveShell extends ConsumerWidget {
   const ResponsiveShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
   void _go(int index) => navigationShell.goBranch(index);
@@ -32,8 +39,8 @@ class ResponsiveShell extends StatelessWidget {
           children: [
             for (var i = 4; i < 6; i++)
               ListTile(
-                leading: Icon(_destinations[i].$2),
-                title: Text(_destinations[i].$1),
+                leading: Icon(shellDestinations[i].$2),
+                title: Text(shellDestinations[i].$1),
                 onTap: () => Navigator.pop(context, i),
               ),
             const SizedBox(height: 16),
@@ -41,150 +48,185 @@ class ResponsiveShell extends StatelessWidget {
         ),
       ),
     );
-    if (chosen != null && context.mounted) {
-      _go(chosen);
-    }
+    if (chosen != null && context.mounted) _go(chosen);
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final layout = layoutClassFor(constraints.maxWidth);
-      final compact = layout == LayoutClass.compact;
-      final add = FilledButton.icon(
-        key: const Key('add-action'),
-        onPressed: () => showAddActionSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
-      );
-      return Scaffold(
-        appBar: compact
-            ? AppBar(
-                title: const Text(
-                  'Tally',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                scrolledUnderElevation: 0,
-              )
-            : null,
-        body: SafeArea(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (layout == LayoutClass.expanded)
-                SizedBox(
-                  key: const Key('desktop-sidebar'),
-                  width: 230,
-                  child: Material(
-                    color: Theme.of(context).colorScheme.surface,
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 12),
-                            const Icon(Icons.equalizer_rounded, size: 36),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Tally',
-                              style: Theme.of(context).textTheme.headlineMedium,
-                            ),
-                            const Text('Know what’s due.'),
-                            const SizedBox(height: 32),
-                            add,
-                            const SizedBox(height: 24),
-                            for (var i = 0; i < _destinations.length; i++)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: ListTile(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  selected: navigationShell.currentIndex == i,
-                                  selectedTileColor: Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer,
-                                  leading: Icon(_destinations[i].$2),
-                                  title: Text(_destinations[i].$1),
-                                  onTap: () => _go(i),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preview =
+        ref.watch(environmentProvider).mode == AppEnvironment.preview;
+    final profile = preview ? null : ref.watch(userProfileProvider);
+    final name = profile?.displayName.trim().isNotEmpty == true
+        ? profile!.displayName
+        : 'Personal workspace';
+    final currency = profile?.defaultCurrency.code ?? 'PHP';
+    final date = TimezoneCatalog.now(profile?.timezone ?? 'Asia/Manila');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = layoutClassFor(constraints.maxWidth);
+        final compact = layout == LayoutClass.compact;
+        return Scaffold(
+          body: SafeArea(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (layout == LayoutClass.expanded)
+                  ShellSidebar(
+                    key: const Key('desktop-sidebar'),
+                    name: name,
+                    selected: navigationShell.currentIndex,
+                    go: _go,
+                    destinations: shellDestinations,
                   ),
-                ),
-              if (layout == LayoutClass.medium)
-                SingleChildScrollView(
-                  child: IntrinsicHeight(
-                    child: NavigationRail(
-                      selectedIndex: navigationShell.currentIndex,
-                      onDestinationSelected: _go,
-                      labelType: NavigationRailLabelType.all,
-                      leading: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Tally',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
+                if (layout == LayoutClass.medium)
+                  SingleChildScrollView(
+                    child: IntrinsicHeight(
+                      child: NavigationRail(
+                        selectedIndex: navigationShell.currentIndex,
+                        onDestinationSelected: _go,
+                        labelType: NavigationRailLabelType.all,
+                        leading: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Column(
+                            children: [
+                              const TallyBrand(size: 20),
+                              const SizedBox(height: 26),
+                              IconButton.filled(
+                                key: const Key('add-action'),
+                                tooltip: 'Add obligation',
+                                onPressed: () => openAddFlow(context),
+                                icon: const Icon(Icons.add),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            add,
-                          ],
-                        ),
-                      ),
-                      destinations: [
-                        for (final (label, icon) in _destinations)
-                          NavigationRailDestination(
-                            icon: Icon(icon),
-                            label: Text(label),
+                            ],
                           ),
-                      ],
+                        ),
+                        destinations: [
+                          for (final (label, icon) in shellDestinations)
+                            NavigationRailDestination(
+                              icon: Icon(icon, size: 20),
+                              label: Text(
+                                label,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1400),
-                    child: navigationShell,
+                Expanded(
+                  child: Column(
+                    children: [
+                      _Header(
+                        compact: compact,
+                        showDate: constraints.maxWidth > 1150,
+                        date:
+                            '${MaterialLocalizations.of(context).formatMediumDate(date)}, ${date.year}',
+                        currency: currency,
+                        label:
+                            shellDestinations[navigationShell.currentIndex].$1,
+                        go: _go,
+                      ),
+                      Expanded(child: navigationShell),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        floatingActionButton: compact
-            ? FloatingActionButton.extended(
-                key: const Key('add-action'),
-                onPressed: () => showAddActionSheet(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Add'),
-              )
-            : null,
-        bottomNavigationBar: compact
-            ? NavigationBar(
-                selectedIndex: navigationShell.currentIndex.clamp(0, 4),
-                onDestinationSelected: (index) => _mobileGo(context, index),
-                destinations: [
-                  for (final (label, icon) in _destinations.take(4))
-                    NavigationDestination(icon: Icon(icon), label: label),
-                  const NavigationDestination(
-                    icon: Icon(Icons.more_horiz),
-                    label: 'More',
+          floatingActionButton: compact
+              ? FloatingActionButton(
+                  key: const Key('add-action'),
+                  tooltip: 'Add obligation',
+                  onPressed: () => openAddFlow(context),
+                  child: const Icon(Icons.add),
+                )
+              : null,
+          bottomNavigationBar: compact
+              ? NavigationBar(
+                  height: 72,
+                  selectedIndex: navigationShell.currentIndex.clamp(0, 4),
+                  onDestinationSelected: (index) => _mobileGo(context, index),
+                  destinations: [
+                    for (final (label, icon) in shellDestinations.take(4))
+                      NavigationDestination(
+                        icon: Icon(icon, size: 19),
+                        label: label,
+                      ),
+                    const NavigationDestination(
+                      icon: Icon(Icons.more_horiz),
+                      label: 'More',
+                    ),
+                  ],
+                )
+              : null,
+        );
+      },
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.compact,
+    required this.showDate,
+    required this.date,
+    required this.currency,
+    required this.label,
+    required this.go,
+  });
+  final bool compact, showDate;
+  final String date, currency, label;
+  final ValueChanged<int> go;
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const Key('workspace-topbar'),
+      constraints: BoxConstraints(minHeight: compact ? 68 : 82),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 20 : 40,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: compact
+                ? const TallyBrand(size: 24)
+                : Text(
+                    'Your workspace   /   $label',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
-                ],
-              )
-            : null,
-      );
-    },
-  );
+          ),
+          if (showDate && MediaQuery.textScalerOf(context).scale(1) < 1.8)
+            Padding(
+              padding: const EdgeInsets.only(right: 19),
+              child: Text(
+                date,
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          OutlinedButton(
+            onPressed: () => go(5),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(60, 34),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: Text(currency, style: const TextStyle(fontSize: 11)),
+          ),
+          const SizedBox(width: 12),
+          IconButton.outlined(
+            tooltip: 'Activity and reminders',
+            onPressed: () => go(4),
+            icon: const Icon(Icons.notifications_none, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
 }
