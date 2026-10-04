@@ -24,7 +24,12 @@ export async function withOwner(label,run){
   const command=(id,payload)=>({commandId:id,expectedOwnerUid:user.uid,payload});
   return await run({user,call,command,root,adminDb,db});
  }finally{
-  if(user){await adminDb.recursiveDelete(adminDb.doc(`users/${user.uid}`));await deleteUser(user);}
+  if(user){
+    await adminDb.recursiveDelete(adminDb.doc(`users/${user.uid}`));
+    const jobs=await adminDb.collection('systemJobs').where('userId','==',user.uid).get();
+    for(const job of jobs.docs)await job.ref.delete();
+    await deleteUser(user);
+  }
   await terminate(db);await deleteApp(app);await deleteAdmin(admin);
  }
 }

@@ -1,3 +1,7 @@
+import {onDocumentWritten} from 'firebase-functions/v2/firestore';
+import {onSchedule} from 'firebase-functions/v2/scheduler';
+import {enqueueProjection,dispatchProjectionJobs,refreshDashboard as requestDashboardRefresh} from './jobs/projection_jobs.js';
+import {repairFiniteDebt as repairOwnerFiniteDebt} from './dashboard/repair.js';
 import { onCall } from 'firebase-functions/v2/https';
 import { validateEmulatorHealthRequest } from './emulator_health.js';
 import {getAuth} from 'firebase-admin/auth';
@@ -32,3 +36,18 @@ export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallmen
 export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));
 export const cancelInstallment = ownerCallable((uid,data)=>cancelOwnerInstallment(uid,data,database));
 export const recordInstallmentPayment = ownerCallable((uid,data)=>recordOwnerInstallmentPayment(uid,data,database));
+
+export const refreshDashboard=ownerCallable((uid,data)=>requestDashboardRefresh(uid,data,database));
+export const repairFiniteDebt=ownerCallable((uid,data)=>repairOwnerFiniteDebt(uid,data,database));
+export const projectFinancialMutation=onDocumentWritten(
+  {document:'users/{uid}/ledgerState/current',region:'asia-southeast1',retry:true,maxInstances:10},
+  async event=>{if(event.data?.after.exists)await enqueueProjection(event.params.uid,database);},
+);
+export const projectProfileChange=onDocumentWritten(
+  {document:'users/{uid}',region:'asia-southeast1',retry:true,maxInstances:10},
+  async event=>{if(event.data?.after.exists)await enqueueProjection(event.params.uid,database);},
+);
+export const processFinancialProjections=onSchedule(
+  {schedule:'every 5 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,memory:'1GiB',maxInstances:2},
+  async()=>{await dispatchProjectionJobs(database);},
+);
