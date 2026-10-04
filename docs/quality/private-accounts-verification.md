@@ -11,7 +11,7 @@ One session controller fences delayed bootstrap/profile work; the stable router 
 ## Evidence
 
 - Flutter analyzer: no issues.
-- Flutter tests: 136 passed; new real-environment and initialization-order cases observed RED then GREEN.
+- Flutter tests: 140 passed; new real-environment and initialization-order cases observed RED then GREEN.
 - Functions TypeScript build/unit checks: 20 passed.
 - Actual Firebase Emulator Suite rules/callable tests: 9 passed against demo-tally. These exercise repeated/concurrent bootstrap, ownership, revision conflicts, receipt replay, deletion fencing and direct-write denials.
 - Public web configuration/build guard tests: 3 passed; absent configuration exits before Flutter build.
@@ -58,3 +58,16 @@ M2: debts/receivables, contacts, sources/categories, payment ledger and traceabl
 
 
 Production and preview release web builds passed with bundled assets. The emulator web target is compiled for release verification but intentionally rejects browser startup in release/profile mode for the SDK reason above; use debug `flutter run` for actual web emulator development.
+
+## Fresh review and regression fixes
+
+One fresh read-only GPT-6-Astra review covered the complete M1 range (5ba4e21..fc57ade). No Critical issue was found. Both Important findings were reproduced with failing tests and fixed in one pass:
+
+- Mounted preference drafts now bind to the profile/revision they loaded. Untouched drafts refresh when another device updates the profile; dirty drafts preserve their original revision, show a conflict/reload message and cannot silently overwrite unseen changes. Reload explicitly adopts the latest values.
+- Route intent clears when an authenticated onboarding/session is abandoned. The redirect for the old route at logout is consumed once; a subsequent signed-out private deep link can be captured for the new session.
+
+Deferred minor: bootstrap seeds notificationPreferences/current while the published architecture specifies notificationPreferences/default/full schema. M5 must align/migrate these existing seeds before its first reminder reader and before launch.
+
+Review scope rulings: live Google/App Check/deployed callable integration remain real release gates (skipping them risks unusable login/records); native signing/OAuth/device checks remain native release gates (skipping them risks native login/services/build failure); financial/reminder/upload/offline/deletion implementations remain required subsequent increments (calling M1 the launch would leave the product incomplete). The reviewed account milestone is not launch completion.
+
+After the review fix pass, the full Flutter suite passed 140/140 and the analyzer reported no issues.

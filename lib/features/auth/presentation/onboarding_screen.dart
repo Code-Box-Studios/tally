@@ -48,12 +48,47 @@ class ProfilePreferencesForm extends ConsumerStatefulWidget {
 class _ProfilePreferencesFormState
     extends ConsumerState<ProfilePreferencesForm> {
   final _form = GlobalKey<FormState>();
-  late CurrencyCode _currency = widget.profile.defaultCurrency;
-  late final TextEditingController _timezone = TextEditingController(
-    text: widget.profile.timezone,
-  );
-  late ProfileTheme _theme = widget.profile.theme;
+  late UserProfile _baseProfile;
+  late CurrencyCode _currency;
+  late final TextEditingController _timezone;
+  late ProfileTheme _theme;
   bool _saved = false;
+  bool _dirty = false;
+  bool _remoteChanged = false;
+  @override
+  void initState() {
+    super.initState();
+    _baseProfile = widget.profile;
+    _currency = _baseProfile.defaultCurrency;
+    _timezone = TextEditingController(text: _baseProfile.timezone);
+    _theme = _baseProfile.theme;
+  }
+
+  void _loadProfile(UserProfile profile) {
+    _baseProfile = profile;
+    _currency = profile.defaultCurrency;
+    _timezone.text = profile.timezone;
+    _theme = profile.theme;
+    _dirty = false;
+    _remoteChanged = false;
+    _saved = false;
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfilePreferencesForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.profile.uid != _baseProfile.uid) {
+      _loadProfile(widget.profile);
+    } else if (widget.profile.revision != _baseProfile.revision) {
+      if (_dirty) {
+        _remoteChanged = true;
+        _saved = false;
+      } else {
+        _loadProfile(widget.profile);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _timezone.dispose();
@@ -80,13 +115,23 @@ class _ProfilePreferencesFormState
             onChanged: action.isLoading
                 ? null
                 : (value) {
-                    if (value != null) setState(() => _currency = value);
+                    if (value != null) {
+                      setState(() {
+                        _currency = value;
+                        _dirty = true;
+                        _saved = false;
+                      });
+                    }
                   },
           ),
           const SizedBox(height: 20),
           TextFormField(
             key: const Key('profile-timezone'),
             controller: _timezone,
+            onChanged: (_) => setState(() {
+              _dirty = true;
+              _saved = false;
+            }),
             enabled: !action.isLoading,
             decoration: const InputDecoration(
               labelText: 'Timezone',
@@ -114,9 +159,29 @@ class _ProfilePreferencesFormState
             onChanged: action.isLoading
                 ? null
                 : (value) {
-                    if (value != null) setState(() => _theme = value);
+                    if (value != null) {
+                      setState(() {
+                        _theme = value;
+                        _dirty = true;
+                        _saved = false;
+                      });
+                    }
                   },
           ),
+          if (_remoteChanged) ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: Text(
+                'Preferences changed on another device. Reload to use the latest values.',
+              ),
+            ),
+            TextButton(
+              onPressed: action.isLoading
+                  ? null
+                  : () => setState(() => _loadProfile(widget.profile)),
+              child: const Text('Reload preferences'),
+            ),
+          ],
           if (action.hasError)
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -140,7 +205,7 @@ class _ProfilePreferencesFormState
                     final saved = await ref
                         .read(profileActionsProvider.notifier)
                         .save(
-                          widget.profile,
+                          _baseProfile,
                           ProfilePreferences(
                             currency: _currency,
                             timezone: _timezone.text.trim(),
@@ -148,7 +213,12 @@ class _ProfilePreferencesFormState
                             onboardingComplete: true,
                           ),
                         );
-                    if (mounted && saved) setState(() => _saved = true);
+                    if (mounted && saved) {
+                      setState(() {
+                        _loadProfile(widget.profile);
+                        _saved = true;
+                      });
+                    }
                   },
             child: Text(
               action.isLoading

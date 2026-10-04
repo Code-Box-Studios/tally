@@ -6,14 +6,20 @@ import '../features/auth/domain/session_state.dart';
 final class SessionRouteGate extends ChangeNotifier {
   SessionState _session = const SessionState(SessionStage.initializing);
   String? _intended;
-  bool _hasBeenReady = false;
+  Uri? _lastLocation;
+  String? _logoutLocation;
 
   void update(SessionState state) {
-    if (state.stage == SessionStage.signedOut && _hasBeenReady) {
+    if (state.stage == SessionStage.signedOut &&
+        _session.stage != SessionStage.signedOut &&
+        _session.stage != SessionStage.initializing) {
       _intended = null;
+      final previous = _lastLocation;
+      _logoutLocation = previous != null && _private(previous)
+          ? previous.toString()
+          : null;
     }
     _session = state;
-    if (state.stage == SessionStage.ready) _hasBeenReady = true;
     notifyListeners();
   }
 
@@ -30,15 +36,17 @@ final class SessionRouteGate extends ChangeNotifier {
       ].any((path) => uri.path == path || uri.path.startsWith('$path/'));
 
   String? redirect(Uri uri) {
+    _lastLocation = uri;
     final public = const [
       '/startup',
       '/sign-in',
       '/onboarding',
     ].contains(uri.path);
-    if (_session.stage != SessionStage.ready &&
-        _private(uri) &&
-        !_hasBeenReady) {
-      _intended ??= uri.toString();
+    if (_session.stage != SessionStage.ready && _private(uri)) {
+      // The route still visible when logout fires belongs to the old session.
+      // Consume that single redirect; later signed-out navigation is a new intent.
+      if (_logoutLocation != uri.toString()) _intended ??= uri.toString();
+      _logoutLocation = null;
     }
     final target = switch (_session.stage) {
       SessionStage.initializing ||
