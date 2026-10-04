@@ -18,9 +18,16 @@ abstract final class ActivityDto {
               .where((value) => value.name == rawType)
               .firstOrNull ??
           ActivityType.unknown;
-      final rawAmount = d.value('amountMinor');
+      // Older canonical repair events carry the currency of the obligation,
+      // but do not describe a financial transaction or include an amount.
+      final rawAmount = type == ActivityType.aggregateRepaired
+          ? data['amountMinor']
+          : d.value('amountMinor');
       final rawCurrency = d.value('currency');
-      if ((rawAmount == null) != (rawCurrency == null)) {
+      final repairWithoutAmount =
+          type == ActivityType.aggregateRepaired && rawAmount == null;
+      if (!repairWithoutAmount &&
+          (rawAmount == null) != (rawCurrency == null)) {
         throw DocumentReader.invalid();
       }
       final currency = rawCurrency == null
@@ -38,9 +45,15 @@ abstract final class ActivityDto {
         owner: owner,
         type: type,
         title: d.text('title', max: 120, required: true),
-        amount: currency == null
+        amount: rawAmount == null
             ? null
-            : d.money('amountMinor', currency, positive: true),
+            : d.money(
+                'amountMinor',
+                currency!,
+                positive:
+                    type != ActivityType.obligationCancelled &&
+                    type != ActivityType.aggregateRepaired,
+              ),
         obligationId: obligation == null ? null : ObligationId(obligation),
         paymentId: payment == null
             ? null

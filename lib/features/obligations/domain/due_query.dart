@@ -28,6 +28,27 @@ final class DueQuery {
   final bool automaticOnly;
   final ObligationDirection? direction;
 
+  // Classification depends on civil dates, not elapsed minutes. Include every
+  // supported saved zone because a later page can contain a zone absent from
+  // the first page (or different from the user's current profile timezone).
+  // A single clock tick serves all Home queries, so cache only that instant.
+  static DateTime? _contextInstant;
+  static String? _contextValue;
+  static String _civilContext(DateTime instant) {
+    if (_contextInstant == instant) return _contextValue!;
+    final value = TimezoneCatalog.names
+        .map((zone) {
+          final local = TimezoneCatalog.at(instant, zone);
+          return '${local.year}-${local.month}-${local.day}';
+        })
+        .join('|');
+    _contextInstant = instant;
+    _contextValue = value;
+    return value;
+  }
+
+  late final String _civilDayContext = _civilContext(now);
+
   LocalDate _boundedDate(DateTime date) {
     if (date.year < 1900) return LocalDate.parse('1900-01-01');
     if (date.year > 2199) return LocalDate.parse('2199-12-31');
@@ -76,12 +97,18 @@ final class DueQuery {
   bool operator ==(Object other) =>
       other is DueQuery &&
       other.group == group &&
-      other.now == now &&
+      other._civilDayContext == _civilDayContext &&
       other.currency == currency &&
       other.section == section &&
       other.direction == direction &&
       other.automaticOnly == automaticOnly;
   @override
-  int get hashCode =>
-      Object.hash(group, now, currency, section, automaticOnly, direction);
+  int get hashCode => Object.hash(
+    group,
+    _civilDayContext,
+    currency,
+    section,
+    automaticOnly,
+    direction,
+  );
 }

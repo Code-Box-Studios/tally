@@ -4,7 +4,7 @@ M3 adds finite installment agreements, immutable allocations/corrections, owner-
 
 ## Automated evidence
 
-The final implementation passes clean Flutter analysis and **211 Flutter tests**, **45 Functions unit tests**, and **32 actual Firebase Emulator Suite tests**. Development used `demo-tally` Authentication, Firestore, Functions and Storage emulators; no production financial records were used.
+The final implementation, including the [independent review fixes](upcoming-obligations-review.md), passes clean Flutter analysis and **218 Flutter tests**, **45 Functions unit tests**, and **32 actual Firebase Emulator Suite tests**. Development used `demo-tally` Authentication, Firestore, Functions and Storage emulators; no production financial records were used.
 
 Financial coverage includes 120-period atomic creation, exact remainder splitting, principal conservation, 24-period allocation bounds, chosen-period payments, concurrent overpayment rejection, exact reversal/restoration, invalid replacement rollback, cancelled/history locks and optional correction revision fences. Legacy correction normalization remains unchanged for permanent receipt replay. Lost-response widget tests change live balances after a simulated committed save, then verify the original payment/correction payload and request identity are retried unchanged.
 
