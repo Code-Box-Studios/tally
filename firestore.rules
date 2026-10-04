@@ -20,7 +20,10 @@ service cloud.firestore {
         && resource.data.accountStatus == 'active';
       allow list, write: if false;
       match /{collection}/{documentId} {
-        allow get: if readable(collection) && active(uid) && resource.data.userId == uid;
+        allow get: if readable(collection) && active(uid)
+          && ((collection == 'summaries'
+            && !exists(/databases/$(database)/documents/users/$(uid)/$(collection)/$(documentId)))
+            || resource.data.userId == uid);
         // Only trusted commands populate these collections. Path ownership
         // authorizes bounded lists without a redundant userId query filter.
         allow list: if readable(collection) && active(uid)

@@ -5,6 +5,7 @@ import '../../../shared/data/owner_document_gateway.dart';
 import '../../../shared/domain/data_page.dart';
 import '../domain/payment_commands.dart';
 import '../domain/payment_entry.dart';
+import '../../../shared/domain/instance_revision.dart';
 import '../domain/payments_repository.dart';
 import 'payment_dto.dart';
 
@@ -43,9 +44,14 @@ final class FirestorePaymentsRepository extends FinancialRepositoryBase
     return PaymentResult(
       PaymentId(data.text('paymentId', required: true)),
       ObligationId(data.text('obligationId', required: true)),
-      InstanceId(data.text('obligationInstanceId', required: true)),
+      data.nullableText('obligationInstanceId', max: 128) == null
+          ? null
+          : InstanceId(data.text('obligationInstanceId', max: 128)),
       data.integer('obligationRevision', min: 1),
-      data.integer('instanceRevision', min: 1),
+      data.value('instanceRevision') == null
+          ? null
+          : data.integer('instanceRevision', min: 1),
+      allocationRevisions: _revisions(data),
     );
   }
 
@@ -63,9 +69,77 @@ final class FirestorePaymentsRepository extends FinancialRepositoryBase
       PaymentId(data.text('reversalId', required: true)),
       replacement == null ? null : PaymentId(replacement),
       ObligationId(data.text('obligationId', required: true)),
-      InstanceId(data.text('obligationInstanceId', required: true)),
+      data.nullableText('obligationInstanceId', max: 128) == null
+          ? null
+          : InstanceId(data.text('obligationInstanceId', max: 128)),
       data.integer('obligationRevision', min: 1),
-      data.integer('instanceRevision', min: 1),
+      data.value('instanceRevision') == null
+          ? null
+          : data.integer('instanceRevision', min: 1),
+      allocationRevisions: _revisions(data),
+    );
+  }
+
+  List<InstanceRevision> _revisions(DocumentReader data) {
+    final single = data.nullableText('obligationInstanceId', max: 128);
+    final raw = data.data['allocationRevisions'];
+    if (raw == null) {
+      if (single == null || data.value('instanceRevision') == null) {
+        throw DocumentReader.invalid();
+      }
+      return [
+        InstanceRevision(
+          InstanceId(single),
+          data.integer('instanceRevision', min: 1),
+        ),
+      ];
+    }
+    final revisions = [
+      for (final entry in data.objects('allocationRevisions', min: 1, max: 48))
+        InstanceRevision(
+          InstanceId(entry.text('instanceId', max: 128)),
+          entry.integer('instanceRevision', min: 1),
+        ),
+    ];
+    if (revisions.map((r) => r.id).toSet().length != revisions.length ||
+        (single == null &&
+            (data.value('instanceRevision') != null || revisions.length < 2)) ||
+        (single != null &&
+            !revisions.any(
+              (r) =>
+                  r.id.value == single &&
+                  r.revision == data.integer('instanceRevision', min: 1),
+            ))) {
+      throw DocumentReader.invalid();
+    }
+    return revisions;
+  }
+
+  @override
+  Future<PaymentResult> recordInstallment(
+    InstallmentPaymentDraft draft,
+    CommandId commandId,
+  ) async {
+    final data = DocumentReader(
+      await commands.call(
+        'recordInstallmentPayment',
+        commandId,
+        draft.toPayload(),
+      ),
+    );
+    final revisions = _revisions(data);
+    if (revisions.length > 24) throw DocumentReader.invalid();
+    return PaymentResult(
+      PaymentId(data.text('paymentId', max: 128, required: true)),
+      ObligationId(data.text('obligationId', max: 128, required: true)),
+      data.nullableText('obligationInstanceId', max: 128) == null
+          ? null
+          : InstanceId(data.text('obligationInstanceId', max: 128)),
+      data.integer('obligationRevision', min: 1),
+      data.value('instanceRevision') == null
+          ? null
+          : data.integer('instanceRevision', min: 1),
+      allocationRevisions: revisions,
     );
   }
 }

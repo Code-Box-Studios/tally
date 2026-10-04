@@ -31,6 +31,20 @@ final class DocumentOrder {
   final bool descending;
 }
 
+enum RangeComparison {
+  greaterThan,
+  greaterThanOrEqual,
+  lessThan,
+  lessThanOrEqual,
+}
+
+final class DocumentRange {
+  const DocumentRange(this.field, this.comparison, this.value);
+  final String field;
+  final RangeComparison comparison;
+  final Object value;
+}
+
 final class DocumentQuery {
   DocumentQuery(
     this.collection, {
@@ -38,8 +52,10 @@ final class DocumentQuery {
     this.after,
     Map<String, Object?> equals = const {},
     List<DocumentOrder> order = const [],
+    List<DocumentRange> ranges = const [],
   }) : equals = Map.unmodifiable(equals),
-       order = List.unmodifiable(order) {
+       order = List.unmodifiable(order),
+       ranges = List.unmodifiable(ranges) {
     if (limit < 1 || limit > 200 || !collections.contains(collection)) {
       throw ArgumentError('A bounded private query is required.');
     }
@@ -52,12 +68,15 @@ final class DocumentQuery {
     'paymentSources',
     'categories',
     'activities',
+    'summaries',
+    'ledgerState',
   };
   final String collection;
   final int limit;
   final PageCursor? after;
   final Map<String, Object?> equals;
   final List<DocumentOrder> order;
+  final List<DocumentRange> ranges;
 }
 
 abstract interface class OwnerDocumentGateway {

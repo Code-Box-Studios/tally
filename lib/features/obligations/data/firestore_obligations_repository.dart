@@ -5,6 +5,8 @@ import '../../../shared/data/financial_failure_mapper.dart';
 import '../../../shared/data/owner_document_gateway.dart';
 import '../../../shared/domain/data_page.dart';
 import '../domain/obligation.dart';
+import '../domain/installment_commands.dart';
+import '../../../shared/domain/instance_revision.dart';
 import '../domain/obligation_commands.dart';
 import '../domain/obligation_instance.dart';
 import '../domain/obligations_repository.dart';
@@ -122,6 +124,70 @@ final class FirestoreObligationsRepository extends FinancialRepositoryBase
     CommandId commandId,
   ) async => _result(
     await commands.call('cancelObligation', commandId, {
+      'obligationId': id.value,
+      'expectedRevision': expectedRevision,
+      'reason': reason,
+    }),
+  );
+  InstallmentResult _installmentResult(Map<String, Object?> raw) {
+    final data = DocumentReader(raw);
+    final ids = raw['obligationInstanceIds'];
+    if (ids is! List ||
+        ids.length < 2 ||
+        ids.length > 120 ||
+        ids.any((id) => id is! String)) {
+      throw DocumentReader.invalid();
+    }
+    final instanceIds = ids.map((id) => InstanceId(id as String)).toList();
+    final revisions = [
+      for (final item in data.objects('instanceRevisions', min: 2, max: 120))
+        InstanceRevision(
+          InstanceId(item.text('instanceId', max: 128)),
+          item.integer('instanceRevision', min: 1),
+        ),
+    ];
+    if (instanceIds.toSet().length != instanceIds.length ||
+        revisions.map((r) => r.id).toSet().length != revisions.length ||
+        revisions.length != instanceIds.length ||
+        !revisions.every((r) => instanceIds.contains(r.id))) {
+      throw DocumentReader.invalid();
+    }
+    return InstallmentResult(
+      id: ObligationId(data.text('obligationId', max: 128, required: true)),
+      instanceIds: instanceIds,
+      obligationRevision: data.integer('obligationRevision', min: 1),
+      instanceRevisions: revisions,
+    );
+  }
+
+  @override
+  Future<InstallmentResult> createInstallment(
+    InstallmentDraft draft,
+    CommandId commandId,
+  ) async => _installmentResult(
+    await commands.call('createInstallment', commandId, draft.toPayload()),
+  );
+  @override
+  Future<InstallmentResult> editInstallment(
+    ObligationId id,
+    int expectedRevision,
+    InstallmentDraft draft,
+    CommandId commandId,
+  ) async => _installmentResult(
+    await commands.call('editInstallment', commandId, {
+      ...draft.toPayload(),
+      'obligationId': id.value,
+      'expectedRevision': expectedRevision,
+    }),
+  );
+  @override
+  Future<InstallmentResult> cancelInstallment(
+    ObligationId id,
+    int expectedRevision,
+    String reason,
+    CommandId commandId,
+  ) async => _installmentResult(
+    await commands.call('cancelInstallment', commandId, {
       'obligationId': id.value,
       'expectedRevision': expectedRevision,
       'reason': reason,

@@ -46,6 +46,24 @@ abstract final class ObligationDto {
                     : ObligationSection.owedToMe))) {
       throw DocumentReader.invalid();
     }
+    final single = d.nullableText('singleInstanceId', max: 128);
+    final rawIds = data['installmentInstanceIds'];
+    final ids = <InstanceId>[];
+    if (type == ObligationType.installment) {
+      if (single != null ||
+          rawIds is! List ||
+          rawIds.length < 2 ||
+          rawIds.length > 120) {
+        throw DocumentReader.invalid();
+      }
+      for (final raw in rawIds) {
+        if (raw is! String) throw DocumentReader.invalid();
+        ids.add(InstanceId(raw));
+      }
+      if (ids.toSet().length != ids.length) throw DocumentReader.invalid();
+    } else if (!recurring && single == null) {
+      throw DocumentReader.invalid();
+    }
     final origination = d.date('originationDate');
     final due = d.nullableDate('dueDate');
     if (due != null && due.compareTo(origination) < 0) {
@@ -93,6 +111,7 @@ abstract final class ObligationDto {
       singleInstanceId: d.nullableText('singleInstanceId', max: 128) == null
           ? null
           : InstanceId(d.text('singleInstanceId', max: 128)),
+      installmentInstanceIds: ids,
       interestInfo: interest == null
           ? null
           : InterestInfo(

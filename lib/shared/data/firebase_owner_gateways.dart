@@ -26,6 +26,9 @@ final class FirebaseOwnerDocuments implements OwnerDocumentGateway {
     request.collection,
     request.equals,
     request.order.map((order) => [order.field, order.descending]).toList(),
+    request.ranges
+        .map((range) => [range.field, range.comparison.name, range.value])
+        .toList(),
   ]);
   Query<Map<String, dynamic>> _query(DocumentQuery request) {
     Query<Map<String, dynamic>> query = firestore
@@ -34,6 +37,26 @@ final class FirebaseOwnerDocuments implements OwnerDocumentGateway {
         .collection(request.collection);
     for (final filter in request.equals.entries) {
       query = query.where(filter.key, isEqualTo: filter.value);
+    }
+    for (final range in request.ranges) {
+      query = switch (range.comparison) {
+        RangeComparison.greaterThan => query.where(
+          range.field,
+          isGreaterThan: range.value,
+        ),
+        RangeComparison.greaterThanOrEqual => query.where(
+          range.field,
+          isGreaterThanOrEqualTo: range.value,
+        ),
+        RangeComparison.lessThan => query.where(
+          range.field,
+          isLessThan: range.value,
+        ),
+        RangeComparison.lessThanOrEqual => query.where(
+          range.field,
+          isLessThanOrEqualTo: range.value,
+        ),
+      };
     }
     for (final order in request.order) {
       query = query.orderBy(order.field, descending: order.descending);

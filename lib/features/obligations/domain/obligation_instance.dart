@@ -27,6 +27,7 @@ final class ObligationInstance {
     required this.periodLabel,
     required this.closed,
     required this.revision,
+    this.hasPaymentHistory,
   });
   final InstanceId id;
   final ObligationId obligationId;
@@ -48,4 +49,5 @@ final class ObligationInstance {
   final String periodLabel;
   final bool closed;
   final int revision;
+  final bool? hasPaymentHistory;
 }

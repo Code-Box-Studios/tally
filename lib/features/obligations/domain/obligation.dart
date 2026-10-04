@@ -53,7 +53,7 @@ final class InterestInfo {
 }
 
 final class Obligation {
-  const Obligation({
+  Obligation({
     required this.id,
     required this.owner,
     required this.type,
@@ -87,7 +87,8 @@ final class Obligation {
     required this.hasPaymentHistory,
     required this.revision,
     required this.createdAt,
-  });
+    List<InstanceId> installmentInstanceIds = const [],
+  }) : installmentInstanceIds = List.unmodifiable(installmentInstanceIds);
   final ObligationId id;
   final OwnerUid owner;
   final ObligationType type;
@@ -110,6 +111,7 @@ final class Obligation {
   final SourceId? paymentSourceId;
   final SourceLabel? source;
   final InstanceId? singleInstanceId;
+  final List<InstanceId> installmentInstanceIds;
   final InterestInfo? interestInfo;
   final bool archived, hasPaymentHistory;
   final int revision;

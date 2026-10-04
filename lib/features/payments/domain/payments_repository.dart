@@ -14,6 +14,10 @@ abstract interface class PaymentsRepository {
     int limit = 50,
     PageCursor? after,
   });
+  Future<PaymentResult> recordInstallment(
+    InstallmentPaymentDraft draft,
+    CommandId commandId,
+  );
   Future<PaymentResult> record(PaymentDraft draft, CommandId commandId);
   Future<CorrectionResult> correct(
     PaymentCorrection correction,

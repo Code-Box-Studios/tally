@@ -33,6 +33,11 @@ abstract final class PaymentDto {
             allocations.length) {
       throw DocumentReader.invalid();
     }
+    final instance = d.nullableText('obligationInstanceId', max: 128);
+    if (instance !=
+        (allocations.length == 1 ? allocations.single.instanceId.value : null)) {
+      throw DocumentReader.invalid();
+    }
     final type = d.enumeration('entryType', PaymentEntryType.values);
     final reverses = d.nullableText('reversesPaymentId', max: 128);
     final group = d.nullableText('correctionGroupId', max: 128);

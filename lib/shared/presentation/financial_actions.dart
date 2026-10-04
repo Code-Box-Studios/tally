@@ -6,6 +6,7 @@ import '../../core/identifiers/command_id_factory.dart';
 import '../../core/identifiers/entity_ids.dart';
 import '../../features/auth/presentation/auth_providers.dart';
 import '../../features/obligations/domain/obligation_commands.dart';
+import '../../features/obligations/domain/installment_commands.dart';
 import '../../features/payments/domain/payment_commands.dart';
 import '../data/financial_failure_mapper.dart';
 import '../domain/catalog.dart';
@@ -50,6 +51,49 @@ class FinancialActions extends AsyncNotifier<void> {
     }
   }
 
+  Future<InstallmentResult?> createInstallment(InstallmentDraft draft) => _run(
+    'createInstallment',
+    draft.toPayload(),
+    (id) =>
+        ref.read(obligationsRepositoryProvider).createInstallment(draft, id),
+  );
+  Future<InstallmentResult?> editInstallment(
+    ObligationId obligationId,
+    int revision,
+    InstallmentDraft draft,
+  ) => _run(
+    'editInstallment',
+    {
+      ...draft.toPayload(),
+      'obligationId': obligationId.value,
+      'expectedRevision': revision,
+    },
+    (id) => ref
+        .read(obligationsRepositoryProvider)
+        .editInstallment(obligationId, revision, draft, id),
+  );
+  Future<InstallmentResult?> cancelInstallment(
+    ObligationId obligationId,
+    int revision,
+    String reason,
+  ) => _run(
+    'cancelInstallment',
+    {
+      'obligationId': obligationId.value,
+      'expectedRevision': revision,
+      'reason': reason,
+    },
+    (id) => ref
+        .read(obligationsRepositoryProvider)
+        .cancelInstallment(obligationId, revision, reason, id),
+  );
+  Future<PaymentResult?> recordInstallmentPayment(
+    InstallmentPaymentDraft draft,
+  ) => _run(
+    'recordInstallmentPayment',
+    draft.toPayload(),
+    (id) => ref.read(paymentsRepositoryProvider).recordInstallment(draft, id),
+  );
   Future<ObligationResult?> createObligation(ObligationDraft draft) => _run(
     'createObligation',
     draft.toPayload(),

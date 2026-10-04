@@ -58,3 +58,7 @@ final class AttachmentId extends _EntityId {
 final class CommandId extends _EntityId {
   CommandId(super.value);
 }
+
+final class ActivityId extends _EntityId {
+  ActivityId(super.value);
+}

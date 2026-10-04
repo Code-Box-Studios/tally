@@ -53,6 +53,9 @@ abstract final class InstanceDto {
       periodLabel: d.text('periodLabel', max: 120),
       closed: d.boolean('closed'),
       revision: d.revision(),
+      hasPaymentHistory: data.containsKey('hasPaymentHistory')
+          ? d.boolean('hasPaymentHistory')
+          : null,
     );
   }
 }

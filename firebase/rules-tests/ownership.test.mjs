@@ -12,6 +12,7 @@ before(async () => {
     await setDoc(doc(db,'users/deleting'),{userId:'deleting',accountStatus:'deleting'});
     await setDoc(doc(db,'users/alice/obligations/debt'),{userId:'alice',remainingMinor:700000});
     await setDoc(doc(db,'users/alice/obligations/forged'),{userId:'bob'});
+    await setDoc(doc(db,'users/alice/summaries/forged'),{userId:'bob'});
     await setDoc(doc(db,'users/deleting/obligations/debt'),{userId:'deleting'});
     for(const name of ['devices','paymentReversals','attachmentSets','unexpected']) await setDoc(doc(db,`users/alice/${name}/private`),{userId:'alice'});
   });
@@ -52,4 +53,18 @@ test('even the owner cannot directly create, edit or delete canonical data',asyn
   await assertFails(setDoc(doc(db,'users/alice/payments/forged'),{userId:'alice',amountMinor:300000}));
   await assertFails(updateDoc(doc(db,'users/alice/obligations/debt'),{remainingMinor:0}));
   await assertFails(deleteDoc(doc(db,'users/alice/obligations/debt')));
+});
+test('only an active owner can observe a missing summary while it is being generated',async()=>{
+  const path='users/alice/summaries/dashboard-PHP';
+  const own=env.authenticatedContext('alice').firestore();
+  const missing=await assertSucceeds(getDoc(doc(own,path)));
+  if(missing.exists())throw new Error('Expected a missing projection');
+  await assertFails(getDoc(doc(own,'users/alice/summaries/forged')));
+  await assertFails(getDoc(doc(own,'users/alice/obligations/missing')));
+  await assertFails(setDoc(doc(own,path),{userId:'alice'}));
+  for(const actor of [null,'bob','deleting']){
+    const db=(actor===null?env.unauthenticatedContext():env.authenticatedContext(actor)).firestore();
+    await assertFails(getDoc(doc(db,path)));
+  }
+  await assertFails(getDoc(doc(env.authenticatedContext('deleting').firestore(),'users/deleting/summaries/dashboard-PHP')));
 });
