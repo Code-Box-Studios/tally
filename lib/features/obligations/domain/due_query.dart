@@ -18,11 +18,15 @@ final class DueQuery {
     required DateTime now,
     this.currency,
     this.section,
+    this.automaticOnly = false,
+    this.direction,
   }) : now = now.toUtc();
   final DueGroup group;
   final DateTime now;
   final CurrencyCode? currency;
   final ObligationSection? section;
+  final bool automaticOnly;
+  final ObligationDirection? direction;
 
   LocalDate _boundedDate(DateTime date) {
     if (date.year < 1900) return LocalDate.parse('1900-01-01');
@@ -51,7 +55,9 @@ final class DueQuery {
         instance.status == FinancialStatus.paid ||
         instance.remainingAmount?.minorUnits == 0 ||
         (currency != null && instance.currency != currency) ||
-        (section != null && instance.section != section)) {
+        (section != null && instance.section != section) ||
+        (direction != null && instance.direction != direction) ||
+        (automaticOnly && instance.paymentMode == PaymentMode.manual)) {
       return false;
     }
     final local = TimezoneCatalog.at(now, instance.timezone);
@@ -72,7 +78,10 @@ final class DueQuery {
       other.group == group &&
       other.now == now &&
       other.currency == currency &&
-      other.section == section;
+      other.section == section &&
+      other.direction == direction &&
+      other.automaticOnly == automaticOnly;
   @override
-  int get hashCode => Object.hash(group, now, currency, section);
+  int get hashCode =>
+      Object.hash(group, now, currency, section, automaticOnly, direction);
 }

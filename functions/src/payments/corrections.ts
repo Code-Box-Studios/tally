@@ -2,13 +2,17 @@ import {FieldValue,type Firestore} from 'firebase-admin/firestore';
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from '../shared/callable.js';
 import {executeOwnerCommand} from '../shared/commands.js';
-import {identifier,moneyMinor,textValue} from '../shared/validation.js';
+import {identifier,moneyMinor,textValue,revision} from '../shared/validation.js';
 import {allocatePayment,validateAllocations} from './allocation.js';
 import {applyFiniteBalances,changeAllocatedBalance,readFiniteDebt,recovery} from './finite_debt.js';
 import {paymentDocument,paymentSourceSnapshot,validatePaymentDate,validatePaymentTerms} from './payment_service.js';
 export function validateCorrection(input:unknown){
-  const raw=exactObject(input,['paymentId','reason','replacement']);
-  return {paymentId:identifier(raw.paymentId),reason:textValue(raw.reason,1000,true),replacement:raw.replacement===null ? null : validatePaymentTerms(raw.replacement)};
+  const withRevision=input!==null && typeof input==='object' && Object.hasOwn(input,'expectedObligationRevision');
+  const raw=exactObject(input,['paymentId','reason','replacement',...(withRevision?['expectedObligationRevision']:[])]);
+  // Preserve normalization for existing receipts when this optional fence is
+  // absent. Adding a null key would change their idempotency payload hashes.
+  return {paymentId:identifier(raw.paymentId),reason:textValue(raw.reason,1000,true),replacement:raw.replacement===null ? null : validatePaymentTerms(raw.replacement),
+    ...(withRevision?{expectedObligationRevision:revision(raw.expectedObligationRevision)}:{})};
 }
 export async function correctPayment(uid:string,input:unknown,db:Firestore){
   return executeOwnerCommand(uid,input,'correctPayment',validateCorrection,async(context,payload)=>{
@@ -17,6 +21,8 @@ export async function correctPayment(uid:string,input:unknown,db:Firestore){
     const marker=await context.maybeRead('paymentReversals',payload.paymentId);
     if(marker)throw new HttpsError('failed-precondition','This payment has already been corrected.');
     const debt=await readFiniteDebt(context,identifier(original.obligationId));const parent=debt.parent;
+    if(payload.expectedObligationRevision!==undefined && payload.expectedObligationRevision!==parent.revision)
+      throw new HttpsError('aborted','This obligation changed. Refresh before correcting its payment.');
     let originalAllocations;
     try {
       originalAllocations=validateAllocations(original.allocations);

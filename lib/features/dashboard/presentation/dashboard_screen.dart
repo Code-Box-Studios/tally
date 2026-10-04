@@ -12,6 +12,7 @@ import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../domain/dashboard_summary.dart';
 import 'dashboard_providers.dart';
+import 'private_dashboard_screen.dart';
 import 'widgets/due_list.dart';
 import 'widgets/summary_card.dart';
 
@@ -21,6 +22,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preview =
         ref.watch(environmentProvider).mode == AppEnvironment.preview;
+    if (!preview) return const PrivateDashboardScreen();
     return ref
         .watch(dashboardSummaryProvider)
         .when(

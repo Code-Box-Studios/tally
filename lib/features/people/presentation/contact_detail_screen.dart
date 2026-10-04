@@ -6,12 +6,11 @@ import '../../../shared/presentation/catalog_editor.dart';
 import '../../../shared/presentation/financial_form_support.dart';
 import '../../../shared/presentation/financial_providers.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/page_body.dart';
 import '../../../shared/widgets/paged_records.dart';
 import '../../obligations/domain/obligation.dart';
 import '../../obligations/presentation/obligation_row.dart';
-import '../domain/contact_position.dart';
+import 'contact_position_panel.dart';
 
 class ContactDetailScreen extends ConsumerWidget {
   const ContactDetailScreen({super.key, required this.id});
@@ -68,6 +67,8 @@ class ContactDetailScreen extends ConsumerWidget {
                     child: Text(contact.notes),
                   ),
                 const SizedBox(height: 24),
+                ContactPositionPanel(contactId: id),
+                const SizedBox(height: 24),
                 PagedRecords<Obligation>(
                   first: ref.watch(contactObligationsProvider(id)),
                   loadMore: (cursor) => ref
@@ -83,66 +84,9 @@ class ContactDetailScreen extends ConsumerWidget {
                     ),
                   ),
                   builder: (context, values, complete) {
-                    final positions = ContactPositionCalculator.calculate(
-                      values,
-                    );
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          complete
-                              ? 'Current position'
-                              : 'Position for loaded obligations',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        if (!complete)
-                          const Text(
-                            'Load every page for a complete position.',
-                          ),
-                        const Text(
-                          'Each obligation keeps its own balance. Net position is informational.',
-                        ),
-                        const SizedBox(height: 16),
-                        for (final position in positions.entries)
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(position.key.code),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 24,
-                                    runSpacing: 16,
-                                    children: [
-                                      for (final value in [
-                                        ('I owe', position.value.youOwe),
-                                        (
-                                          'Owed to me',
-                                          position.value.owedToYou,
-                                        ),
-                                        ('Net position', position.value.net),
-                                      ])
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(value.$1),
-                                            MoneyText(
-                                              money: value.$2,
-                                              includeCode: true,
-                                            ),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 24),
                         Text(
                           'Obligations and payment histories',
                           style: Theme.of(context).textTheme.titleLarge,

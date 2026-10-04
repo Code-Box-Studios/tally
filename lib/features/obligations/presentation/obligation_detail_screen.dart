@@ -18,8 +18,10 @@ import '../../../shared/widgets/paged_records.dart';
 import '../../payments/domain/payment_entry.dart';
 import '../../payments/presentation/payment_editor.dart';
 import '../../payments/presentation/payment_correction_editor.dart';
+import '../../payments/presentation/payment_allocations.dart';
 import '../domain/obligation.dart';
 import 'obligation_editor.dart';
+import 'installment_periods_panel.dart';
 
 class ObligationDetailScreen extends ConsumerWidget {
   const ObligationDetailScreen({
@@ -66,7 +68,9 @@ class ObligationDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 Expanded(
-                  child: ObligationEditor(key: ValueKey(id), initial: parent),
+                  child: parent.type == ObligationType.installment
+                      ? InstallmentPeriodsPanel(parent: parent, editing: true)
+                      : ObligationEditor(key: ValueKey(id), initial: parent),
                 ),
               ],
             );
@@ -206,6 +210,10 @@ class ObligationDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+                if (parent.type == ObligationType.installment) ...[
+                  InstallmentPeriodsPanel(parent: parent),
+                  const SizedBox(height: 24),
+                ],
                 Text(
                   'Payment history',
                   style: Theme.of(context).textTheme.titleLarge,
@@ -293,6 +301,14 @@ class ObligationDetailScreen extends ConsumerWidget {
                                     '${entry.date} · ${methodLabel(entry.method)}${entry.source == null ? '' : ' · ${entry.source!.name}'}',
                                   ),
                                   if (entry.notes.isNotEmpty) Text(entry.notes),
+                                  if (parent.type == ObligationType.installment)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: PaymentAllocations(
+                                        parent: parent,
+                                        allocations: entry.allocations,
+                                      ),
+                                    ),
                                   if (entry.correctionReason != null)
                                     Text(
                                       'Correction reason: ${entry.correctionReason}',
@@ -332,13 +348,18 @@ class _CancelDialogState extends ConsumerState<_CancelDialog> {
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     setState(() => _submitted = true);
-    final result = await ref
-        .read(financialActionsProvider.notifier)
-        .cancelObligation(
-          widget.parent.id,
-          widget.parent.revision,
-          _reason.text.trim(),
-        );
+    final actions = ref.read(financialActionsProvider.notifier);
+    final result = widget.parent.type == ObligationType.installment
+        ? await actions.cancelInstallment(
+            widget.parent.id,
+            widget.parent.revision,
+            _reason.text.trim(),
+          )
+        : await actions.cancelObligation(
+            widget.parent.id,
+            widget.parent.revision,
+            _reason.text.trim(),
+          );
     if (mounted && result != null) Navigator.pop(context);
   }
 

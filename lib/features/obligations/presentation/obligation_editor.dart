@@ -16,6 +16,9 @@ import '../../../shared/widgets/page_body.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../domain/obligation.dart';
 import '../domain/obligation_commands.dart';
+import '../domain/obligation_instance.dart';
+import '../domain/installment_commands.dart';
+import 'installment_schedule_editor.dart';
 
 class ObligationEditor extends ConsumerStatefulWidget {
   const ObligationEditor({
@@ -23,16 +26,22 @@ class ObligationEditor extends ConsumerStatefulWidget {
     this.initial,
     this.direction = ObligationDirection.owedByMe,
     this.onSaved,
+    this.onInstallmentSaved,
+    this.initialInstances = const [],
   });
   final Obligation? initial;
   final ObligationDirection direction;
   final ValueChanged<ObligationResult>? onSaved;
+  final ValueChanged<InstallmentResult>? onInstallmentSaved;
+  final List<ObligationInstance> initialInstances;
   @override
   ConsumerState<ObligationEditor> createState() => _ObligationEditorState();
 }
 
 class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   final _form = GlobalKey<FormState>();
+  final _schedule = GlobalKey<InstallmentScheduleEditorState>();
+  bool _installments = false;
   late final Obligation? _base;
   late final TextEditingController _title,
       _amount,
@@ -56,6 +65,7 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   void initState() {
     super.initState();
     _base = widget.initial;
+    _installments = _base?.type == ObligationType.installment;
     final profile = ref.read(userProfileProvider);
     _currency = _base?.currency ?? profile.defaultCurrency;
     _direction = _base?.direction ?? widget.direction;
@@ -106,6 +116,8 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
   bool get _locked => _base?.hasPaymentHistory == true;
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
+    final schedule = _installments ? _schedule.currentState?.validate() : null;
+    if (_installments && schedule == null) return;
     setState(() => _submitted = true);
     final draft = ObligationDraft(
       title: _title.text.trim(),
@@ -114,7 +126,9 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
       direction: _direction,
       amount: Money.parse(_amount.text, _currency),
       originationDate: LocalDate.parse(_date.text.trim()),
-      dueDate: _due.text.trim().isEmpty
+      dueDate: _installments
+          ? schedule!.maturity
+          : _due.text.trim().isEmpty
           ? null
           : LocalDate.parse(_due.text.trim()),
       contactId: _contact,
@@ -129,6 +143,23 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
             ),
     );
     final actions = ref.read(financialActionsProvider.notifier);
+    if (_installments) {
+      final installment = InstallmentDraft(draft, schedule!);
+      final saved = _base == null
+          ? await actions.createInstallment(installment)
+          : await actions.editInstallment(
+              _base.id,
+              _base.revision,
+              installment,
+            );
+      if (!mounted || saved == null) return;
+      if (widget.onInstallmentSaved != null) {
+        widget.onInstallmentSaved!(saved);
+      } else {
+        context.go('/obligations/${saved.id.value}');
+      }
+      return;
+    }
     final saved = _base == null
         ? await actions.createObligation(draft)
         : await actions.editObligation(_base.id, _base.revision, draft);
@@ -224,6 +255,7 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
     child: TextFormField(
       key: Key(key),
       controller: controller,
+      onChanged: (_) => setState(() {}),
       enabled: enabled,
       maxLength: max,
       keyboardType: keyboard,
@@ -319,25 +351,43 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
                               ? 'Choose today or an earlier date.'
                               : null),
                     ),
-                    _field(
-                      _due,
-                      'obligation-due',
-                      'Due date (optional, YYYY-MM-DD)',
-                      enabled: _base?.status != FinancialStatus.paid,
-                      validate: (value) {
-                        final invalid = dateValidation(value, optional: true);
-                        if (invalid != null || (value ?? '').trim().isEmpty) {
-                          return invalid;
-                        }
-                        if (dateValidation(_date.text) != null) return null;
-                        return LocalDate.parse(value!.trim()).compareTo(
-                                  LocalDate.parse(_date.text.trim()),
-                                ) <
-                                0
-                            ? 'Due date cannot be before the borrowed or lent date.'
-                            : null;
-                      },
-                    ),
+                    if (!_installments)
+                      _field(
+                        _due,
+                        'obligation-due',
+                        'Due date (optional, YYYY-MM-DD)',
+                        enabled: _base?.status != FinancialStatus.paid,
+                        validate: (value) {
+                          final invalid = dateValidation(value, optional: true);
+                          if (invalid != null || (value ?? '').trim().isEmpty) {
+                            return invalid;
+                          }
+                          if (dateValidation(_date.text) != null) return null;
+                          return LocalDate.parse(value!.trim()).compareTo(
+                                    LocalDate.parse(_date.text.trim()),
+                                  ) <
+                                  0
+                              ? 'Due date cannot be before the borrowed or lent date.'
+                              : null;
+                        },
+                      ),
+                    if (_base == null)
+                      SwitchListTile(
+                        key: const Key('installment-toggle'),
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Pay in installments'),
+                        value: _installments,
+                        onChanged: (value) =>
+                            setState(() => _installments = value),
+                      ),
+                    if (_installments)
+                      InstallmentScheduleEditor(
+                        key: _schedule,
+                        principalText: _amount.text,
+                        currency: _currency,
+                        originationText: _date.text,
+                        initial: widget.initialInstances,
+                      ),
                     Text(
                       'Person or organization',
                       style: Theme.of(context).textTheme.labelLarge,

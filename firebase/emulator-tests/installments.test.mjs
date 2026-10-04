@@ -100,3 +100,20 @@ test('unpaid installment amounts can be redistributed while periods with immutab
   await assert.rejects(call('editInstallment',command('rewrite-reversed',{...schedule([20_000,30_000,50_000]),obligationId:created.obligationId,expectedRevision:4})),{code:'functions/failed-precondition'});
   assert.deepEqual((await periods(root,created)).map(x=>x.amountMinor),[30_000,20_000,50_000]);
 }));
+test('a correction preview revision rejects concurrent payments without changing immutable history',async()=>withOwner('installments-correction-preview',async({call,command,root})=>{
+  const created=await call('createInstallment',command('create',schedule()));
+  const paid=await call('recordInstallmentPayment',command('first-payment',payment(created,20_000)));
+  const original=(await root.collection('payments').doc(paid.paymentId).get()).data();
+  const previewRevision=(await parentOf(root,created).get()).data().revision;
+  await call('recordInstallmentPayment',command('concurrent-payment',payment(created,10_000)));
+  const before=(await parentOf(root,created).get()).data();
+  const correction={paymentId:paid.paymentId,reason:'Correct amount',replacement:terms(15_000),expectedObligationRevision:previewRevision};
+  await assert.rejects(call('correctPayment',command('stale-preview',correction)),{code:'functions/aborted'});
+  assert.deepEqual((await parentOf(root,created).get()).data(),before);
+  assert.deepEqual((await root.collection('payments').doc(paid.paymentId).get()).data(),original);
+  assert.equal((await root.collection('payments').get()).size,2);
+  assert.equal((await root.collection('paymentReversals').get()).size,0);
+  const result=await call('correctPayment',command('current-preview',{...correction,expectedObligationRevision:before.revision}));
+  assert.ok(result.replacementId);
+  assert.deepEqual((await root.collection('payments').doc(paid.paymentId).get()).data(),original);
+}));

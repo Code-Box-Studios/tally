@@ -49,14 +49,18 @@ final class PaymentCorrection {
     required this.paymentId,
     required this.reason,
     this.replacement,
+    this.expectedObligationRevision,
   });
   final PaymentId paymentId;
   final String reason;
   final PaymentTerms? replacement;
+  final int? expectedObligationRevision;
   Map<String, Object?> toPayload() => {
     'paymentId': paymentId.value,
     'reason': reason,
     'replacement': replacement?.toPayload(),
+    if (expectedObligationRevision != null)
+      'expectedObligationRevision': expectedObligationRevision,
   };
 }
 
