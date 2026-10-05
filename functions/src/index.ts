@@ -19,6 +19,9 @@ import {confirmDeduction as confirmOwnerDeduction,reportDeductionFailure as repo
 import {updateNotificationPreferences as updateOwnerNotificationPreferences,setObligationReminder as setOwnerObligationReminder} from './notifications/preference_service.js';
 import {markReminderRead as markOwnerReminderRead} from './notifications/inbox_service.js';
 import {enqueueOwnerReminders} from './notifications/reconciliation.js';
+import {registerNotificationDevice as registerOwnerNotificationDevice,unregisterNotificationDevice as unregisterOwnerNotificationDevice,
+  listNotificationDevices as listOwnerNotificationDevices} from './notifications/device_service.js';
+import {cleanupNotificationDevices} from './notifications/device_cleanup.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -49,6 +52,9 @@ export const reportDeductionFailure = ownerCallable((uid,data)=>reportOwnerDeduc
 export const updateNotificationPreferences=ownerCallable((uid,data)=>updateOwnerNotificationPreferences(uid,data,database));
 export const markReminderRead=ownerCallable((uid,data)=>markOwnerReminderRead(uid,data,database));
 export const setObligationReminder=ownerCallable((uid,data)=>setOwnerObligationReminder(uid,data,database));
+export const registerNotificationDevice=ownerCallable((uid,data)=>registerOwnerNotificationDevice(uid,data,database));
+export const unregisterNotificationDevice=ownerCallable((uid,data)=>unregisterOwnerNotificationDevice(uid,data,database));
+export const listNotificationDevices=ownerCallable((uid,data)=>listOwnerNotificationDevices(uid,data,database));
 
 export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallment(uid,data,database));
 export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));
@@ -72,6 +78,10 @@ export const reconcileReminderPreferences=onDocumentWritten(
 export const processFinancialJobs=onSchedule(
   {schedule:'every 5 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,memory:'1GiB',maxInstances:2},
   async()=>{await dispatchReadyJobs(database);},
+);
+export const retireStaleNotificationDevices=onSchedule(
+  {schedule:'every 24 hours',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,maxInstances:1},
+  async()=>{await cleanupNotificationDevices(database);},
 );
 export const processReadyFinancialJob=onDocumentWritten(
   {document:'systemJobs/{jobId}',region:'asia-southeast1',retry:true,maxInstances:10,timeoutSeconds:540,memory:'1GiB'},

@@ -3,13 +3,17 @@ import {identifier,revision} from '../shared/validation.js';
 import {periodJobId} from '../jobs/recurring_jobs.js';
 import {owned,readReminderContext,reminderRecovery} from './context.js';
 import {assertReminderLease,clearedReminderLease,validateReminderJob} from './reminder_jobs.js';
+import {getMessaging} from 'firebase-admin/messaging';
+import {getApp} from 'firebase-admin/app';
+import {FcmNotificationTransport} from './fcm_transport.js';
+import {deliverExternal} from './external_delivery.js';
 
-export interface NotificationMessage {token:string;title:string;body:string;data:Readonly<Record<string,string>>}
+export interface NotificationMessage {token:string;title:string;body:string;data:Readonly<Record<string,string>>;expiresAt?:Date}
 export interface NotificationTransport {send(message:NotificationMessage):Promise<'delivered'|'invalid'|'retry'>}
 export interface ReminderDeliveryResult {published:boolean;external?:'pending'|'disabled'|'expired'}
-export async function deliverReminder(jobId:string,token:string,db:Firestore,_transport?:NotificationTransport,injectedNow?:Date):Promise<ReminderDeliveryResult> {
+export async function deliverReminder(jobId:string,token:string,db:Firestore,transport?:NotificationTransport,injectedNow?:Date):Promise<ReminderDeliveryResult> {
   const ref=db.collection('systemJobs').doc(identifier(jobId)),clock=()=>injectedNow??new Date();
-  return db.runTransaction(async transaction=>{
+  const result:ReminderDeliveryResult=await db.runTransaction(async transaction=>{
     const job=(await transaction.get(ref)).data();if(!job)return reminderRecovery();validateReminderJob(jobId,job);
     if(job.kind!=='reminderDelivery'||!assertReminderLease(job,token,clock()))return {published:false};
     const root=db.doc(`users/${job.userId}`),entryRef=root.collection('reminders').doc(identifier(job.subjectId));
@@ -47,9 +51,13 @@ export async function deliverReminder(jobId:string,token:string,db:Firestore,_tr
         currency:entry.amountMinor===null?null:entry.currency,obligationCurrency:entry.currency,direction:context.instance.direction,
         userId:context.uid,schemaVersion:1,recordedAt:FieldValue.serverTimestamp(),createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
     }
-    // Task4 consumes this durable handoff using private bindings and receipts.
-    transaction.update(ref,{status:'complete',nextRunAt:null,generation:revision(job.generation+1),...clearedReminderLease,
+    transaction.update(ref,{...(external==='pending'?{}:{status:'complete',nextRunAt:null,generation:revision(job.generation+1),...clearedReminderLease}),
       externalState:external,updatedAt:FieldValue.serverTimestamp()});
     return {published:!entry.visible,external};
   });
+  if(result.external==='pending')await deliverExternal(jobId,token,db,transport??new FcmNotificationTransport(getMessaging(),{
+    emulator:process.env.FUNCTIONS_EMULATOR==='true'||!!process.env.FIRESTORE_EMULATOR_HOST,
+    projectId:process.env.GCLOUD_PROJECT??getApp().options.projectId??'',
+  }),clock);
+  return result;
 }

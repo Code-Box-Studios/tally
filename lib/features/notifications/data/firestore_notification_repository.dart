@@ -10,6 +10,15 @@ import '../domain/notification_preferences.dart';
 import '../domain/notification_repository.dart';
 import '../domain/reminder_entry.dart';
 import 'notification_dto.dart';
+import '../domain/notification_device.dart';
+import 'notification_device_dto.dart';
+
+final class _DeviceCursor implements PageCursor {
+  const _DeviceCursor(this.owner, this.limit, this.after);
+  final OwnerUid owner;
+  final int limit;
+  final String after;
+}
 
 final class _InboxCursor implements PageCursor {
   const _InboxCursor(this.owner, this.query, this.raw);
@@ -21,6 +30,103 @@ final class _InboxCursor implements PageCursor {
 final class FirestoreNotificationRepository extends FinancialRepositoryBase
     implements NotificationRepository {
   FirestoreNotificationRepository(super.documents, super.commands);
+  Future<NotificationDevice> _deviceCommand(
+    String name,
+    CommandId id,
+    Map<String, Object?> payload,
+    String installationId,
+  ) async {
+    try {
+      final result = await commands.call(name, id, payload);
+      final device = NotificationDeviceDto.fromMap(
+        DocumentReader(result).object('device').data,
+        owner,
+      );
+      if (device.installationId != installationId) {
+        throw DocumentReader.invalid();
+      }
+      return device;
+    } catch (error) {
+      throw financialFailure(error);
+    }
+  }
+
+  @override
+  Future<NotificationDevice> registerDevice(
+    CommandId commandId,
+    NotificationDeviceRegistration registration,
+  ) => _deviceCommand(
+    'registerNotificationDevice',
+    commandId,
+    registration.toPayload(),
+    registration.installationId,
+  );
+  @override
+  Future<NotificationDevice> unregisterDevice(
+    CommandId commandId,
+    NotificationDevice device,
+  ) async {
+    if (device.owner != owner) {
+      throw ArgumentError('This device belongs to another owner.');
+    }
+    return _deviceCommand('unregisterNotificationDevice', commandId, {
+      'installationId': device.installationId,
+      'expectedRevision': device.revision,
+    }, device.installationId);
+  }
+
+  @override
+  Future<DataPage<NotificationDevice>> listDevices(
+    CommandId commandId,
+    NotificationDeviceQuery query, {
+    PageCursor? after,
+  }) async {
+    if (after != null &&
+        (after is! _DeviceCursor ||
+            after.owner != owner ||
+            after.limit != query.limit)) {
+      throw ArgumentError('Invalid device page cursor.');
+    }
+    final cursor = after as _DeviceCursor?;
+    try {
+      final r = DocumentReader(
+        await commands.call('listNotificationDevices', commandId, {
+          'limit': query.limit,
+          'after': cursor?.after,
+        }),
+      );
+      final devices = r
+          .objects('devices', max: query.limit)
+          .map((raw) => NotificationDeviceDto.fromMap(raw.data, owner))
+          .toList();
+      for (var i = 0; i < devices.length; i++) {
+        final previous = i == 0 ? cursor?.after : devices[i - 1].installationId;
+        if (previous != null &&
+            devices[i].installationId.compareTo(previous) <= 0) {
+          throw DocumentReader.invalid();
+        }
+      }
+      final next = r.nullableText('nextCursor', max: 128);
+      if (next != null) {
+        CommandId(next);
+        if (devices.length != query.limit ||
+            devices.last.installationId != next) {
+          throw DocumentReader.invalid();
+        }
+      }
+      return DataPage(
+        items: devices,
+        nextCursor: next == null
+            ? null
+            : _DeviceCursor(owner, query.limit, next),
+        hasMore: next != null,
+        isFromCache: false,
+      );
+    } catch (error) {
+      throw financialFailure(error);
+    }
+  }
+
   DocumentQuery _query(NotificationInboxQuery query, PageCursor? after) {
     PageCursor? cursor;
     if (after != null) {

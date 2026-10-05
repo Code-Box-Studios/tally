@@ -40,9 +40,29 @@ paired null money/currency for an unknown bill and its separate native currency.
 External alerts expire 24 hours after their scheduled instant. Late events can
 still appear in the inbox without a flood of external banners. External text is
 generic and cannot include financial details. The durable delivery handoff is
-`pending`, `disabled` or `expired`; private device bindings and transport
-receipts are the following implementation task. Emulator checks prove inbox
-and job behavior, not real FCM/APNs delivery.
+`pending`, `disabled` or `expired`. External work continues on the same leased
+job after inbox publication, in pages of ten active push devices. Each send has
+a private deterministic receipt keyed by reminder, installation, token generation
+and binding generation. Accepted receipts are skipped on retry; ambiguous network
+results retry the logical receipt with capped backoff. A five-second timeout bounds
+each network attempt outside Firestore transactions. Service acceptance is not a
+physical device receipt, and an ambiguous attempt can duplicate a generic banner.
+Emulator checks use injected transports, never real FCM/APNs.
+
+Every send rechecks active account, period, preferences, current lease and global
+token binding before authorization and after the result. A stale result cannot
+retire a newer token or account binding. Invalid registration codes deactivate
+only the matching generation; payload/configuration errors retry. Android/Web TTL
+and APNs expiration retain the original external expiry. Expired external work
+completes while preserving inbox/read history. SDK transport rejects demo projects
+and emulator runtimes before invoking Messaging.
+
+Devices use user-owned private `notificationDevices` subcollections and a private
+`notificationTokenBindings/{sha256(token)}` global ownership record. Only trusted
+callables register, list or unregister devices; sanitized responses exclude tokens,
+hashes and generation internals. Registration changes never advance the financial
+ledger. Stale cleanup scans at most 100 active devices inactive for 90 days and
+rechecks the heartbeat and binding before retirement.
 
 The dispatcher processes at most 25 jobs within 450 seconds, retaining the
 180-second projection and 60-second other-job reserves. Failed work keeps a
@@ -53,7 +73,9 @@ Actual query indexes are committed in `firestore.indexes.json`: existing
 `systemJobs(kind,status,nextRunAt)` and `(kind,status,leaseExpiresAt)` cover the
 extended queue; unsent cancellation uses
 `reminders(instanceId,visible,status,__name__)`; the private inbox uses
-`reminders(visible,scheduledAt DESC)`. Index deployment and readiness remain a
+`reminders(visible,scheduledAt DESC)`. Device delivery uses `notificationDevices(active,channel,__name__)`; stale
+cleanup uses collection-group `notificationDevices(active,lastSeenAt)`.
+Index deployment and readiness remain a
 staging gate because emulator execution does not establish production readiness.
 
 For operational repair, re-enqueue a validated active owner's reconciliation

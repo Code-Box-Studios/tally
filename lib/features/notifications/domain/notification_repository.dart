@@ -4,6 +4,7 @@ import '../../obligations/domain/obligation.dart';
 import '../../recurring/domain/recurring_schedule.dart';
 import 'notification_preferences.dart';
 import 'reminder_entry.dart';
+import 'notification_device.dart';
 
 final class NotificationInboxQuery {
   NotificationInboxQuery({required DateTime until, this.limit = 50})
@@ -25,6 +26,19 @@ final class NotificationInboxQuery {
 
 abstract interface class NotificationRepository {
   OwnerUid get owner;
+  Future<NotificationDevice> registerDevice(
+    CommandId commandId,
+    NotificationDeviceRegistration registration,
+  );
+  Future<NotificationDevice> unregisterDevice(
+    CommandId commandId,
+    NotificationDevice device,
+  );
+  Future<DataPage<NotificationDevice>> listDevices(
+    CommandId commandId,
+    NotificationDeviceQuery query, {
+    PageCursor? after,
+  });
   Stream<NotificationPreferences> watchPreferences();
   Stream<DataPage<ReminderEntry>> watchInbox(NotificationInboxQuery query);
   Future<DataPage<ReminderEntry>> getInbox(

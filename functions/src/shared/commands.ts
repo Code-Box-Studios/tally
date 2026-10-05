@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {FieldValue,type DocumentReference,type DocumentData,type Firestore,type Transaction,type WhereFilterOp} from 'firebase-admin/firestore';
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from './callable.js';
-import {identifier} from './validation.js';
+import {identifier,revision} from './validation.js';
 import {stageProjectionMutation} from '../jobs/projection_jobs.js';
 import {stageReminderReconciliation} from '../notifications/reconciliation_job.js';
 
@@ -45,6 +45,29 @@ export class OwnerCommandContext {
   systemJob(id:string,data:DocumentData,exists:boolean):void {
     this.writes.push({kind:exists?'update':'create',ref:this.root.firestore.collection('systemJobs').doc(identifier(id)),
       data:exists?{...data,userId:this.uid,updatedAt:FieldValue.serverTimestamp()}:{...data,...this.audit()}});
+  }
+  async notificationBinding(hash:string):Promise<DocumentData|null> {
+    if(!/^[a-f0-9]{64}$/.test(hash))throw new HttpsError('internal','Invalid notification reference.');
+    const snapshot=await this.transaction.get(this.root.firestore.collection('notificationTokenBindings').doc(hash));
+    const data=snapshot.data();
+    if(data&&(data.schemaVersion!==1||data.tokenHash!==hash))throw new HttpsError('failed-precondition','Your notifications need recovery.');
+    return data??null;
+  }
+  stageNotificationBinding(hash:string,data:DocumentData,exists:boolean):void {
+    if(!/^[a-f0-9]{64}$/.test(hash)||data.userId!==this.uid||data.tokenHash!==hash)
+      throw new HttpsError('internal','Invalid notification ownership.');
+    this.writes.push({kind:exists?'update':'create',ref:this.root.firestore.collection('notificationTokenBindings').doc(hash),
+      data:{...data,...(exists?{updatedAt:FieldValue.serverTimestamp()}:this.audit())}});
+  }
+  async retireBoundNotificationDevice(uid:string,installationId:string,hash:string,generation:number):Promise<boolean> {
+    const ref=this.root.firestore.doc(`users/${identifier(uid)}/notificationDevices/${identifier(installationId)}`);
+    const data=(await this.transaction.get(ref)).data();
+    if(!data)return false;
+    if(data.userId!==uid||data.schemaVersion!==1||data.installationId!==installationId)
+      throw new HttpsError('failed-precondition','Your notifications need recovery.');
+    if(data.tokenHash!==hash||data.tokenGeneration!==generation)return false;
+    this.writes.push({kind:'update',ref,data:{active:false,channel:'none',revision:revision(data.revision+1),updatedAt:FieldValue.serverTimestamp()}});
+    return true;
   }
   async countWhere(collection:string,filters:readonly {field:string;op:WhereFilterOp;value:unknown}[]):Promise<number> {
     let query=this.root.collection(collection).where('userId','==',this.uid);
