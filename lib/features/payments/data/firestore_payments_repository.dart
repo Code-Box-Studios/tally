@@ -9,6 +9,21 @@ import '../../../shared/domain/instance_revision.dart';
 import '../domain/payments_repository.dart';
 import 'payment_dto.dart';
 
+final class _PeriodPaymentsCursor implements PageCursor {
+  const _PeriodPaymentsCursor(
+    this.owner,
+    this.parent,
+    this.period,
+    this.limit,
+    this.raw,
+  );
+  final OwnerUid owner;
+  final ObligationId parent;
+  final InstanceId period;
+  final int limit;
+  final PageCursor raw;
+}
+
 final class FirestorePaymentsRepository extends FinancialRepositoryBase
     implements PaymentsRepository {
   FirestorePaymentsRepository(super.documents, super.commands);
@@ -36,6 +51,74 @@ final class FirestorePaymentsRepository extends FinancialRepositoryBase
     int limit = 50,
     PageCursor? after,
   }) => get(_query(obligationId, limit, after), _entry);
+
+  DocumentQuery _periodQuery(
+    ObligationId parent,
+    InstanceId period,
+    int limit,
+    PageCursor? after,
+  ) {
+    PageCursor? raw;
+    if (after != null) {
+      if (after is! _PeriodPaymentsCursor ||
+          after.owner != owner ||
+          after.parent != parent ||
+          after.period != period ||
+          after.limit != limit) {
+        throw DocumentReader.invalid();
+      }
+      raw = after.raw;
+    }
+    return DocumentQuery(
+      'payments',
+      limit: limit,
+      after: raw,
+      equals: {
+        'obligationId': parent.value,
+        'obligationInstanceId': period.value,
+      },
+      order: const [
+        DocumentOrder('paymentDate', descending: true),
+        DocumentOrder('createdAt', descending: true),
+      ],
+    );
+  }
+
+  DataPage<PaymentEntry> _boundPeriod(
+    DataPage<PaymentEntry> page,
+    ObligationId parent,
+    InstanceId period,
+    int limit,
+  ) => DataPage(
+    items: page.items,
+    nextCursor: page.nextCursor == null
+        ? null
+        : _PeriodPaymentsCursor(owner, parent, period, limit, page.nextCursor!),
+    hasMore: page.hasMore,
+    isFromCache: page.isFromCache,
+  );
+
+  @override
+  Stream<DataPage<PaymentEntry>> watchPeriodPayments(
+    ObligationId obligationId,
+    InstanceId instanceId, {
+    int limit = 50,
+  }) => watch(
+    _periodQuery(obligationId, instanceId, limit, null),
+    _entry,
+  ).map((page) => _boundPeriod(page, obligationId, instanceId, limit));
+  @override
+  Future<DataPage<PaymentEntry>> getPeriodPayments(
+    ObligationId obligationId,
+    InstanceId instanceId, {
+    int limit = 50,
+    PageCursor? after,
+  }) async => _boundPeriod(
+    await get(_periodQuery(obligationId, instanceId, limit, after), _entry),
+    obligationId,
+    instanceId,
+    limit,
+  );
   @override
   Future<PaymentResult> record(PaymentDraft draft, CommandId commandId) async {
     final data = DocumentReader(

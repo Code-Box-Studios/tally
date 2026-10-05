@@ -174,6 +174,22 @@ All ordinary queries below run against `users/{uid}/collection`, so composite in
 | Jobs due (implemented) | kind=ownerProjection or recurringGeneration; status=pending; nextRunAt <= now ASC | systemJobs: kind ASC, status ASC, nextRunAt ASC |
 | Expired job leases (implemented) | kind=chosen; status=leased; leaseExpiresAt <= now ASC | systemJobs: kind ASC, status ASC, leaseExpiresAt ASC |
 
+M5a's implemented planner selects exactly one primary equality in this order:
+contactId, categoryId, paymentSourceId, currency, section, paymentMode. Obligations
+add archived=false and createdAt DESC; period/calendar queries use dueDate ASC
+with optional civil bounds. All remaining filters are residual predicates.
+The checked-in indexes now include each of those individual shapes and selected
+recurring-period payments (obligationId, obligationInstanceId, paymentDate DESC,
+createdAt DESC). Existing compound contact/tab indexes remain for older screens.
+Every request scans at most five50-record candidate pages and returns at most50
+matches; an owner/full-criteria/civil-day-bound cursor retains surplus and allows
+explicit continuation beyond250 or1,000 records. Sparse/cache results are never
+claimed complete. Explicit cancellation stops after the in-flight candidate read;
+owner-scope disposal discards all old results and stops further reads. Canonical
+snapshot labels support text search; current catalog labels remain available via
+stable-ID filters. Actual emulator query/Rules tests cover these shapes; deployed
+composite-index readiness is still required in staging.
+
 Unfiltered calendar dueDate, paymentDate, activity createdAt, and contact searchName ordering use single-field indexes. Declare composite definitions in `firestore.indexes.json` during the appropriate milestone; deploy indexes before shipping their queries. Verify query results and rule denial in emulators, and readiness/latency in staging; emulator query success alone does not prove an index is deployed.
 
 After a timezone change, existing instances can have different zone snapshots. Due Today/Soon/Overdue queries fetch a conservative civil-date envelope across supported zones and classify every candidate using that instance's timezone and the injected current instant. They do not assume that the current profile timezone changed old schedules. Calendar/month membership still uses the stored due-date label without converting it through UTC. Automatic instants come from each instance's scheduled timezone.

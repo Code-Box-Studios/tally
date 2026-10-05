@@ -5,6 +5,7 @@ import '../../obligations/domain/obligation_instance.dart';
 import 'financial_filter.dart';
 import 'period_query.dart';
 import 'query_page.dart';
+import 'query_cancellation.dart';
 
 abstract interface class SearchRepository {
   OwnerUid get owner;
@@ -16,10 +17,12 @@ abstract interface class SearchRepository {
     FinancialFilter filter,
     DateTime now, {
     PageCursor? after,
+    QueryCancellation? cancellation,
   });
   Stream<QueryPage<ObligationInstance>> watchPeriods(PeriodQuery query);
   Future<QueryPage<ObligationInstance>> getPeriods(
     PeriodQuery query, {
     PageCursor? after,
+    QueryCancellation? cancellation,
   });
 }

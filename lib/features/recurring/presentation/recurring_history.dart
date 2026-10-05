@@ -150,15 +150,19 @@ class RecurringPeriodHistory extends ConsumerWidget {
         'Corrections add a reversal and optional replacement in this same period.',
       ),
       PagedRecords<PaymentEntry>(
-        first: ref.watch(paymentsPageProvider(parent.id)),
+        first: ref.watch(
+          periodPaymentsPageProvider((parent: parent.id, period: instance.id)),
+        ),
         loadMore: (cursor) => ref
             .read(paymentsRepositoryProvider)
-            .getPayments(parent.id, after: cursor),
+            .getPeriodPayments(parent.id, instance.id, after: cursor),
         identity: (value) => value.id.value,
-        onRetry: () => ref.invalidate(paymentsPageProvider(parent.id)),
+        onRetry: () => ref.invalidate(
+          periodPaymentsPageProvider((parent: parent.id, period: instance.id)),
+        ),
         empty: const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text('No payments recorded for this bill yet.'),
+          child: Text('No payments recorded for this period yet.'),
         ),
         builder: (context, entries, complete) {
           final selected = entries
@@ -175,7 +179,7 @@ class RecurringPeriodHistory extends ConsumerWidget {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: Text(
-                    'Showing loaded history for this period. Load more bill payments to check earlier records.',
+                    'Showing loaded history for this period. Load more payments to check earlier records.',
                   ),
                 ),
               if (selected.isEmpty)

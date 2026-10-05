@@ -81,6 +81,14 @@ final paymentsPageProvider = StreamProvider.autoDispose
       (ref, id) => ref.watch(paymentsRepositoryProvider).watchPayments(id),
       dependencies: [paymentsRepositoryProvider],
     );
+typedef PeriodPaymentKey = ({ObligationId parent, InstanceId period});
+final periodPaymentsPageProvider = StreamProvider.autoDispose
+    .family<DataPage<PaymentEntry>, PeriodPaymentKey>(
+      (ref, key) => ref
+          .watch(paymentsRepositoryProvider)
+          .watchPeriodPayments(key.parent, key.period),
+      dependencies: [paymentsRepositoryProvider],
+    );
 final contactsPageProvider = StreamProvider.autoDispose<DataPage<Contact>>(
   (ref) => ref.watch(catalogRepositoryProvider).watchContacts(),
   dependencies: [catalogRepositoryProvider],

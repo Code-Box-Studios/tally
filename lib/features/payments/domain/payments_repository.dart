@@ -14,6 +14,17 @@ abstract interface class PaymentsRepository {
     int limit = 50,
     PageCursor? after,
   });
+  Stream<DataPage<PaymentEntry>> watchPeriodPayments(
+    ObligationId obligationId,
+    InstanceId instanceId, {
+    int limit = 50,
+  });
+  Future<DataPage<PaymentEntry>> getPeriodPayments(
+    ObligationId obligationId,
+    InstanceId instanceId, {
+    int limit = 50,
+    PageCursor? after,
+  });
   Future<PaymentResult> recordInstallment(
     InstallmentPaymentDraft draft,
     CommandId commandId,
