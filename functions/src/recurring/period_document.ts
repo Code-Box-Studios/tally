@@ -4,6 +4,7 @@ import {occurrenceInstanceId} from '../shared/occurrence_id.js';
 import {statusForBalance} from '../shared/financial_status.js';
 import {localToday} from '../shared/validation.js';
 import {periodJobId} from '../jobs/recurring_jobs.js';
+import {stageReminderPeriod} from '../notifications/reminder_jobs.js';
 import {scheduledInstant} from './scheduled_time.js';
 import type {RecurrenceRule} from './recurrence.js';
 
@@ -29,8 +30,5 @@ export function stagePeriod(context:OwnerCommandContext,parent:DocumentData,peri
     nextRunAt:period.deductionAt,targetRevision:1,attempts:0,leaseToken:null,leaseGeneration:null,leaseExpiresAt:null,lastError:null,
     eventKey:`automatic:${period.occurrenceKey}:${period.snapshot.ruleVersion}`,
   },false);
-  if(parent.reminderPolicy.enabled)context.systemJob(periodJobId(context.uid,period.instanceId,'reminderPreparation'),{
-    kind:'reminderPreparation',subjectId:period.instanceId,obligationId:parent.obligationId,status:'pending',generation:1,
-    nextRunAt:Timestamp.fromDate(now),targetRevision:1,attempts:0,leaseToken:null,leaseGeneration:null,leaseExpiresAt:null,lastError:null,
-  },false);
+  stageReminderPeriod(context,parent.obligationId,period.instanceId,now);
 }

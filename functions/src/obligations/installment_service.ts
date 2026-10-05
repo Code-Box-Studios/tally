@@ -2,6 +2,7 @@ import type {Firestore} from 'firebase-admin/firestore';
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from '../shared/callable.js';
 import {executeOwnerCommand} from '../shared/commands.js';
+import {stageReminderPeriod} from '../notifications/reminder_jobs.js';
 import {statusForBalance} from '../shared/financial_status.js';
 import {occurrenceInstanceId} from '../shared/occurrence_id.js';
 import {identifier,invalid,localToday,revision,textValue} from '../shared/validation.js';
@@ -56,7 +57,10 @@ export async function createInstallment(uid:string,input:unknown,db:Firestore) {
       lifecycle:'active',archived:false,hasPaymentHistory:false,revision:1,
       reminderPolicy:{enabled:true,offsetDays:[3,0],localTime:'09:00',preferenceRevision:1},
     });
-    for(const instance of instances)context.create('obligationInstances',instance.instanceId,instance);
+    for(const instance of instances) {
+      context.create('obligationInstances',instance.instanceId,instance);
+      stageReminderPeriod(context,obligationId,instance.instanceId,new Date());
+    }
     context.activity('obligationCreated',{obligationId,title:payload.title,amountMinor:payload.amountMinor,currency:payload.currency,direction:payload.direction});
     return {obligationId,obligationInstanceIds,obligationRevision:1,instanceRevisions:instances.map(instance=>({instanceId:instance.instanceId,instanceRevision:1}))};
   },db);

@@ -94,11 +94,14 @@ test('refresh callable only enqueues work and bounded dispatcher publishes witho
   const before=(await root.collection('ledgerState').doc('current').get()).data().revision;
   assert.deepEqual(await call('refreshDashboard',command('refresh',{})),{accepted:true});
   await assert.rejects(call('refreshDashboard',{...command('foreign-refresh',{}),expectedOwnerUid:'another-owner'}),{code:'functions/permission-denied'});
-  await enqueueProjection(user.uid,adminDb,now,true);
-  const result=await dispatchProjectionJobs(adminDb,now,10);assert.ok(result.processed>=1);
+  // Queue liveness shares the wall clock with real emulator triggers. Keep
+  // historical dates only in pure financial projection scenarios.
+  await enqueueProjection(user.uid,adminDb,new Date(),true);
+  const result=await atPublication(adminDb,()=>dispatchProjectionJobs(adminDb,undefined,10),
+    ()=>enqueueProjection(user.uid,adminDb,new Date(),true));assert.ok(result.processed>=1);
   assert.equal((await readSummary(root)).youOweMinor,0);assert.equal((await root.collection('ledgerState').doc('current').get()).data().revision,before);
   const job=(await adminDb.collection('systemJobs').doc(projectionJobId(user.uid)).get()).data();
-  assert.equal(job.nextRunAt.toDate().toISOString(),'2026-10-04T16:00:00.000Z');
+  assert.equal(job.nextRunAt.toDate().toISOString(),`${job.targetDay}T16:00:00.000Z`);
   await adminDb.collection('systemJobs').doc(projectionJobId(user.uid)).delete();
 }));
 

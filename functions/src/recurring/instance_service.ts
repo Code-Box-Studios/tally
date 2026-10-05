@@ -35,9 +35,10 @@ export async function stagePeriodJobs(context:OwnerCommandContext,instance:Docum
     if(!job)continue;
     if(job.kind!==kind||job.subjectId!==instance.instanceId||job.obligationId!==instance.obligationId)throw new HttpsError('failed-precondition','This period job needs recovery.');
     // Completed financial events must never be restarted by an amount or due-date edit.
-    const terminal=['complete','cancelled'].includes(job.status);
+    const terminal=kind==='automaticDeduction'&&['complete','cancelled'].includes(job.status);
     context.systemJob(id,{generation:revision(job.generation)+1,targetRevision:updated.revision,
-      status:updated.closed?'cancelled':terminal?job.status:'pending',nextRunAt:updated.closed?null:kind==='automaticDeduction'?updated.deductionAt:Timestamp.fromDate(now),
+      status:kind==='reminderPreparation'?'pending':updated.closed?'cancelled':terminal?job.status:'pending',
+      nextRunAt:kind==='reminderPreparation'?Timestamp.fromDate(now):updated.closed||terminal?null:updated.deductionAt,
       leaseToken:null,leaseGeneration:null,leaseExpiresAt:null,attempts:0,lastError:null},true);
   }
 }

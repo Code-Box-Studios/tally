@@ -8,8 +8,12 @@ import {projectOwner} from '../dashboard/projector.js';
 import {claimRecurringJob,claimAutomaticJob,releaseRecurringJob} from './recurring_jobs.js';
 import {generateRecurringBatch} from '../recurring/generation.js';
 import {processAutomatic} from '../recurring/automatic_service.js';
+import {claimReminderJob,reminderJobKinds} from '../notifications/reminder_jobs.js';
+import {reconcileOwnerReminders} from '../notifications/reconciliation.js';
+import {prepareReminders} from '../notifications/preparation.js';
+import {deliverReminder} from '../notifications/delivery.js';
 
-const kinds=['ownerProjection','recurringGeneration','automaticDeduction'];
+const kinds=['ownerProjection','recurringGeneration','automaticDeduction',...reminderJobKinds];
 export function promptWorkerEnabled(emulator:boolean,projectId:string|undefined,mode:string|undefined):boolean {
   return !(emulator&&/^demo-[a-z0-9-]+$/.test(projectId??'')&&mode==='manual');
 }
@@ -35,6 +39,13 @@ export async function runReadyJob(jobId:string,db:Firestore,injectedNow?:Date):P
     if(job!.kind==='recurringGeneration') {
       const lease=await claimRecurringJob(jobId,db,clock());if(!lease)return false;token=lease.token;
       await generateRecurringBatch(jobId,lease.token,db,injectedNow);return true;
+    }
+    if(reminderJobKinds.includes(job!.kind)) {
+      const lease=await claimReminderJob(jobId,db,clock());if(!lease)return false;token=lease.token;
+      if(lease.kind==='reminderReconciliation')await reconcileOwnerReminders(jobId,lease.token,db,injectedNow);
+      else if(lease.kind==='reminderPreparation')await prepareReminders(jobId,lease.token,db,injectedNow);
+      else await deliverReminder(jobId,lease.token,db,undefined,injectedNow);
+      return true;
     }
     const lease=await claimAutomaticJob(jobId,db,clock());if(!lease)return false;token=lease.token;
     await processAutomatic(jobId,lease.token,db,injectedNow);return true;

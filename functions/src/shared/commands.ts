@@ -4,6 +4,7 @@ import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from './callable.js';
 import {identifier} from './validation.js';
 import {stageProjectionMutation} from '../jobs/projection_jobs.js';
+import {stageReminderReconciliation} from '../notifications/reconciliation_job.js';
 
 export function commandDocumentId(commandId:string,role:string):string {
   if(!/^[a-z][a-zA-Z0-9-]{0,31}$/.test(role))throw new Error('Invalid internal command role.');
@@ -92,7 +93,10 @@ async function runOwnerCommand<P,R>(uid:string,input:unknown,type:string,validat
     if(financial&&(!ledger || ledger.userId!==uid || ledger.schemaVersion!==1 || !Number.isSafeInteger(ledger.revision) || ledger.revision<0 || ledger.revision>=Number.MAX_SAFE_INTEGER))throw new HttpsError('failed-precondition','Your financial records need recovery.');
     const context=new OwnerCommandContext(transaction,root,uid,commandId,profile);
     const result=await handler(context,payload);
-    if(financial)await stageProjectionMutation(context,ledger!.revision+1,new Date());
+    if(financial) {
+      await stageProjectionMutation(context,ledger!.revision+1,new Date());
+      await stageReminderReconciliation(context);
+    }
     context.create('commandReceipts',commandId,{commandType:type,payloadHash:hash,result,recordedAt:FieldValue.serverTimestamp()});
     if(financial)context.update('ledgerState','current',{revision:ledger!.revision+1,lastMutationAt:FieldValue.serverTimestamp()});
     context.commit();

@@ -18,6 +18,7 @@ import {dispatchReadyJobs,runReadyJob,shouldRunPrompt,promptWorkerEnabled} from 
 import {confirmDeduction as confirmOwnerDeduction,reportDeductionFailure as reportOwnerDeductionFailure} from './recurring/automatic_service.js';
 import {updateNotificationPreferences as updateOwnerNotificationPreferences,setObligationReminder as setOwnerObligationReminder} from './notifications/preference_service.js';
 import {markReminderRead as markOwnerReminderRead} from './notifications/inbox_service.js';
+import {enqueueOwnerReminders} from './notifications/reconciliation.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -58,11 +59,15 @@ export const refreshDashboard=ownerCallable((uid,data)=>requestDashboardRefresh(
 export const repairFiniteDebt=ownerCallable((uid,data)=>repairOwnerFiniteDebt(uid,data,database));
 export const projectFinancialMutation=onDocumentWritten(
   {document:'users/{uid}/ledgerState/current',region:'asia-southeast1',retry:true,maxInstances:10},
-  async event=>{if(event.data?.after.exists)await enqueueProjection(event.params.uid,database);},
+  async event=>{if(event.data?.after.exists)await Promise.all([enqueueProjection(event.params.uid,database),enqueueOwnerReminders(event.params.uid,database)]);},
 );
 export const projectProfileChange=onDocumentWritten(
   {document:'users/{uid}',region:'asia-southeast1',retry:true,maxInstances:10},
-  async event=>{if(event.data?.after.exists)await enqueueProjection(event.params.uid,database);},
+  async event=>{if(event.data?.after.exists)await Promise.all([enqueueProjection(event.params.uid,database),enqueueOwnerReminders(event.params.uid,database)]);},
+);
+export const reconcileReminderPreferences=onDocumentWritten(
+  {document:'users/{uid}/notificationPreferences/default',region:'asia-southeast1',retry:true,maxInstances:10},
+  async event=>{if(event.data?.after.exists)await enqueueOwnerReminders(event.params.uid,database);},
 );
 export const processFinancialJobs=onSchedule(
   {schedule:'every 5 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,memory:'1GiB',maxInstances:2},

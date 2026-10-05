@@ -3,6 +3,7 @@ import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from '../shared/callable.js';
 import {statusForBalance} from '../shared/financial_status.js';
 import {executeOwnerCommand,type OwnerCommandContext} from '../shared/commands.js';
+import {stageReminderPeriod} from '../notifications/reminder_jobs.js';
 import {civilDate,currencyCode,enumValue,identifier,invalid,localToday,moneyMinor,nullableDate,nullableId,revision,textValue,type Currency} from '../shared/validation.js';
 export interface ObligationInput {
   title:string;description:string;notes:string;direction:'owedByMe'|'owedToMe';currency:Currency;amountMinor:number;
@@ -49,6 +50,7 @@ export async function createObligation(uid:string,input:unknown,db:Firestore){
     const financialStatus=statusForBalance(0,payload.amountMinor,payload.dueDate,localToday(context.profile.timezone));
     context.create('obligations',obligationId,{...terms(payload,snapshots),timezone:context.profile.timezone,obligationId,singleInstanceId:obligationInstanceId,totalPaidMinor:0,remainingMinor:payload.amountMinor,nextDueDate:payload.dueDate,lifecycle:'active',financialStatus,archived:false,hasPaymentHistory:false,revision:1,reminderPolicy:{enabled:true,offsetDays:[3,0],localTime:'09:00',preferenceRevision:1}});
     context.create('obligationInstances',obligationInstanceId,{instanceId:obligationInstanceId,obligationId,occurrenceKey:'one-time',occurrenceDate:payload.originationDate,periodLabel:'One-time',yearMonth:payload.dueDate?.slice(0,7) ?? null,dueDate:payload.dueDate,deductionDate:null,timezone:context.profile.timezone,direction:payload.direction,section,contactId:payload.contactId,categoryId:payload.categoryId,currency:payload.currency,amountMinor:payload.amountMinor,amountState:'known',financialStatus,deductionStatus:null,paymentMode:'manual',paymentSourceId:payload.paymentSourceId,snapshot:{title:payload.title,...snapshots},templateRevision:1,totalPaidMinor:0,remainingMinor:payload.amountMinor,closed:false,lastDeductionAttemptId:null,revision:1});
+    stageReminderPeriod(context,obligationId,obligationInstanceId,new Date());
     context.activity('obligationCreated',{obligationId,title:payload.title,amountMinor:payload.amountMinor,currency:payload.currency,direction:payload.direction});
     return {obligationId,obligationInstanceId,obligationRevision:1,instanceRevision:1};
   },db);
