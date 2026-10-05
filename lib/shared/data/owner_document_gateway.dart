@@ -70,6 +70,8 @@ final class DocumentQuery {
     'activities',
     'summaries',
     'ledgerState',
+    'deductionAttempts',
+    'paymentEvidence',
   };
   final String collection;
   final int limit;

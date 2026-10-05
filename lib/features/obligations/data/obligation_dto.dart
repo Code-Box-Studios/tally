@@ -3,6 +3,7 @@ import '../../../core/money/currency_code.dart';
 import '../../../shared/data/document_reader.dart';
 import '../../../shared/data/catalog_dto.dart';
 import '../domain/obligation.dart';
+import '../../recurring/data/recurrence_dto.dart';
 
 abstract final class ObligationDto {
   static Obligation fromMap(
@@ -70,6 +71,16 @@ abstract final class ObligationDto {
       throw DocumentReader.invalid();
     }
     final interest = d.nullableObject('interestInfo');
+    final recurrence = recurring
+        ? RecurrenceDto.fromMap(d.object('recurrence').data)
+        : null;
+    if (recurring &&
+        (single != null ||
+            due != null ||
+            d.nullableDate('nextDueDate') != null ||
+            recurrence!.rule.timezone != d.timezone('timezone'))) {
+      throw DocumentReader.invalid();
+    }
     return Obligation(
       id: ObligationId(id),
       owner: owner,
@@ -123,6 +134,13 @@ abstract final class ObligationDto {
       hasPaymentHistory: d.boolean('hasPaymentHistory'),
       revision: d.revision(),
       createdAt: d.dateTime('createdAt'),
+      recurrence: recurrence,
+      reminderPolicy: recurring
+          ? RecurrenceDto.reminder(d.object('reminderPolicy'))
+          : null,
+      nextGenerationDate: recurring
+          ? d.nullableDate('nextGenerationDate')
+          : null,
     );
   }
 }

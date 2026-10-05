@@ -3,6 +3,8 @@ import '../../../core/identifiers/entity_ids.dart';
 import '../../../core/money/currency_code.dart';
 import '../../../core/money/money.dart';
 import 'obligation.dart';
+import '../../recurring/domain/deduction_attempt.dart';
+import '../../../shared/domain/catalog.dart';
 
 final class ObligationInstance {
   const ObligationInstance({
@@ -28,6 +30,14 @@ final class ObligationInstance {
     required this.closed,
     required this.revision,
     this.hasPaymentHistory,
+    this.deductionStatus = DeductionStatus.none,
+    this.deductionAt,
+    this.deductionDate,
+    this.localDeductionTime,
+    this.requiresDeductionConfirmation = false,
+    this.estimatedAmount,
+    this.source,
+    this.notes = '',
   });
   final InstanceId id;
   final ObligationId obligationId;
@@ -50,4 +60,12 @@ final class ObligationInstance {
   final bool closed;
   final int revision;
   final bool? hasPaymentHistory;
+  final DeductionStatus deductionStatus;
+  final DateTime? deductionAt;
+  final LocalDate? deductionDate;
+  final String? localDeductionTime;
+  final bool requiresDeductionConfirmation;
+  final Money? estimatedAmount;
+  final SourceLabel? source;
+  final String notes;
 }

@@ -3,6 +3,7 @@ import '../../../core/dates/local_date.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/currency_code.dart';
 import '../../../shared/domain/catalog.dart';
+import '../../recurring/domain/recurring_schedule.dart';
 
 enum ObligationType {
   owedByMe,
@@ -88,6 +89,9 @@ final class Obligation {
     required this.revision,
     required this.createdAt,
     List<InstanceId> installmentInstanceIds = const [],
+    this.recurrence,
+    this.reminderPolicy,
+    this.nextGenerationDate,
   }) : installmentInstanceIds = List.unmodifiable(installmentInstanceIds);
   final ObligationId id;
   final OwnerUid owner;
@@ -112,6 +116,9 @@ final class Obligation {
   final SourceLabel? source;
   final InstanceId? singleInstanceId;
   final List<InstanceId> installmentInstanceIds;
+  final RecurringSchedule? recurrence;
+  final ReminderPolicy? reminderPolicy;
+  final LocalDate? nextGenerationDate;
   final InterestInfo? interestInfo;
   final bool archived, hasPaymentHistory;
   final int revision;

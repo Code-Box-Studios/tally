@@ -11,6 +11,8 @@ import '../../features/payments/domain/payment_commands.dart';
 import '../data/financial_failure_mapper.dart';
 import '../domain/catalog.dart';
 import 'financial_providers.dart';
+import '../../features/recurring/domain/recurring_commands.dart';
+import '../../features/recurring/presentation/recurring_providers.dart';
 
 final financialActionsProvider = AsyncNotifierProvider<FinancialActions, void>(
   FinancialActions.new,
@@ -19,6 +21,7 @@ final financialActionsProvider = AsyncNotifierProvider<FinancialActions, void>(
     obligationsRepositoryProvider,
     paymentsRepositoryProvider,
     catalogRepositoryProvider,
+    recurringRepositoryProvider,
   ],
 );
 
@@ -56,6 +59,53 @@ class FinancialActions extends AsyncNotifier<void> {
     draft.toPayload(),
     (id) =>
         ref.read(obligationsRepositoryProvider).createInstallment(draft, id),
+  );
+  Future<RecurringResult?> createRecurring(RecurringDraft draft) => _run(
+    'createRecurring',
+    draft.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).create(draft, id),
+  );
+  Future<RecurringResult?> editRecurring(RecurringEdit change) => _run(
+    'editRecurring',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).edit(change, id),
+  );
+  Future<RecurringResult?> changeRecurringLifecycle(LifecycleChange change) =>
+      _run(
+        'changeRecurringLifecycle',
+        change.toPayload(),
+        (id) =>
+            ref.read(recurringRepositoryProvider).changeLifecycle(change, id),
+      );
+  Future<PeriodResult?> setRecurringAmount(InstanceAmountEdit change) => _run(
+    'setRecurringAmount',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).setAmount(change, id),
+  );
+  Future<PeriodResult?> editRecurringInstance(RecurringInstanceEdit change) =>
+      _run(
+        'editRecurringInstance',
+        change.toPayload(),
+        (id) => ref.read(recurringRepositoryProvider).editPeriod(change, id),
+      );
+  Future<PeriodResult?> skipRecurringInstance(InstanceSkip change) => _run(
+    'skipRecurringInstance',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).skip(change, id),
+  );
+  Future<DeductionConfirmationResult?> confirmDeduction(
+    DeductionConfirmation change,
+  ) => _run(
+    'confirmDeduction',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).confirm(change, id),
+  );
+  Future<DeductionFailureResult?> reportDeductionFailure(
+    DeductionFailure change,
+  ) => _run(
+    'reportDeductionFailure',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).reportFailure(change, id),
   );
   Future<InstallmentResult?> editInstallment(
     ObligationId obligationId,

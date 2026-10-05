@@ -62,3 +62,11 @@ final class CommandId extends _EntityId {
 final class ActivityId extends _EntityId {
   ActivityId(super.value);
 }
+
+final class DeductionAttemptId extends _EntityId {
+  DeductionAttemptId(super.value);
+}
+
+final class PaymentEvidenceId extends _EntityId {
+  PaymentEvidenceId(super.value);
+}

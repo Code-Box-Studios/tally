@@ -1,6 +1,22 @@
 {
   "indexes": [
     {
+      "collectionGroup": "deductionAttempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "instanceId", "order": "ASCENDING"},
+        {"fieldPath": "processedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "paymentEvidence",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "instanceId", "order": "ASCENDING"},
+        {"fieldPath": "recordedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "obligations",
       "queryScope": "COLLECTION",
       "fields": [

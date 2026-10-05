@@ -1,0 +1,656 @@
+{
+  "owner": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+  "parent": {
+    "title": "Netflix",
+    "description": "Subscription",
+    "notes": "",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountKind": "fixed",
+    "defaultAmountMinor": 54900,
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "recurrence": {
+      "frequency": "monthly",
+      "unit": "months",
+      "interval": 1,
+      "anchorDate": "2026-10-04",
+      "startDate": "2026-10-04",
+      "endDate": null,
+      "preferredDay": 4,
+      "monthEnd": false,
+      "timezone": "Asia/Manila",
+      "localDeductionTime": "09:00",
+      "ruleVersion": 1,
+      "generationCursor": 0,
+      "generatedThrough": "2026-10-04",
+      "pauseRanges": [],
+      "endedOn": null
+    },
+    "reminderPolicy": {
+      "enabled": false,
+      "offsetDays": [],
+      "localTime": "09:00",
+      "preferenceRevision": 1
+    },
+    "contactSnapshot": null,
+    "categorySnapshot": {
+      "name": "Subscription"
+    },
+    "sourceSnapshot": null,
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "type": "recurringDue",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "timezone": "Asia/Manila",
+    "originationDate": "2026-10-04",
+    "dueDate": null,
+    "nextDueDate": null,
+    "nextGenerationDate": "2026-10-04",
+    "originalAmountMinor": null,
+    "totalPaidMinor": null,
+    "remainingMinor": null,
+    "singleInstanceId": null,
+    "interestInfo": null,
+    "lifecycle": "active",
+    "financialStatus": "active",
+    "archived": false,
+    "hasPaymentHistory": false,
+    "revision": 1,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:04:59.718Z"
+    },
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:04:59.718Z"
+    }
+  },
+  "scheduled": {
+    "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "occurrenceKey": "r:2026-10-04",
+    "occurrenceDate": "2026-10-04",
+    "periodLabel": "2026-10",
+    "yearMonth": "2026-10",
+    "dueDate": "2026-10-04",
+    "deductionDate": "2026-10-04",
+    "deductionAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "localDeductionTime": "09:00",
+    "timezone": "Asia/Manila",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountMinor": 54900,
+    "amountState": "known",
+    "totalPaidMinor": 0,
+    "remainingMinor": 54900,
+    "financialStatus": "overdue",
+    "deductionStatus": "scheduled",
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "snapshot": {
+      "title": "Netflix",
+      "description": "Subscription",
+      "notes": "",
+      "contactSnapshot": null,
+      "categorySnapshot": {
+        "name": "Subscription"
+      },
+      "sourceSnapshot": null,
+      "amountKind": "fixed",
+      "estimatedAmountMinor": null,
+      "reminderPolicy": {
+        "enabled": false,
+        "offsetDays": [],
+        "localTime": "09:00",
+        "preferenceRevision": 1
+      },
+      "ruleVersion": 1
+    },
+    "templateRevision": 1,
+    "closed": false,
+    "hasPaymentHistory": false,
+    "lastDeductionAttemptId": null,
+    "requiresDeductionConfirmation": false,
+    "revision": 1,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:04:59.718Z"
+    },
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:04:59.718Z"
+    }
+  },
+  "deducted": {
+    "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "occurrenceKey": "r:2026-10-04",
+    "occurrenceDate": "2026-10-04",
+    "periodLabel": "2026-10",
+    "yearMonth": "2026-10",
+    "dueDate": "2026-10-04",
+    "deductionDate": "2026-10-04",
+    "deductionAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "localDeductionTime": "09:00",
+    "timezone": "Asia/Manila",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountMinor": 54900,
+    "amountState": "known",
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "snapshot": {
+      "title": "Netflix",
+      "description": "Subscription",
+      "notes": "",
+      "contactSnapshot": null,
+      "categorySnapshot": {
+        "name": "Subscription"
+      },
+      "sourceSnapshot": null,
+      "amountKind": "fixed",
+      "estimatedAmountMinor": null,
+      "reminderPolicy": {
+        "enabled": false,
+        "offsetDays": [],
+        "localTime": "09:00",
+        "preferenceRevision": 1
+      },
+      "ruleVersion": 1
+    },
+    "templateRevision": 1,
+    "requiresDeductionConfirmation": false,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-03T01:00:00.000Z"
+    },
+    "totalPaidMinor": 54900,
+    "deductionStatus": "deducted",
+    "financialStatus": "paid",
+    "closed": true,
+    "lastDeductionAttemptId": "deductionAttempt-d7679c217bd3aa1ebf8efa1a383af0b395028b275333ba3341594c3732a007c0",
+    "hasPaymentHistory": true,
+    "remainingMinor": 0,
+    "revision": 2,
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:00.008Z"
+    }
+  },
+  "confirmed": {
+    "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "occurrenceKey": "r:2026-10-04",
+    "occurrenceDate": "2026-10-04",
+    "periodLabel": "2026-10",
+    "yearMonth": "2026-10",
+    "dueDate": "2026-10-04",
+    "deductionDate": "2026-10-04",
+    "deductionAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "localDeductionTime": "09:00",
+    "timezone": "Asia/Manila",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountMinor": 54900,
+    "amountState": "known",
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "snapshot": {
+      "title": "Netflix",
+      "description": "Subscription",
+      "notes": "",
+      "contactSnapshot": null,
+      "categorySnapshot": {
+        "name": "Subscription"
+      },
+      "sourceSnapshot": null,
+      "amountKind": "fixed",
+      "estimatedAmountMinor": null,
+      "reminderPolicy": {
+        "enabled": false,
+        "offsetDays": [],
+        "localTime": "09:00",
+        "preferenceRevision": 1
+      },
+      "ruleVersion": 1
+    },
+    "templateRevision": 1,
+    "requiresDeductionConfirmation": false,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-03T01:00:00.000Z"
+    },
+    "totalPaidMinor": 54900,
+    "financialStatus": "paid",
+    "closed": true,
+    "hasPaymentHistory": true,
+    "remainingMinor": 0,
+    "deductionStatus": "confirmed",
+    "lastDeductionAttemptId": "deductionAttempt-ae03cc0e42e2a1072e561cf19b87c88edb9843c524a993e2f7caf17e5548e0af",
+    "revision": 3,
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:00.853Z"
+    }
+  },
+  "evidence": {
+    "evidenceId": "evidence-d9ae95e3d354f823d4d685d3f9682e361b88cf2910c8889829fddb23a1b58f23",
+    "paymentId": "payment-7d88e2a98992e44564dd282e40bb8a3982a04d606694f3b0ccc88970b59d303f",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "kind": "userConfirmed",
+    "actor": "user",
+    "notes": "",
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:05:00.853Z"
+    },
+    "recordedAt": {
+      "timestamp": "2026-10-05T07:05:00.853Z"
+    },
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:00.853Z"
+    }
+  },
+  "payment": {
+    "paymentId": "payment-7d88e2a98992e44564dd282e40bb8a3982a04d606694f3b0ccc88970b59d303f",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "obligationInstanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "allocations": [
+      {
+        "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+        "amountMinor": 54900
+      }
+    ],
+    "entryType": "payment",
+    "amountMinor": 54900,
+    "currency": "PHP",
+    "paymentDate": "2026-10-04",
+    "paymentTimezone": "Asia/Manila",
+    "paidAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "paymentSourceId": null,
+    "sourceSnapshot": null,
+    "paymentMethod": "other",
+    "provenance": "assumedAutomatic",
+    "direction": "owedByMe",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "notes": "",
+    "receiptAttachmentId": null,
+    "commandId": "automatic-b45da3a643bae6bdede565fb55e6e6bcf20109b464f461f07f927e390c9e4ca9",
+    "eventKey": "automatic:r:2026-10-04:1",
+    "reversesPaymentId": null,
+    "correctionGroupId": null,
+    "correctionReason": null,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:05:00.008Z"
+    },
+    "recordedAt": {
+      "timestamp": "2026-10-05T07:05:00.008Z"
+    },
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:00.008Z"
+    }
+  },
+  "failed": {
+    "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "occurrenceKey": "r:2026-10-04",
+    "occurrenceDate": "2026-10-04",
+    "periodLabel": "2026-10",
+    "yearMonth": "2026-10",
+    "dueDate": "2026-10-04",
+    "deductionDate": "2026-10-04",
+    "deductionAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "localDeductionTime": "09:00",
+    "timezone": "Asia/Manila",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountMinor": 54900,
+    "amountState": "known",
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "snapshot": {
+      "title": "Netflix",
+      "description": "Subscription",
+      "notes": "",
+      "contactSnapshot": null,
+      "categorySnapshot": {
+        "name": "Subscription"
+      },
+      "sourceSnapshot": null,
+      "amountKind": "fixed",
+      "estimatedAmountMinor": null,
+      "reminderPolicy": {
+        "enabled": false,
+        "offsetDays": [],
+        "localTime": "09:00",
+        "preferenceRevision": 1
+      },
+      "ruleVersion": 1
+    },
+    "templateRevision": 1,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-03T01:00:00.000Z"
+    },
+    "hasPaymentHistory": true,
+    "totalPaidMinor": 0,
+    "deductionStatus": "failed",
+    "requiresDeductionConfirmation": true,
+    "financialStatus": "overdue",
+    "closed": false,
+    "lastDeductionAttemptId": "deductionAttempt-de11c3c58b4951e9cc30e8562c30bfa03f9b8b9af7522006f99d8dc2fc1874ea",
+    "remainingMinor": 54900,
+    "revision": 4,
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:01.681Z"
+    }
+  },
+  "failureAttempt": {
+    "attemptId": "deductionAttempt-de11c3c58b4951e9cc30e8562c30bfa03f9b8b9af7522006f99d8dc2fc1874ea",
+    "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+    "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+    "eventKey": "automatic:r:2026-10-04:1",
+    "eventType": "failed",
+    "expectedAmountMinor": 54900,
+    "currency": "PHP",
+    "paymentId": "payment-7d88e2a98992e44564dd282e40bb8a3982a04d606694f3b0ccc88970b59d303f",
+    "reason": "Card declined",
+    "sourceSnapshot": null,
+    "paymentSourceId": null,
+    "scheduledDate": "2026-10-04",
+    "timezone": "Asia/Manila",
+    "processedAt": {
+      "timestamp": "2026-10-05T07:05:01.655Z"
+    },
+    "actor": "user",
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:05:01.681Z"
+    },
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:01.681Z"
+    }
+  },
+  "variable": {
+    "instanceId": "instance-ae6ba8994f47f992cfe589d8a5b137c7f960caa5bd92fcf74a4aad776f4704a8",
+    "obligationId": "obligation-6fa5c4f22fc36e494d3d90ae44290674c5758a7c41d9d5a85fca42acba56a11b",
+    "occurrenceKey": "r:2026-10-04",
+    "occurrenceDate": "2026-10-04",
+    "periodLabel": "2026-10",
+    "yearMonth": "2026-10",
+    "dueDate": "2026-10-04",
+    "deductionDate": "2026-10-04",
+    "deductionAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "localDeductionTime": "09:00",
+    "timezone": "Asia/Manila",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountMinor": null,
+    "amountState": "unknown",
+    "totalPaidMinor": 0,
+    "remainingMinor": null,
+    "financialStatus": "pending",
+    "deductionStatus": "scheduled",
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "snapshot": {
+      "title": "Electricity",
+      "description": "Subscription",
+      "notes": "",
+      "contactSnapshot": null,
+      "categorySnapshot": {
+        "name": "Subscription"
+      },
+      "sourceSnapshot": null,
+      "amountKind": "variable",
+      "estimatedAmountMinor": 350000,
+      "reminderPolicy": {
+        "enabled": false,
+        "offsetDays": [],
+        "localTime": "09:00",
+        "preferenceRevision": 1
+      },
+      "ruleVersion": 1
+    },
+    "templateRevision": 1,
+    "closed": false,
+    "hasPaymentHistory": false,
+    "lastDeductionAttemptId": null,
+    "requiresDeductionConfirmation": false,
+    "revision": 1,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:05:01.744Z"
+    },
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:01.744Z"
+    }
+  },
+  "variableExpected": {
+    "instanceId": "instance-ae6ba8994f47f992cfe589d8a5b137c7f960caa5bd92fcf74a4aad776f4704a8",
+    "obligationId": "obligation-6fa5c4f22fc36e494d3d90ae44290674c5758a7c41d9d5a85fca42acba56a11b",
+    "occurrenceKey": "r:2026-10-04",
+    "occurrenceDate": "2026-10-04",
+    "periodLabel": "2026-10",
+    "yearMonth": "2026-10",
+    "dueDate": "2026-10-04",
+    "deductionDate": "2026-10-04",
+    "deductionAt": {
+      "timestamp": "2026-10-04T01:00:00.000Z"
+    },
+    "localDeductionTime": "09:00",
+    "timezone": "Asia/Manila",
+    "direction": "owedByMe",
+    "section": "monthlyDues",
+    "contactId": null,
+    "categoryId": "default-subscription",
+    "currency": "PHP",
+    "amountMinor": null,
+    "amountState": "unknown",
+    "totalPaidMinor": 0,
+    "remainingMinor": null,
+    "financialStatus": "pending",
+    "paymentMode": "automatic",
+    "paymentSourceId": null,
+    "snapshot": {
+      "title": "Electricity",
+      "description": "Subscription",
+      "notes": "",
+      "contactSnapshot": null,
+      "categorySnapshot": {
+        "name": "Subscription"
+      },
+      "sourceSnapshot": null,
+      "amountKind": "variable",
+      "estimatedAmountMinor": 350000,
+      "reminderPolicy": {
+        "enabled": false,
+        "offsetDays": [],
+        "localTime": "09:00",
+        "preferenceRevision": 1
+      },
+      "ruleVersion": 1
+    },
+    "templateRevision": 1,
+    "closed": false,
+    "hasPaymentHistory": false,
+    "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+    "schemaVersion": 1,
+    "createdAt": {
+      "timestamp": "2026-10-05T07:05:01.744Z"
+    },
+    "deductionStatus": "expected",
+    "requiresDeductionConfirmation": true,
+    "lastDeductionAttemptId": "deductionAttempt-cdc1b68155d591161f93f5d1d34a94eecd541a92540a6e8806fe8f9c75e84c6b",
+    "revision": 2,
+    "updatedAt": {
+      "timestamp": "2026-10-05T07:05:01.827Z"
+    }
+  },
+  "activities": [
+    {
+      "id": "activity-4861cd0960816d4b70024f44dcdfa6f03449874978813d984d8558fec97d90af",
+      "type": "automaticPaymentConfirmed",
+      "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+      "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+      "paymentId": "payment-7d88e2a98992e44564dd282e40bb8a3982a04d606694f3b0ccc88970b59d303f",
+      "title": "Netflix",
+      "amountMinor": 54900,
+      "currency": "PHP",
+      "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+      "schemaVersion": 1,
+      "createdAt": {
+        "timestamp": "2026-10-05T07:05:00.853Z"
+      },
+      "recordedAt": {
+        "timestamp": "2026-10-05T07:05:00.853Z"
+      },
+      "updatedAt": {
+        "timestamp": "2026-10-05T07:05:00.853Z"
+      }
+    },
+    {
+      "id": "activity-92ad28ae79458c4e85690488ed22051d246eb3245cab48c77f66ca327189140c",
+      "type": "automaticPaymentRecorded",
+      "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+      "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+      "paymentId": "payment-7d88e2a98992e44564dd282e40bb8a3982a04d606694f3b0ccc88970b59d303f",
+      "title": "Netflix",
+      "amountMinor": 54900,
+      "currency": "PHP",
+      "direction": "owedByMe",
+      "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+      "schemaVersion": 1,
+      "createdAt": {
+        "timestamp": "2026-10-05T07:05:00.008Z"
+      },
+      "recordedAt": {
+        "timestamp": "2026-10-05T07:05:00.008Z"
+      },
+      "updatedAt": {
+        "timestamp": "2026-10-05T07:05:00.008Z"
+      }
+    },
+    {
+      "id": "activity-automaticPaymentFailed-190abdf58b9c4b0fec2d97ae5ab20e6566e53b31d946f1cd378d0c9301d9dd27",
+      "type": "automaticPaymentFailed",
+      "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+      "instanceId": "instance-d3730158f6223853fa7731c4ecaacfafc0751eede82cc914b65cf0f33fcb14bb",
+      "reversalId": "reversal-de73e34504477abc94ff68376e8d49dd4804181b0003b313e75ba0619d07c03b",
+      "title": "Netflix",
+      "amountMinor": 54900,
+      "currency": "PHP",
+      "reason": "Card declined",
+      "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+      "schemaVersion": 1,
+      "createdAt": {
+        "timestamp": "2026-10-05T07:05:01.681Z"
+      },
+      "recordedAt": {
+        "timestamp": "2026-10-05T07:05:01.681Z"
+      },
+      "updatedAt": {
+        "timestamp": "2026-10-05T07:05:01.681Z"
+      }
+    },
+    {
+      "id": "activity-ccc86c23dfde11a128999f79a172068520b555164edf2dcc53bd7e48d419efa9",
+      "type": "automaticPaymentExpected",
+      "obligationId": "obligation-6fa5c4f22fc36e494d3d90ae44290674c5758a7c41d9d5a85fca42acba56a11b",
+      "instanceId": "instance-ae6ba8994f47f992cfe589d8a5b137c7f960caa5bd92fcf74a4aad776f4704a8",
+      "title": "Electricity",
+      "amountMinor": null,
+      "currency": null,
+      "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+      "schemaVersion": 1,
+      "createdAt": {
+        "timestamp": "2026-10-05T07:05:01.827Z"
+      },
+      "recordedAt": {
+        "timestamp": "2026-10-05T07:05:01.827Z"
+      },
+      "updatedAt": {
+        "timestamp": "2026-10-05T07:05:01.827Z"
+      }
+    },
+    {
+      "id": "activity-obligationCreated-06b2737340576082fd98ca8743f7c1a692f3127fde730d8b31f3ae5b0db6505e",
+      "type": "obligationCreated",
+      "obligationId": "obligation-82b3a918a08294a5278d93af19b8b5fd9eb3b40cd9367571f68925bd74f510fc",
+      "title": "Netflix",
+      "amountMinor": 54900,
+      "currency": "PHP",
+      "obligationCurrency": "PHP",
+      "direction": "owedByMe",
+      "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+      "schemaVersion": 1,
+      "createdAt": {
+        "timestamp": "2026-10-05T07:04:59.718Z"
+      },
+      "recordedAt": {
+        "timestamp": "2026-10-05T07:04:59.718Z"
+      },
+      "updatedAt": {
+        "timestamp": "2026-10-05T07:04:59.718Z"
+      }
+    },
+    {
+      "id": "activity-obligationCreated-2f98bad505691ee6b53fc73e3aa4f60de39f7071e0394b20b3ab7ae88f852df9",
+      "type": "obligationCreated",
+      "obligationId": "obligation-6fa5c4f22fc36e494d3d90ae44290674c5758a7c41d9d5a85fca42acba56a11b",
+      "title": "Electricity",
+      "amountMinor": null,
+      "currency": null,
+      "obligationCurrency": "PHP",
+      "direction": "owedByMe",
+      "userId": "hjRoHf2pyLqNfZpnKDGhGnvAB9nx",
+      "schemaVersion": 1,
+      "createdAt": {
+        "timestamp": "2026-10-05T07:05:01.744Z"
+      },
+      "recordedAt": {
+        "timestamp": "2026-10-05T07:05:01.744Z"
+      },
+      "updatedAt": {
+        "timestamp": "2026-10-05T07:05:01.744Z"
+      }
+    }
+  ]
+}
