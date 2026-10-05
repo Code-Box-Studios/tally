@@ -1,0 +1,312 @@
+{
+  "cases": [
+    {
+      "name": "monthly clamp recovers",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2026-01-31",
+        "preferredDay": 31,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-01-31",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-01-31",
+        "2026-02-28",
+        "2026-03-31"
+      ]
+    },
+    {
+      "name": "leap month",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2028-01-31",
+        "preferredDay": 31,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2028-01-31",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2028-01-31",
+        "2028-02-29",
+        "2028-03-31"
+      ]
+    },
+    {
+      "name": "yearly leap recovers",
+      "rule": {
+        "frequency": "yearly",
+        "interval": 1,
+        "unit": "years",
+        "anchorDate": "2024-02-29",
+        "preferredDay": 29,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2024-02-29",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2024-02-29",
+        "2025-02-28",
+        "2026-02-28",
+        "2027-02-28",
+        "2028-02-29"
+      ]
+    },
+    {
+      "name": "quarterly calendar months",
+      "rule": {
+        "frequency": "quarterly",
+        "interval": 3,
+        "unit": "months",
+        "anchorDate": "2026-01-31",
+        "preferredDay": 31,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-01-31",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-01-31",
+        "2026-04-30",
+        "2026-07-31"
+      ]
+    },
+    {
+      "name": "biweekly civil days",
+      "rule": {
+        "frequency": "biweekly",
+        "interval": 2,
+        "unit": "weeks",
+        "anchorDate": "2026-10-04",
+        "preferredDay": null,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-10-04",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-10-04",
+        "2026-10-18",
+        "2026-11-01"
+      ]
+    },
+    {
+      "name": "weekly",
+      "rule": {
+        "frequency": "weekly",
+        "interval": 1,
+        "unit": "weeks",
+        "anchorDate": "2026-10-04",
+        "preferredDay": null,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-10-04",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-10-04",
+        "2026-10-11",
+        "2026-10-18"
+      ]
+    },
+    {
+      "name": "custom days",
+      "rule": {
+        "frequency": "custom",
+        "interval": 3,
+        "unit": "days",
+        "anchorDate": "2026-10-04",
+        "preferredDay": null,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-10-04",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-10-04",
+        "2026-10-07",
+        "2026-10-10"
+      ]
+    },
+    {
+      "name": "preferred day",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2026-01-01",
+        "preferredDay": 15,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-01-15",
+        "2026-02-15",
+        "2026-03-15"
+      ]
+    },
+    {
+      "name": "explicit month end",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2026-01-15",
+        "preferredDay": 15,
+        "monthEnd": true,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-01-15",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-01-31",
+        "2026-02-28",
+        "2026-03-31"
+      ]
+    },
+    {
+      "name": "start after anchor",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2026-01-31",
+        "preferredDay": 31,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-03-01",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-03-31",
+        "2026-04-30"
+      ]
+    },
+    {
+      "name": "inclusive end",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2026-01-31",
+        "preferredDay": 31,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2026-01-31",
+        "endDate": "2026-02-28",
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2026-01-31",
+        "2026-02-28"
+      ]
+    },
+    {
+      "name": "upper date bound",
+      "rule": {
+        "frequency": "monthly",
+        "interval": 1,
+        "unit": "months",
+        "anchorDate": "2199-12-31",
+        "preferredDay": 31,
+        "monthEnd": false,
+        "timezone": "Asia/Manila",
+        "localDeductionTime": "09:00",
+        "startDate": "2199-12-31",
+        "endDate": null,
+        "ruleVersion": 1
+      },
+      "expected": [
+        "2199-12-31"
+      ]
+    }
+  ],
+  "instants": [
+    {
+      "name": "Manila date stays October5",
+      "date": "2026-10-05",
+      "time": "09:00",
+      "zone": "Asia/Manila",
+      "instant": "2026-10-05T01:00:00.000Z"
+    },
+    {
+      "name": "New York gap first valid",
+      "date": "2026-03-08",
+      "time": "02:30",
+      "zone": "America/New_York",
+      "instant": "2026-03-08T07:00:00.000Z"
+    },
+    {
+      "name": "New York overlap earlier",
+      "date": "2026-11-01",
+      "time": "01:30",
+      "zone": "America/New_York",
+      "instant": "2026-11-01T05:30:00.000Z"
+    },
+    {
+      "name": "Lord Howe half hour gap",
+      "date": "2026-10-04",
+      "time": "02:15",
+      "zone": "Australia/Lord_Howe",
+      "instant": "2026-10-03T15:30:00.000Z"
+    },
+    {
+      "name": "Apia skipped day first valid",
+      "date": "2011-12-30",
+      "time": "09:00",
+      "zone": "Pacific/Apia",
+      "instant": "2011-12-30T10:00:00.000Z"
+    },
+    {
+      "name": "Kathmandu quarter hour offset",
+      "date": "2026-10-04",
+      "time": "09:00",
+      "zone": "Asia/Kathmandu",
+      "instant": "2026-10-04T03:15:00.000Z"
+    },
+    {
+      "name": "Chatham date previous UTC day",
+      "date": "2026-10-04",
+      "time": "09:00",
+      "zone": "Pacific/Chatham",
+      "instant": "2026-10-03T19:15:00.000Z"
+    },
+    {
+      "name": "future summer timezone",
+      "date": "2099-07-01",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "instant": "2099-07-01T13:00:00.000Z"
+    }
+  ]
+}

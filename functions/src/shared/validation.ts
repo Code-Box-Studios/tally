@@ -1,4 +1,5 @@
 import {HttpsError} from 'firebase-functions/v2/https';
+import {civilAt} from './zone_data.js';
 export const currencies = ['PHP','USD','EUR','SGD','AUD','JPY','GBP'] as const;
 export type Currency = typeof currencies[number];
 export function invalid(message = 'Check the details and try again.'): never {throw new HttpsError('invalid-argument',message);}
@@ -33,7 +34,5 @@ export function civilDate(value:unknown):string {
 }
 export function nullableDate(value:unknown):string|null {return value===null ? null : civilDate(value);}
 export function localToday(timezone:string,instant=new Date()):string {
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(instant);
-  const value=(type:string)=>parts.find(part=>part.type===type)!.value;
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  try {return civilAt(instant,timezone);}catch {return invalid('Choose a valid timezone and date.');}
 }

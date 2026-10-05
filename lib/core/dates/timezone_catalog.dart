@@ -1,11 +1,12 @@
-import 'package:timezone/data/latest.dart' as data;
 import 'package:timezone/timezone.dart' as tz;
+
+import 'tally_timezones.g.dart';
 
 abstract final class TimezoneCatalog {
   static bool _initialized = false;
   static void _initialize() {
     if (!_initialized) {
-      data.initializeTimeZones();
+      initializeTallyTimezones();
       _initialized = true;
     }
   }

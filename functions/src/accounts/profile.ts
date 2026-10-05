@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {FieldValue, type Firestore} from 'firebase-admin/firestore';
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from '../shared/callable.js';
+import {hasZone} from '../shared/zone_data.js';
 
 const currencies = ['PHP','USD','EUR','SGD','AUD','JPY','GBP'] as const;
 const themes = ['light','dark','system'] as const;
@@ -45,12 +46,9 @@ export function validateProfileUpdate(input: unknown): ProfileUpdate {
       typeof data.onboardingComplete !== 'boolean' || typeof data.timezone !== 'string' || data.timezone.length > 100) {
     throw new HttpsError('invalid-argument','Check your account preferences.');
   }
-  // ICU validates real IANA zones. Offset strings are deliberately not accepted.
-  if (data.timezone !== 'UTC' && !/^[A-Za-z_]+\/[A-Za-z0-9_+\-/]+$/.test(data.timezone)) {
-    throw new HttpsError('invalid-argument','Choose an IANA timezone.');
-  }
-  try {new Intl.DateTimeFormat('en',{timeZone:data.timezone});}
-  catch {throw new HttpsError('invalid-argument','Choose a supported timezone.');}
+  // Use the same pinned catalog offered by Flutter. Numeric offset strings
+  // are absent; actual IANA aliases remain supported across runtime upgrades.
+  if (!hasZone(data.timezone)) throw new HttpsError('invalid-argument','Choose a supported timezone.');
   return data as unknown as ProfileUpdate;
 }
 

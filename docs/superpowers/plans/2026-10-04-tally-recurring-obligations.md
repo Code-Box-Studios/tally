@@ -6,7 +6,7 @@
 
 **Architecture:** Reuse owner-scoped canonical commands, permanent receipts and immutable payment/reversal records. An anchored civil-calendar engine supplies deterministic occurrences; persisted fenced jobs materialize bounded batches and process one scheduled automatic event per instance. Typed repositories/providers expose these operations through the original responsive UI.
 
-**Tech Stack:** Existing Flutter/Riverpod/go_router/FlutterFire; TypeScript Firebase Functions v2/Admin, Node22; locked timezone0.11.1 and @js-temporal/polyfill0.5.1; demo-tally emulators.
+**Tech Stack:** Existing Flutter/Riverpod/go_router/FlutterFire; TypeScript Firebase Functions v2/Admin, Node22; locked timezone0.11.1 and shared IANA2026c transition tables; demo-tally emulators. Task1's evidenced timezone ruling replaced the originally proposed Temporal/ICU adapter; see docs/architecture/recurrence-contract.md.
 
 **Spec:** docs/superpowers/specs/2026-10-03-tally-design.md; docs/architecture/financial-engine.md; docs/architecture/firebase.md; docs/quality/testing-and-operations.md; docs/product/experience.md; .lavish/tally-design.{html,css,js}. This executes the already-authorized M4 roadmap. M5–M8 remain required before launch.
 
@@ -42,7 +42,7 @@
 
 ### Task 1: Anchored recurrence and scheduled civil-time engine
 
-**Files:** Create functions/src/recurring/{recurrence,scheduled_time}.ts; lib/features/recurring/domain/recurrence_rule.dart; lib/core/dates/scheduled_time.dart; shared fixtures firebase/fixtures/recurrence.json; tests functions/test/recurrence.test.ts and test/features/recurring/recurrence_test.dart. Modify functions/package.json/package-lock.json only for the verified exact Temporal polyfill version. Record docs/architecture/recurrence-contract.md.
+**Files:** Create functions/src/recurring/{recurrence,scheduled_time}.ts; lib/features/recurring/domain/recurrence_rule.dart; lib/core/dates/scheduled_time.dart; shared fixtures firebase/fixtures/recurrence.json; tests functions/test/recurrence.test.ts and test/features/recurring/recurrence_test.dart. Task1 timezone ruling adds shared/zone_data.ts, generated/timezones.json, tally_timezones.g.dart, checksum-pinned build tools and profile/catalog alignment, replacing the proposed Temporal dependency. Record docs/architecture/recurrence-contract.md.
 
 **Interfaces:** `RecurrenceRule` uses the Global Constraints fields; `validateRecurrence(input:unknown):RecurrenceRule` rejects extra fields, invalid zones/dates/time/count/unit/standard mapping. `occurrenceAt(rule,index:number):string|null` returns anchored index date (null beyond2199), preserving preferred day/monthEnd for calendar units. `nextOccurrence(rule,afterExclusive:string|null):{index:number,date:string}|null` is bounded calendar arithmetic, never walks a300-year daily scan; respects start/end. `occurrencesThrough(rule,afterExclusive,through,limit=30):{occurrences:{index,date}[],hasMore:boolean}` conserves chronological keys and requires limit1..30. `scheduledInstant(date:string,localTime:string,timezone:string):Date` selects overlap earlier and gap first-valid. Dart enums `RecurrenceFrequency`, `RecurrenceUnit`, immutable validated `RecurrenceRule`, methods `occurrenceAt`, `nextOccurrence`, `occurrencesThrough`, and `ScheduledTime.resolve(LocalDate,String,String):DateTime` mirror the same fields/fixtures. Standard frequency constructors derive unit/interval; arbitrary client maps remain strictly validated.
 
