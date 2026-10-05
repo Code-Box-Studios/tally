@@ -67,7 +67,7 @@ final class FirestoreDueRepository extends FinancialRepositoryBase
         yield await _advance(raw, query);
       }
     } catch (error) {
-      throw financialFailure(error);
+      yield* Stream.error(financialFailure(error));
     }
   }
 

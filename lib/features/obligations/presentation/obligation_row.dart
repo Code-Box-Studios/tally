@@ -7,6 +7,7 @@ import '../../../shared/widgets/money_text.dart';
 import '../domain/obligation.dart';
 import '../domain/visible_financial_status.dart';
 import '../../../core/dates/financial_clock.dart';
+import '../../recurring/presentation/recurrence_editor.dart';
 
 class ObligationRow extends ConsumerWidget {
   const ObligationRow(this.obligation, {super.key, this.wide = false});
@@ -50,18 +51,19 @@ class ObligationRow extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      FinancialStatusChip(status),
+                      _status(status),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${obligation.contact?.name ?? 'Personal obligation'} · ${obligation.categoryName}',
+                    '${obligation.contact?.name ?? (obligation.isRecurring ? 'Recurring bill' : 'Personal obligation')} · ${obligation.categoryName}',
                     style: TextStyle(
                       fontSize: 12,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
+                  if (obligation.isRecurring) _fee(context),
                   Wrap(
                     spacing: 28,
                     runSpacing: 10,
@@ -97,7 +99,9 @@ class ObligationRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    obligation.dueDate == null
+                    obligation.isRecurring
+                        ? _scheduleLabel
+                        : obligation.dueDate == null
                         ? 'No due date set'
                         : 'Due ${obligation.dueDate}',
                     style: TextStyle(
@@ -110,6 +114,39 @@ class ObligationRow extends ConsumerWidget {
       ),
     );
   }
+
+  String get _scheduleLabel =>
+      '${recurrenceLabel(obligation.recurrence!.rule.frequency)} · ${obligation.timezone}';
+  Widget _status(FinancialStatus status) => obligation.isRecurring
+      ? Chip(
+          avatar: const Icon(Icons.autorenew, size: 14),
+          label: Text(switch (obligation.lifecycle) {
+            ObligationLifecycle.active => 'Active',
+            ObligationLifecycle.paused => 'Paused',
+            ObligationLifecycle.ended => 'Ended',
+            ObligationLifecycle.cancelled => 'Cancelled',
+          }),
+        )
+      : FinancialStatusChip(status);
+  Widget _fee(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        obligation.amountKind == AmountKind.variable
+            ? 'Estimate per period'
+            : 'Amount per period',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      if (obligation.defaultAmount != null)
+        MoneyText(
+          money: obligation.defaultAmount!,
+          includeCode: true,
+          style: Theme.of(context).textTheme.titleSmall,
+        )
+      else
+        Text('Amount entered each period · ${obligation.currency.code}'),
+    ],
+  );
 
   Widget _desktop(BuildContext context, FinancialStatus status) {
     final scheme = Theme.of(context).colorScheme;
@@ -145,7 +182,10 @@ class ObligationRow extends ConsumerWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      obligation.contact?.name ?? 'Personal obligation',
+                      obligation.contact?.name ??
+                          (obligation.isRecurring
+                              ? 'Recurring bill'
+                              : 'Personal obligation'),
                       style: TextStyle(
                         fontSize: 12,
                         color: scheme.onSurfaceVariant,
@@ -169,6 +209,7 @@ class ObligationRow extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (obligation.isRecurring) _fee(context),
               if (obligation.remainingAmount case final amount?)
                 MoneyText(
                   money: amount,
@@ -193,16 +234,15 @@ class ObligationRow extends ConsumerWidget {
         Expanded(
           flex: 2,
           child: Text(
-            obligation.dueDate?.toString() ?? 'No due date',
+            obligation.isRecurring
+                ? _scheduleLabel
+                : obligation.dueDate?.toString() ?? 'No due date',
             style: const TextStyle(fontSize: 12),
           ),
         ),
         Expanded(
           flex: 2,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: FinancialStatusChip(status),
-          ),
+          child: Align(alignment: Alignment.centerLeft, child: _status(status)),
         ),
         const Icon(Icons.chevron_right, size: 18),
       ],
@@ -219,6 +259,9 @@ class ObligationList extends StatelessWidget {
       final wide =
           constraints.maxWidth >= 850 &&
           MediaQuery.textScalerOf(context).scale(14) <= 18;
+      final recurringOnly =
+          values.isNotEmpty &&
+          values.every((value) => value.recurrence != null);
       return Column(
         children: [
           if (wide)
@@ -226,11 +269,11 @@ class ObligationList extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Row(
                 children: [
-                  for (final column in const [
+                  for (final column in [
                     ('Obligation', 4),
                     ('Category', 2),
-                    ('Remaining', 2),
-                    ('Due date', 2),
+                    (recurringOnly ? 'Per period' : 'Remaining', 2),
+                    (recurringOnly ? 'Schedule' : 'Due date', 2),
                     ('Status', 2),
                   ])
                     Expanded(

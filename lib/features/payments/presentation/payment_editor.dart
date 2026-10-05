@@ -55,6 +55,9 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
         [],
   );
   Money get _remaining {
+    if (widget.obligation.isRecurring) {
+      return widget.selectedInstance!.remainingAmount!;
+    }
     if (_selected == null) return widget.obligation.remainingAmount!;
     return _periods()
         .firstWhere((period) => period.id == _selected)
@@ -62,6 +65,17 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
   }
 
   List<PaymentAllocation> _allocations(Money amount) {
+    if (widget.obligation.isRecurring) {
+      final period = widget.selectedInstance!;
+      if (period.owner != widget.obligation.owner ||
+          period.obligationId != widget.obligation.id ||
+          period.closed ||
+          period.remainingAmount == null ||
+          amount.minorUnits > period.remainingAmount!.minorUnits) {
+        throw StateError('Review the selected billing period.');
+      }
+      return [PaymentAllocation(period.id, amount)];
+    }
     if (!_installments) {
       return [PaymentAllocation(widget.obligation.singleInstanceId!, amount)];
     }
@@ -95,8 +109,15 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
       text: todayIn(ref.read(userProfileProvider).timezone).toString(),
     );
     _notes = TextEditingController();
-    _source = widget.obligation.paymentSourceId;
-    _sourceName = widget.obligation.source?.name ?? _sourceName;
+    _source = widget.obligation.isRecurring
+        ? widget.selectedInstance!.paymentSourceId
+        : widget.obligation.paymentSourceId;
+    _sourceName =
+        (widget.obligation.isRecurring
+                ? widget.selectedInstance!.source
+                : widget.obligation.source)
+            ?.name ??
+        _sourceName;
   }
 
   @override
@@ -227,6 +248,10 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(parent.title),
+                  if (parent.isRecurring)
+                    Text(
+                      'Billing period: ${widget.selectedInstance!.periodLabel}',
+                    ),
                   const SizedBox(height: 6),
                   const Text(
                     'Record a full, partial or custom amount. Each payment keeps its own history.',
@@ -312,7 +337,11 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
                     ),
                     MoneyText(
                       key: const Key('payment-remaining-preview'),
-                      money: parent.remainingAmount!.subtract(entered),
+                      money:
+                          (parent.isRecurring
+                                  ? _remaining
+                                  : parent.remainingAmount!)
+                              .subtract(entered),
                       includeCode: true,
                     ),
                     if (_installments) ...[
@@ -354,8 +383,13 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
                     ),
                     validator: (value) =>
                         dateValidation(value) ??
-                        (LocalDate.parse(value!.trim())
-                                        .compareTo(parent.originationDate) <
+                        (LocalDate.parse(value!.trim()).compareTo(
+                                      parent.isRecurring
+                                          ? widget
+                                                .selectedInstance!
+                                                .occurrenceDate
+                                          : parent.originationDate,
+                                    ) <
                                     0 ||
                                 LocalDate.parse(value.trim()).compareTo(
                                       todayIn(
@@ -363,7 +397,9 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
                                       ),
                                     ) >
                                     0
-                            ? 'Choose a date between the borrowed or lent date and today.'
+                            ? parent.isRecurring
+                                  ? 'Choose a date from this billing period’s start through today.'
+                                  : 'Choose a date between the borrowed or lent date and today.'
                             : null),
                   ),
                   const SizedBox(height: 18),

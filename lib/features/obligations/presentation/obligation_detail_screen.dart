@@ -22,6 +22,8 @@ import '../../payments/presentation/payment_allocations.dart';
 import '../domain/obligation.dart';
 import 'obligation_editor.dart';
 import 'installment_periods_panel.dart';
+import '../../recurring/presentation/recurring_detail.dart';
+import '../../recurring/presentation/recurring_editor.dart';
 
 class ObligationDetailScreen extends ConsumerWidget {
   const ObligationDetailScreen({
@@ -58,6 +60,9 @@ class ObligationDetailScreen extends ConsumerWidget {
             );
           }
           if (editing) {
+            if (parent.isRecurring) {
+              return RecurringEditor(key: ValueKey(id), initial: parent);
+            }
             return Column(
               children: [
                 if (record.isFromCache)
@@ -73,6 +78,12 @@ class ObligationDetailScreen extends ConsumerWidget {
                       : ObligationEditor(key: ValueKey(id), initial: parent),
                 ),
               ],
+            );
+          }
+          if (parent.isRecurring) {
+            return RecurringDetail(
+              parent: parent,
+              isFromCache: record.isFromCache,
             );
           }
           final active = parent.lifecycle == ObligationLifecycle.active;

@@ -28,7 +28,9 @@ abstract base class FinancialRepositoryBase {
         yield mapPage(page, map);
       }
     } catch (error) {
-      throw financialFailure(error);
+      // Emit to the stream rather than reject an async* cancellation future
+      // when sign-out removes the owner scope during a pending read failure.
+      yield* Stream.error(financialFailure(error));
     }
   }
 

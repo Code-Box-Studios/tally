@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/core/money/currency_code.dart';
 import 'package:tally/core/money/money.dart';
@@ -14,6 +15,9 @@ import 'package:tally/features/obligations/presentation/due_providers.dart';
 import 'package:tally/features/payments/domain/payment_commands.dart';
 import 'package:tally/features/payments/domain/payment_entry.dart';
 import 'package:tally/shared/data/owner_document_gateway.dart';
+import 'package:tally/shared/domain/financial_failure.dart';
+import 'package:tally/shared/domain/data_page.dart';
+import 'package:tally/features/dashboard/domain/dashboard_summary.dart';
 import 'package:tally/shared/presentation/financial_actions.dart';
 import 'package:tally/shared/presentation/financial_providers.dart';
 
@@ -40,6 +44,95 @@ InstallmentPaymentDraft paymentDraft() => InstallmentPaymentDraft(
 );
 
 void main() {
+  test(
+    'pending permission failure during owner disposal has no uncaught error',
+    () async {
+      final owner = OwnerUid('alice'),
+          source = StreamController<RawRecord>.broadcast(sync: true),
+          failures = <Object>[];
+      await runZonedGuarded(() async {
+        final container = ProviderContainer(
+          retry: (_, _) => null,
+          overrides: [
+            ownerUidProvider.overrideWithValue(owner),
+            ownerDocumentsFactoryProvider.overrideWithValue(
+              (_) => _FailingDocuments(owner, source.stream),
+            ),
+            ownerCommandsFactoryProvider.overrideWithValue(
+              UpcomingCommands.new,
+            ),
+          ],
+        );
+        final subscription = container.listen(
+          projectedDashboardProvider(CurrencyCode.php),
+          (_, _) {},
+        );
+        await Future<void>.delayed(Duration.zero);
+        source.add(const RawRecord(null, isFromCache: false));
+        await Future<void>.delayed(Duration.zero);
+        source.addError(
+          FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'permission-denied',
+          ),
+        );
+        subscription.close();
+        container.dispose();
+        await source.close();
+        await Future<void>.delayed(Duration.zero);
+      }, (error, _) => failures.add(error));
+      expect(failures, isEmpty);
+    },
+  );
+  test(
+    'private stream permission failures become state without uncaught errors',
+    () async {
+      final owner = OwnerUid('alice'),
+          source = StreamController<RawRecord>.broadcast(sync: true),
+          failures = <Object>[];
+      await runZonedGuarded(() async {
+        final container = ProviderContainer(
+          retry: (_, _) => null,
+          overrides: [
+            ownerUidProvider.overrideWithValue(owner),
+            ownerDocumentsFactoryProvider.overrideWithValue(
+              (_) => _FailingDocuments(owner, source.stream),
+            ),
+            ownerCommandsFactoryProvider.overrideWithValue(
+              UpcomingCommands.new,
+            ),
+          ],
+        );
+        final states = <AsyncValue<DataRecord<ProjectedDashboardSummary?>>>[];
+        final subscription = container.listen(
+          projectedDashboardProvider(CurrencyCode.php),
+          (_, state) => states.add(state),
+        );
+        await Future<void>.delayed(Duration.zero);
+        source.addError(
+          FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'permission-denied',
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          states.last.error,
+          isA<FinancialFailure>().having(
+            (e) => e.code,
+            'code',
+            FinancialFailureCode.signIn,
+          ),
+        );
+        subscription.close();
+        container.dispose();
+        await source.close();
+        await Future<void>.delayed(Duration.zero);
+      }, (error, _) => failures.add(error));
+      expect(failures, isEmpty);
+    },
+  );
   test('canonical dashboard activity due and currency providers stay inside the current UID scope', () async {
     final root = ProviderContainer(
       overrides: [
@@ -169,4 +262,20 @@ void main() {
     );
     expect(commands.calls[0].id, commands.calls[1].id);
   });
+}
+
+final class _FailingDocuments implements OwnerDocumentGateway {
+  _FailingDocuments(this.owner, this.recordsStream);
+  @override
+  final OwnerUid owner;
+  @override
+  Stream<RawPage> watchPage(DocumentQuery query) =>
+      UpcomingDocuments(owner).watchPage(query);
+  @override
+  Future<RawPage> getPage(DocumentQuery query) =>
+      UpcomingDocuments(owner).getPage(query);
+  final Stream<RawRecord> recordsStream;
+  @override
+  Stream<RawRecord> watchDocument(String collection, String id) =>
+      recordsStream;
 }

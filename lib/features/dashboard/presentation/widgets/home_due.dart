@@ -244,6 +244,11 @@ class _DueRow extends StatelessWidget {
                   dueLabel(instance, now),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (instance.paymentMode != PaymentMode.manual)
+                  Text(
+                    instance.deductionStatus.label,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 if (instance.periodLabel.isNotEmpty)
                   Text(
                     instance.periodLabel,

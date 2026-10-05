@@ -10,6 +10,7 @@ import '../features/calendar/presentation/calendar_screen.dart';
 import '../features/obligations/presentation/obligations_screen.dart';
 import '../features/obligations/presentation/obligation_editor.dart';
 import '../features/obligations/presentation/obligation_detail_screen.dart';
+import '../features/recurring/presentation/recurring_editor.dart';
 import '../features/obligations/domain/obligation.dart';
 import '../core/identifiers/entity_ids.dart';
 import '../core/errors/app_failure.dart';
@@ -84,6 +85,18 @@ GoRouter createAppRouter({
                 section: state.uri.queryParameters['section'] ?? 'owe',
               ),
               routes: [
+                GoRoute(
+                  path: 'recurring/new',
+                  builder: (_, state) => _FinancialRoute(
+                    child: RecurringEditor(
+                      key: ValueKey(
+                        state.uri.queryParameters['mode'] ?? 'manual',
+                      ),
+                      automatic:
+                          state.uri.queryParameters['mode'] == 'automatic',
+                    ),
+                  ),
+                ),
                 GoRoute(
                   path: 'new',
                   builder: (_, state) => _FinancialRoute(

@@ -22,7 +22,7 @@ Future<AddIntent?> showAddActionSheet(BuildContext context) =>
               ),
               const SizedBox(height: 8),
               const Text(
-                'Start with money you borrowed or lent. Recurring bills are being connected next.',
+                'Add money you borrowed, money you lent, or a bill you want Tally to remember.',
               ),
               const SizedBox(height: 16),
               for (final (intent, icon, label, description) in const [
@@ -72,11 +72,9 @@ Future<void> openAddFlow(BuildContext context) async {
       context.go('/obligations/new?kind=borrow');
     case AddIntent.lend:
       context.go('/obligations/new?kind=lend');
-    case AddIntent.monthlyDue || AddIntent.recurringPayment:
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recurring bill entry is being connected next.'),
-        ),
-      );
+    case AddIntent.monthlyDue:
+      context.go('/obligations/recurring/new');
+    case AddIntent.recurringPayment:
+      context.go('/obligations/recurring/new?mode=automatic');
   }
 }

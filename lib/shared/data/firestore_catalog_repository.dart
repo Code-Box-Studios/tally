@@ -25,7 +25,7 @@ final class FirestoreCatalogRepository extends FinancialRepositoryBase
         );
       }
     } catch (error) {
-      throw financialFailure(error);
+      yield* Stream.error(financialFailure(error));
     }
   }
 

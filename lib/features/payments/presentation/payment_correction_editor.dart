@@ -13,6 +13,7 @@ import '../../../shared/widgets/catalog_picker.dart';
 import '../../../shared/widgets/financial_labels.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../../obligations/domain/obligation.dart';
+import '../../obligations/domain/obligation_instance.dart';
 import '../../obligations/domain/installment_periods.dart';
 import '../../obligations/presentation/installment_providers.dart';
 import '../domain/allocation_preview.dart';
@@ -25,9 +26,11 @@ class PaymentCorrectionEditor extends ConsumerStatefulWidget {
     super.key,
     required this.obligation,
     required this.original,
+    this.selectedInstance,
   });
   final Obligation obligation;
   final PaymentEntry original;
+  final ObligationInstance? selectedInstance;
   @override
   ConsumerState<PaymentCorrectionEditor> createState() =>
       _PaymentCorrectionEditorState();
@@ -132,7 +135,14 @@ class _PaymentCorrectionEditorState
     final action = ref.watch(financialActionsProvider);
     final installment = widget.obligation.type == ObligationType.installment;
     List<PaymentAllocation>? preview;
-    bool complete = !installment;
+    bool complete =
+        !installment &&
+        (!widget.obligation.isRecurring ||
+            widget.selectedInstance != null &&
+                widget.selectedInstance!.id == widget.original.instanceId &&
+                widget.selectedInstance!.owner == widget.obligation.owner &&
+                widget.selectedInstance!.obligationId == widget.obligation.id &&
+                widget.selectedInstance!.remainingAmount != null);
     if (installment) {
       final state = ref.watch(
         installmentInstancesProvider(widget.obligation.id),
@@ -168,6 +178,13 @@ class _PaymentCorrectionEditorState
                   const Text(
                     'The original payment stays in history. Tally adds a reversal and, if selected, a replacement in one save.',
                   ),
+                  if (widget.obligation.isRecurring)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Text(
+                        'The reversal and any replacement stay in this billing period. Other periods are unaffected.',
+                      ),
+                    ),
                   if (installment) ...[
                     const SizedBox(height: 18),
                     PaymentAllocations(
@@ -220,7 +237,11 @@ class _PaymentCorrectionEditorState
                                     value!,
                                     widget.original.amount.currency,
                                   ).minorUnits >
-                                  widget.obligation.remainingAmount!
+                                  (widget.obligation.isRecurring
+                                          ? widget
+                                                .selectedInstance!
+                                                .remainingAmount!
+                                          : widget.obligation.remainingAmount!)
                                       .add(widget.original.amount)
                                       .minorUnits
                               ? 'This payment exceeds the remaining balance after reversal.'
@@ -235,7 +256,11 @@ class _PaymentCorrectionEditorState
                       validator: (value) =>
                           dateValidation(value) ??
                           (LocalDate.parse(value!.trim()).compareTo(
-                                        widget.obligation.originationDate,
+                                        widget.obligation.isRecurring
+                                            ? widget
+                                                  .selectedInstance!
+                                                  .occurrenceDate
+                                            : widget.obligation.originationDate,
                                       ) <
                                       0 ||
                                   LocalDate.parse(value.trim()).compareTo(
@@ -246,7 +271,9 @@ class _PaymentCorrectionEditorState
                                         ),
                                       ) >
                                       0
-                              ? 'Choose a date between the borrowed or lent date and today.'
+                              ? widget.obligation.isRecurring
+                                    ? 'Choose a date from this billing period’s start through today.'
+                                    : 'Choose a date between the borrowed or lent date and today.'
                               : null),
                     ),
                     if (installment) ...[

@@ -83,6 +83,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('I lent money'), findsWidgets);
       expect(find.text('I borrowed money'), findsNothing);
+      await tester.tap(find.byKey(const Key('add-action')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add monthly due'));
+      await tester.pumpAndSettle();
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        '/obligations/recurring/new',
+      );
+      expect(find.byKey(const Key('recurring-save')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-action')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add recurring payment'));
+      await tester.pumpAndSettle();
+      expect(find.text('Automatic with confirmation'), findsOneWidget);
       router.go('/obligations/bad%20id');
       await tester.pumpAndSettle();
       expect(find.text('This link isn’t available'), findsOneWidget);
