@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {FieldValue,type DocumentReference,type DocumentData,type Firestore,type Transaction} from 'firebase-admin/firestore';
+import {FieldValue,type DocumentReference,type DocumentData,type Firestore,type Transaction,type WhereFilterOp} from 'firebase-admin/firestore';
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from './callable.js';
 import {identifier} from './validation.js';
@@ -32,6 +32,23 @@ export class OwnerCommandContext {
   }
   create(collection:string,id:string,data:DocumentData):void {this.writes.push({kind:'create',ref:this.ref(collection,id),data:{...data,...this.audit()}});}
   update(collection:string,id:string,data:DocumentData):void {this.writes.push({kind:'update',ref:this.ref(collection,id),data:{...data,updatedAt:FieldValue.serverTimestamp()}});}
+  async readSystemJob(id:string):Promise<DocumentData|null> {
+    const snapshot=await this.transaction.get(this.root.firestore.collection('systemJobs').doc(identifier(id)));
+    if(!snapshot.exists)return null;
+    const data=snapshot.data()!;
+    if(data.userId!==this.uid || data.schemaVersion!==1)throw new HttpsError('failed-precondition','A linked job is unavailable.');
+    return data;
+  }
+  systemJob(id:string,data:DocumentData,exists:boolean):void {
+    this.writes.push({kind:exists?'update':'create',ref:this.root.firestore.collection('systemJobs').doc(identifier(id)),
+      data:exists?{...data,userId:this.uid,updatedAt:FieldValue.serverTimestamp()}:{...data,...this.audit()}});
+  }
+  async countWhere(collection:string,filters:readonly {field:string;op:WhereFilterOp;value:unknown}[]):Promise<number> {
+    let query=this.root.collection(collection).where('userId','==',this.uid);
+    for(const filter of filters)query=query.where(filter.field,filter.op,filter.value);
+    const snapshot=await this.transaction.get(query.count());
+    return snapshot.data().count;
+  }
   activity(type:string,data:DocumentData):void {this.create('activities',this.id(`activity-${type}`),{type,recordedAt:FieldValue.serverTimestamp(),...data});}
   commit():void {for(const write of this.writes){if(write.kind==='create')this.transaction.create(write.ref,write.data);else this.transaction.update(write.ref,write.data);}}
 }

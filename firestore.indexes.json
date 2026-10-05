@@ -171,6 +171,38 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "obligationInstances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "obligationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "occurrenceDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "obligationInstances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "obligationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "occurrenceDate",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

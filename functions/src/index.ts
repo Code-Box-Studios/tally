@@ -12,6 +12,9 @@ import {createObligation as createOwnerObligation,editObligation as editOwnerObl
 import {recordPayment as recordOwnerPayment,recordInstallmentPayment as recordOwnerInstallmentPayment} from './payments/payment_service.js';
 import {createInstallment as createOwnerInstallment,editInstallment as editOwnerInstallment,cancelInstallment as cancelOwnerInstallment} from './obligations/installment_service.js';
 import {correctPayment as correctOwnerPayment} from './payments/corrections.js';
+import {createRecurring as createOwnerRecurring,editRecurring as editOwnerRecurring,changeRecurringLifecycle as changeOwnerRecurringLifecycle} from './recurring/recurring_service.js';
+import {setRecurringAmount as setOwnerRecurringAmount,editRecurringInstance as editOwnerRecurringInstance,skipRecurringInstance as skipOwnerRecurringInstance} from './recurring/instance_service.js';
+import {dispatchRecurringJobs} from './jobs/recurring_dispatch.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -31,6 +34,12 @@ export const editObligation = ownerCallable((uid,data)=>editOwnerObligation(uid,
 export const cancelObligation = ownerCallable((uid,data)=>cancelOwnerObligation(uid,data,database));
 export const recordPayment = ownerCallable((uid,data)=>recordOwnerPayment(uid,data,database));
 export const correctPayment = ownerCallable((uid,data)=>correctOwnerPayment(uid,data,database));
+export const createRecurring = ownerCallable((uid,data)=>createOwnerRecurring(uid,data,database));
+export const editRecurring = ownerCallable((uid,data)=>editOwnerRecurring(uid,data,database));
+export const changeRecurringLifecycle = ownerCallable((uid,data)=>changeOwnerRecurringLifecycle(uid,data,database));
+export const setRecurringAmount = ownerCallable((uid,data)=>setOwnerRecurringAmount(uid,data,database));
+export const editRecurringInstance = ownerCallable((uid,data)=>editOwnerRecurringInstance(uid,data,database));
+export const skipRecurringInstance = ownerCallable((uid,data)=>skipOwnerRecurringInstance(uid,data,database));
 
 export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallment(uid,data,database));
 export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));
@@ -50,4 +59,8 @@ export const projectProfileChange=onDocumentWritten(
 export const processFinancialProjections=onSchedule(
   {schedule:'every 5 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,memory:'1GiB',maxInstances:2},
   async()=>{await dispatchProjectionJobs(database);},
+);
+export const processRecurringSchedules=onSchedule(
+  {schedule:'every 5 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,memory:'1GiB',maxInstances:2},
+  async()=>{await dispatchRecurringJobs(database);},
 );

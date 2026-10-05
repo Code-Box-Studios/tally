@@ -74,16 +74,19 @@ test('repair rebuilds corrupted caches from immutable allocation history and pre
   assert.equal(contactSummary.contactId,person.id);assert.equal(contactSummary.currencies.PHP.youOweMinor,70_000);
 }));
 test('duplicate and expired job leases cannot finish another worker generation',async()=>withOwner('projection-leases',async({user,root,adminDb})=>{
+  // This scenario tests leases, not historical financial dates. Real emulator
+  // triggers also enqueue jobs; keep their wall-clock nextRunAt eligible.
+  const leaseNow=new Date(Date.now()+30_000);
   const jobId=projectionJobId(user.uid);const jobRef=adminDb.collection('systemJobs').doc(jobId);
-  await enqueueProjection(user.uid,adminDb,now,true);
-  const first=await claimProjectionJob(jobId,adminDb,now);assert.ok(first);
-  assert.equal(await claimProjectionJob(jobId,adminDb,now),null);
-  await jobRef.update({leaseExpiresAt:new Date(now.getTime()-1)});
-  const second=await claimProjectionJob(jobId,adminDb,now);assert.ok(second);assert.notEqual(second.token,first.token);
-  assert.equal(await finishProjectionJob(jobId,adminDb,first.token,now,new Date(now.getTime()+60_000)),false);
+  await enqueueProjection(user.uid,adminDb,leaseNow,true);
+  const first=await claimProjectionJob(jobId,adminDb,leaseNow);assert.ok(first);
+  assert.equal(await claimProjectionJob(jobId,adminDb,leaseNow),null);
+  await jobRef.update({leaseExpiresAt:new Date(leaseNow.getTime()-1)});
+  const second=await claimProjectionJob(jobId,adminDb,leaseNow);assert.ok(second);assert.notEqual(second.token,first.token);
+  assert.equal(await finishProjectionJob(jobId,adminDb,first.token,leaseNow,new Date(leaseNow.getTime()+60_000)),false);
   await root.collection('ledgerState').doc('current').update({revision:1});
-  await enqueueProjection(user.uid,adminDb,now,true);
-  assert.equal(await finishProjectionJob(jobId,adminDb,second.token,now,new Date(now.getTime()+60_000)),false);
+  await enqueueProjection(user.uid,adminDb,leaseNow,true);
+  assert.equal(await finishProjectionJob(jobId,adminDb,second.token,leaseNow,new Date(leaseNow.getTime()+60_000)),false);
   assert.equal((await jobRef.get()).data().status,'pending');
   await jobRef.delete();
 }));

@@ -81,7 +81,7 @@ The recurrence object includes `frequency`, `interval`, `unit`, `anchorDate`, `p
 
 ### Obligation instances
 
-`obligationInstances/{id}` stores `instanceId`, `obligationId`, `occurrenceKey`, immutable `occurrenceDate`, `periodLabel`, `yearMonth`, `dueDate`, optional `deductionDate`, `timezone`, `direction`, `section`, `contactId`, `categoryId`, `currency`, `amountMinor` (nullable variable bill), `amountState: known|needed`, `financialStatus`, `deductionStatus` (nullable), `paymentMode`, `paymentSourceId`, `snapshot` of template display/terms, `templateRevision`, `totalPaidMinor`, nullable `remainingMinor`, `closed` (paid/skipped/cancelled), `lastDeductionAttemptId`, `revision`, and common fields.
+`obligationInstances/{id}` stores `instanceId`, `obligationId`, `occurrenceKey`, immutable `occurrenceDate`, `periodLabel`, `yearMonth`, `dueDate`, optional `deductionDate`, `timezone`, `direction`, `section`, `contactId`, `categoryId`, `currency`, `amountMinor` (nullable variable bill), `amountState: known|unknown`, `financialStatus`, `deductionStatus` (nullable), `paymentMode`, `paymentSourceId`, `snapshot` of template display/terms, `templateRevision`, `totalPaidMinor`, nullable `remainingMinor`, `closed` (paid/skipped/cancelled), `lastDeductionAttemptId`, `revision`, and common fields.
 
 Unknown amount keeps remaining null, paid zero, and closed false. `yearMonth` follows the current due date for monthly queries; changing due date updates it with an audit event. Original occurrence identity and snapshots stay intact. `closed` excludes unknown amounts from being mistaken for paid, and allows queries to return them for reminders/calendar.
 
@@ -163,15 +163,16 @@ All ordinary queries below run against `users/{uid}/collection`, so composite in
 | Calendar by contact/category/mode | selected field equality; dueDate range; dueDate ASC | Separate contactId / categoryId / paymentMode ASC, dueDate ASC indexes |
 | Calendar by paid/pending/etc. | financialStatus equality; dueDate range; dueDate ASC | financialStatus ASC, dueDate ASC |
 | Automatic agenda | closed=false, paymentMode IN automatic modes; deductionDate range ASC | closed ASC, paymentMode ASC, deductionDate ASC |
-| Instance history for parent | obligationId=chosen; occurrenceDate DESC | obligationId ASC, occurrenceDate DESC |
+| Recurring period paging (implemented) | obligationId=chosen; occurrenceDate ASC, documentId ASC | obligationId ASC, occurrenceDate ASC |
+| Lifecycle retained-period count (implemented server only) | userId=owner, obligationId=chosen, occurrenceDate >= pause/resume date or > inclusive end | userId ASC, obligationId ASC, occurrenceDate ASC |
 | Payment history | obligationId=chosen; paymentDate DESC | obligationId ASC, paymentDate DESC |
 | Attachment links for a record | targetType=chosen, targetId=chosen; createdAt DESC | targetType ASC, targetId ASC, createdAt DESC |
 | Contact payment history | contactId=chosen; paymentDate DESC | contactId ASC, paymentDate DESC |
 | Payments this month per currency/direction | currency=chosen, direction=chosen; paymentDate range DESC | currency ASC, direction ASC, paymentDate DESC |
 | Recurring management | type IN recurring types, lifecycle=chosen; createdAt DESC | type ASC, lifecycle ASC, createdAt DESC |
 | Reminder inbox | status IN desired; scheduledAt DESC | status ASC, scheduledAt DESC |
-| Jobs due | status=queued; nextRunAt <= now ASC | systemJobs: status ASC, nextRunAt ASC |
-| Expired job leases | status=running; leaseExpiresAt <= now ASC | systemJobs: status ASC, leaseExpiresAt ASC |
+| Jobs due (implemented) | kind=ownerProjection or recurringGeneration; status=pending; nextRunAt <= now ASC | systemJobs: kind ASC, status ASC, nextRunAt ASC |
+| Expired job leases (implemented) | kind=chosen; status=leased; leaseExpiresAt <= now ASC | systemJobs: kind ASC, status ASC, leaseExpiresAt ASC |
 
 Unfiltered calendar dueDate, paymentDate, activity createdAt, and contact searchName ordering use single-field indexes. Declare composite definitions in `firestore.indexes.json` during the appropriate milestone; deploy indexes before shipping their queries. Verify query results and rule denial in emulators, and readiness/latency in staging; emulator query success alone does not prove an index is deployed.
 

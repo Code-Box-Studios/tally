@@ -33,3 +33,13 @@ Resolve all actual offsets from the saved zone, check exact local-time candidate
 | Apia2011-12-30 09:00 skipped day | 2011-12-30 10:00Z (firstDecember31 midnight) |
 
 Additional fixtures cover non-hour Kathmandu/Chatham offsets, leap/month-end behavior, date bounds and bounded continuation. Server tests check a2099 local-time roundtrip for every bundled zone. Actual due dates remain civil strings; audit timestamps and scheduled instants remain separate.
+
+## Trusted period generation and edits
+
+Creation atomically writes the owner-scoped template, first period when within a90-day horizon, permanent command receipt, ledger invalidation and deterministic owner/template generation job. Every later batch checks the active owner, current parent revision and current six-minute lease inside the transaction. It considers at most30 periods, verifies existing deterministic identities, and atomically commits instances, period jobs and cursor. A conflict or failed create rolls back all staged documents and cursor changes. Continuations remain immediately eligible; quiet schedules refresh at the next saved-zone midnight. Closed pause ranges are skipped directly; an open pause does not consume the eventual resume range. End dates are inclusive, including an explicit lifecycle cutoff before the first occurrence.
+
+Fees, contacts, sources, reminders and rule edits affect newly generated snapshots. Rules cut over after the last generated occurrence; an existing occurrence cannot acquire new terms through generation. Moving an unpaid period's due date keeps its occurrence key, original date and snapshot, and records the actual source override separately. Amount edits cannot undercut effective paid amounts. Skipping requires zero effective paid, preserves amounts/history and cancels the period's pending jobs.
+
+Variable periods use `amountState=unknown`, null amount/remaining, zero paid and an optional estimate in the snapshot. Entering an amount after its automatic deduction time requires confirmation. Template lifetime amounts and `nextDueDate` remain null; outstanding dates come from individual periods and complete projections. `nextGenerationDate` describes schedule processing and must not be presented as the next outstanding bill.
+
+The scheduled generation dispatcher uses `kind=recurringGeneration`, `status=pending` plus `nextRunAt`, and separately expired `status=leased` plus `leaseExpiresAt`. Both indexes reuse the corresponding kind/status/date system-job composites. Parent period pages use obligationId/occurrenceDate ascending; lifecycle retention counts add userId to that server-owned query. Index declarations are in `firestore.indexes.json`; emulator success does not establish production index readiness.
