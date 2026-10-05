@@ -185,8 +185,9 @@ class _FinancialFilterPanelState extends ConsumerState<FinancialFilterPanel> {
       title: 'Choose person or organization',
       stream: repository.watchContacts(),
       more: (cursor) => repository.getContacts(after: cursor),
-      label: (value) => value.name,
-      active: (value) => !value.archived,
+      label: (value) =>
+          value.archived ? '${value.name} · Archived' : value.name,
+      active: (_) => true,
     );
     if (mounted && value != null) {
       setState(() {
@@ -203,8 +204,8 @@ class _FinancialFilterPanelState extends ConsumerState<FinancialFilterPanel> {
       title: 'Choose category',
       stream: repository.watchCategories(),
       more: (cursor) => repository.getCategories(after: cursor),
-      label: (value) => value.name,
-      active: (value) => value.active,
+      label: (value) => value.active ? value.name : '${value.name} · Inactive',
+      active: (_) => true,
     );
     if (mounted && value != null) {
       setState(() {
@@ -221,8 +222,8 @@ class _FinancialFilterPanelState extends ConsumerState<FinancialFilterPanel> {
       title: 'Choose payment source',
       stream: repository.watchSources(),
       more: (cursor) => repository.getSources(after: cursor),
-      label: (value) => value.name,
-      active: (value) => value.active,
+      label: (value) => value.active ? value.name : '${value.name} · Inactive',
+      active: (_) => true,
     );
     if (mounted && value != null) {
       setState(() {

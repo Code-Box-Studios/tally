@@ -46,6 +46,7 @@ class _ObligationsScreenState extends ConsumerState<ObligationsScreen> {
     currency: widget.initialCurrency,
   );
   bool _periods = false;
+  int _searchReset = 0;
   @override
   void didUpdateWidget(covariant ObligationsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -56,6 +57,7 @@ class _ObligationsScreenState extends ConsumerState<ObligationsScreen> {
         currency: widget.initialCurrency,
       );
       _periods = false;
+      _searchReset++;
     }
   }
 
@@ -68,7 +70,12 @@ class _ObligationsScreenState extends ConsumerState<ObligationsScreen> {
       allowPeriodState: !bills,
       allowLifecycle: bills,
     );
-    if (mounted && result != null) setState(() => _filter = result);
+    if (mounted && result != null) {
+      setState(() {
+        _filter = result;
+        if (result == FinancialFilter(section: _type)) _searchReset++;
+      });
+    }
   }
 
   void _switchPeriods(bool periods) => setState(() {
@@ -182,6 +189,7 @@ class _ObligationsScreenState extends ConsumerState<ObligationsScreen> {
             const SizedBox(height: 20),
           ],
           SearchField(
+            key: ValueKey(_searchReset),
             value: _filter.text,
             onChanged: (text) =>
                 setState(() => _filter = filterWithText(_filter, text)),
@@ -211,8 +219,10 @@ class _ObligationsScreenState extends ConsumerState<ObligationsScreen> {
                 ),
               if (_filter != FinancialFilter(section: _type))
                 TextButton(
-                  onPressed: () =>
-                      setState(() => _filter = FinancialFilter(section: _type)),
+                  onPressed: () => setState(() {
+                    _filter = FinancialFilter(section: _type);
+                    _searchReset++;
+                  }),
                   child: const Text('Clear filters'),
                 ),
             ],

@@ -158,6 +158,7 @@ class CalendarAgendaRow extends StatelessWidget {
                 'Amount needed',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
+              Text('Currency · ${instance.currency.code}'),
               if (instance.estimatedAmount case final estimate?) ...[
                 const Text('Estimate · enter the actual bill amount'),
                 MoneyText(money: estimate, includeCode: true),

@@ -23,7 +23,7 @@ recurring period is read directly and checked against its parent before its
 independent payment query displays history. Finite installment history keeps
 its existing allocation-aware behavior.
 
-Automated evidence includes 382 passing Flutter tests, including 35 added
+Automated evidence includes 388 passing Flutter tests, including 41 added
 calendar/search screen cases, and 77 passing Functions tests. The focused
 calendar/search suite has 95 passing domain, query, scope and widget tests.
 The fresh emulator gate passed one normal prompt-worker test and 71 deterministic
@@ -33,7 +33,9 @@ currency separation, multi-codepoint input limits, sparse continuation beyond
 250 and 1,000 records, surplus buffering, concurrent first-page replacement,
 owner cancellation, cache incompleteness, saved-zone midnight/month boundaries,
 calendar limits, exact-period original/reversal/replacement history and
-currency-preserving Home links and returning from detail to the list by reselecting
+archived/inactive stable-ID history pickers, currency on unknown bills without
+estimates, cancelling uncommitted searches on reset, currency-preserving Home
+links and returning from detail to the list by reselecting
 Obligations while preserving an already-open list currency. Layouts were tested at 320, 375, 800 and 1440
 pixels with 200% text, an open keyboard, and light/dark calendar rendering.
 The synthetic 1,000-record boundary fixture found its later match after 20

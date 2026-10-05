@@ -32,6 +32,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   YearMonth? _month;
   LocalDate? _selected;
   FinancialFilter _filter = FinancialFilter();
+  int _searchReset = 0;
   void _changeMonth(YearMonth month) => setState(() {
     _month = month;
     _selected = null;
@@ -55,7 +56,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   Future<void> _filters() async {
     final result = await showFinancialFilters(context, _filter);
-    if (mounted && result != null) setState(() => _filter = result);
+    if (mounted && result != null) {
+      setState(() {
+        _filter = result;
+        if (result == FinancialFilter()) _searchReset++;
+      });
+    }
   }
 
   @override
@@ -104,6 +110,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
           const SizedBox(height: 20),
           SearchField(
+            key: ValueKey(_searchReset),
             value: _filter.text,
             onChanged: (text) =>
                 setState(() => _filter = filterWithText(_filter, text)),
@@ -121,7 +128,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ),
               if (_filter != FinancialFilter())
                 TextButton(
-                  onPressed: () => setState(() => _filter = FinancialFilter()),
+                  onPressed: () => setState(() {
+                    _filter = FinancialFilter();
+                    _searchReset++;
+                  }),
                   child: const Text('Clear filters'),
                 ),
             ],
