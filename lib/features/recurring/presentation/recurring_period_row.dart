@@ -20,15 +20,17 @@ class RecurringPeriodRow extends ConsumerStatefulWidget {
     super.key,
     required this.parent,
     required this.instance,
+    this.initiallyExpanded = false,
   });
   final Obligation parent;
   final ObligationInstance instance;
+  final bool initiallyExpanded;
   @override
   ConsumerState<RecurringPeriodRow> createState() => _RecurringPeriodRowState();
 }
 
 class _RecurringPeriodRowState extends ConsumerState<RecurringPeriodRow> {
-  bool _expanded = false;
+  late bool _expanded = widget.initiallyExpanded;
   @override
   Widget build(BuildContext context) {
     final period = widget.instance;

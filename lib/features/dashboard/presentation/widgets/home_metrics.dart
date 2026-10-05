@@ -23,7 +23,8 @@ class HomeMetrics extends StatelessWidget {
           hint: 'Active loans & installments',
           light: const Color(0xffeef4e9),
           dark: const Color(0xff2a3c2b),
-          route: '/obligations?section=owe',
+          route:
+              '/obligations?section=owe${summary == null ? '' : '&currency=${summary!.currency.code}'}',
         ),
         _HomeMetric(
           key: const Key('home-owed-to-you'),
@@ -33,7 +34,8 @@ class HomeMetrics extends StatelessWidget {
           hint: 'Money coming back to you',
           light: const Color(0xffedf2f8),
           dark: const Color(0xff293b4d),
-          route: '/obligations?section=owed',
+          route:
+              '/obligations?section=owed${summary == null ? '' : '&currency=${summary!.currency.code}'}',
         ),
         _HomeMetric(
           key: const Key('home-remaining-month'),

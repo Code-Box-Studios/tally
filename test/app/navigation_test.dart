@@ -7,6 +7,37 @@ import 'package:tally/core/theme/theme_controller.dart';
 import 'package:tally/features/obligations/presentation/add_action_sheet.dart';
 
 void main() {
+  for (final width in [375.0, 1440.0]) {
+    testWidgets(
+      'reselecting Obligations returns from detail to list at $width without resetting a list currency',
+      (tester) async {
+        tester.view.physicalSize = Size(width, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final router = createAppRouter(initialLocation: '/obligations/loan-1');
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [appRouterProvider.overrideWithValue(router)],
+            child: const TallyApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Obligations').last);
+        await tester.pumpAndSettle();
+        expect(router.routeInformationProvider.value.uri.path, '/obligations');
+        expect(find.text('Nothing owed yet'), findsOneWidget);
+        router.go('/obligations?section=owed&currency=USD');
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Obligations').last);
+        await tester.pumpAndSettle();
+        expect(router.routeInformationProvider.value.uri.queryParameters, {
+          'section': 'owed',
+          'currency': 'USD',
+        });
+      },
+    );
+  }
   testWidgets('URL sections survive branch/theme changes and pop', (
     tester,
   ) async {

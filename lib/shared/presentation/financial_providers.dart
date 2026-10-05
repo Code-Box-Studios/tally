@@ -76,6 +76,11 @@ final instancesPageProvider = StreamProvider.autoDispose
       (ref, id) => ref.watch(obligationsRepositoryProvider).watchInstances(id),
       dependencies: [obligationsRepositoryProvider],
     );
+final instanceProvider = StreamProvider.autoDispose
+    .family<DataRecord<ObligationInstance?>, InstanceId>(
+      (ref, id) => ref.watch(obligationsRepositoryProvider).watchInstance(id),
+      dependencies: [obligationsRepositoryProvider],
+    );
 final paymentsPageProvider = StreamProvider.autoDispose
     .family<DataPage<PaymentEntry>, ObligationId>(
       (ref, id) => ref.watch(paymentsRepositoryProvider).watchPayments(id),

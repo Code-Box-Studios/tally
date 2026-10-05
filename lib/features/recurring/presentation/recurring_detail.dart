@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/presentation/financial_form_support.dart';
+import '../../../core/identifiers/entity_ids.dart';
+import '../../../shared/presentation/financial_providers.dart';
 import '../../../shared/widgets/money_text.dart';
 import '../../../shared/widgets/page_body.dart';
 import '../../../shared/widgets/paged_records.dart';
@@ -28,9 +30,11 @@ class RecurringDetail extends ConsumerWidget {
     super.key,
     required this.parent,
     this.isFromCache = false,
+    this.initialPeriod,
   });
   final Obligation parent;
   final bool isFromCache;
+  final InstanceId? initialPeriod;
   Future<void> _lifecycle(
     BuildContext context,
     RecurringLifecycleAction action,
@@ -75,6 +79,55 @@ class RecurringDetail extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (initialPeriod case final id?) ...[
+            Text(
+              'Selected billing period',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            ref
+                .watch(instanceProvider(id))
+                .when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, _) => Column(
+                    children: [
+                      FinancialActionError(error: error),
+                      TextButton(
+                        onPressed: () => ref.invalidate(instanceProvider(id)),
+                        child: const Text('Try again'),
+                      ),
+                    ],
+                  ),
+                  data: (record) {
+                    final period = record.value;
+                    if (period == null ||
+                        period.obligationId != parent.id ||
+                        period.section != ObligationSection.monthlyDues) {
+                      return const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text('This billing period isn’t available'),
+                        ),
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (record.isFromCache)
+                          const Text('Cached period · reconnect to confirm.'),
+                        RecurringPeriodRow(
+                          key: ValueKey((parent.id, id)),
+                          parent: parent,
+                          instance: period,
+                          initiallyExpanded: true,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+            const SizedBox(height: 24),
+          ],
           if (isFromCache)
             const Padding(
               padding: EdgeInsets.only(bottom: 12),
@@ -232,7 +285,9 @@ class RecurringDetail extends ConsumerWidget {
             builder: (context, periods, complete) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final period in periods)
+                for (final period in periods.where(
+                  (period) => period.id != initialPeriod,
+                ))
                   RecurringPeriodRow(
                     key: ValueKey(period.id),
                     parent: parent,

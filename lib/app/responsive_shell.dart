@@ -23,10 +23,26 @@ const shellDestinations = [
 class ResponsiveShell extends ConsumerWidget {
   const ResponsiveShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
-  void _go(int index) => navigationShell.goBranch(index);
+  void _go(BuildContext context, int index) {
+    const roots = [
+      '/home',
+      '/obligations',
+      '/people',
+      '/calendar',
+      '/activity',
+      '/settings',
+    ];
+    final path = GoRouterState.of(context).uri.path;
+    navigationShell.goBranch(
+      index,
+      initialLocation:
+          index == navigationShell.currentIndex && path != roots[index],
+    );
+  }
+
   Future<void> _mobileGo(BuildContext context, int index) async {
     if (index < 4) {
-      _go(index);
+      _go(context, index);
       return;
     }
     final chosen = await showModalBottomSheet<int>(
@@ -48,7 +64,7 @@ class ResponsiveShell extends ConsumerWidget {
         ),
       ),
     );
-    if (chosen != null && context.mounted) _go(chosen);
+    if (chosen != null && context.mounted) _go(context, chosen);
   }
 
   @override
@@ -75,7 +91,7 @@ class ResponsiveShell extends ConsumerWidget {
                     key: const Key('desktop-sidebar'),
                     name: name,
                     selected: navigationShell.currentIndex,
-                    go: _go,
+                    go: (index) => _go(context, index),
                     destinations: shellDestinations,
                   ),
                 if (layout == LayoutClass.medium)
@@ -83,7 +99,7 @@ class ResponsiveShell extends ConsumerWidget {
                     child: IntrinsicHeight(
                       child: NavigationRail(
                         selectedIndex: navigationShell.currentIndex,
-                        onDestinationSelected: _go,
+                        onDestinationSelected: (index) => _go(context, index),
                         labelType: NavigationRailLabelType.all,
                         leading: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 20),
@@ -124,7 +140,7 @@ class ResponsiveShell extends ConsumerWidget {
                         currency: currency,
                         label:
                             shellDestinations[navigationShell.currentIndex].$1,
-                        go: _go,
+                        go: (index) => _go(context, index),
                       ),
                       Expanded(child: navigationShell),
                     ],

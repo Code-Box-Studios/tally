@@ -113,6 +113,11 @@ void main() {
       );
       expect(find.text('Try again'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      // The searchable branch now subscribes to the civil-day clock. Unmount
+      // the externally owned container's view and let autoDispose cancel it.
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pumpAndSettle();
     },
   );
 }

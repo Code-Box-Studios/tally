@@ -76,6 +76,24 @@ final class FirestoreObligationsRepository extends FinancialRepositoryBase
   ObligationInstance _instance(RawDocument doc) =>
       InstanceDto.fromMap(doc.id, doc.data, owner);
   @override
+  Stream<DataRecord<ObligationInstance?>> watchInstance(InstanceId id) async* {
+    try {
+      await for (final record in documents.watchDocument(
+        'obligationInstances',
+        id.value,
+      )) {
+        final doc = record.document;
+        yield DataRecord(
+          doc == null ? null : _instance(doc),
+          isFromCache: record.isFromCache,
+        );
+      }
+    } catch (error) {
+      yield* Stream.error(financialFailure(error));
+    }
+  }
+
+  @override
   Stream<DataPage<ObligationInstance>> watchInstances(
     ObligationId id, {
     int limit = 50,

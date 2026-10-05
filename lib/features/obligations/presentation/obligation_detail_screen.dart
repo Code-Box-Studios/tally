@@ -30,9 +30,11 @@ class ObligationDetailScreen extends ConsumerWidget {
     super.key,
     required this.id,
     this.editing = false,
+    this.initialPeriod,
   });
   final ObligationId id;
   final bool editing;
+  final InstanceId? initialPeriod;
   @override
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(obligationProvider(id))
@@ -84,6 +86,7 @@ class ObligationDetailScreen extends ConsumerWidget {
             return RecurringDetail(
               parent: parent,
               isFromCache: record.isFromCache,
+              initialPeriod: initialPeriod,
             );
           }
           final active = parent.lifecycle == ObligationLifecycle.active;

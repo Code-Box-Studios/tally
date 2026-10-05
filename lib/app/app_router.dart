@@ -13,6 +13,7 @@ import '../features/obligations/presentation/obligation_detail_screen.dart';
 import '../features/recurring/presentation/recurring_editor.dart';
 import '../features/obligations/domain/obligation.dart';
 import '../core/identifiers/entity_ids.dart';
+import '../core/money/currency_code.dart';
 import '../core/errors/app_failure.dart';
 import '../features/people/presentation/people_screen.dart';
 import '../features/people/presentation/contact_detail_screen.dart';
@@ -81,9 +82,7 @@ GoRouter createAppRouter({
           routes: [
             GoRoute(
               path: '/obligations',
-              builder: (_, state) => ObligationsScreen(
-                section: state.uri.queryParameters['section'] ?? 'owe',
-              ),
+              builder: (_, state) => _obligationsRoute(state.uri),
               routes: [
                 GoRoute(
                   path: 'recurring/new',
@@ -117,6 +116,9 @@ GoRouter createAppRouter({
                   builder: (_, state) => _entityRoute(
                     () => ObligationDetailScreen(
                       id: ObligationId(state.pathParameters['id']!),
+                      initialPeriod: state.uri.queryParameters['period'] == null
+                          ? null
+                          : InstanceId(state.uri.queryParameters['period']!),
                     ),
                   ),
                   routes: [
@@ -190,6 +192,23 @@ Widget _entityRoute(Widget Function() child) {
       icon: Icons.explore_off_outlined,
       title: 'This link isn’t available',
       description: 'Choose an obligation or person from your workspace.',
+    );
+  }
+}
+
+Widget _obligationsRoute(Uri uri) {
+  try {
+    final currency = uri.queryParameters['currency'];
+    return ObligationsScreen(
+      section: uri.queryParameters['section'] ?? 'owe',
+      initialCurrency: currency == null ? null : CurrencyCode.parse(currency),
+    );
+  } on AppFailure {
+    return const EmptyState(
+      icon: Icons.currency_exchange,
+      title: 'This currency isn’t supported',
+      description:
+          'Choose PHP, USD, EUR, SGD, AUD, JPY or GBP from your workspace.',
     );
   }
 }
