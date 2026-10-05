@@ -38,6 +38,9 @@ final class ObligationInstance {
     this.estimatedAmount,
     this.source,
     this.notes = '',
+    this.description = '',
+    this.contact,
+    this.categoryName = '',
   });
   final InstanceId id;
   final ObligationId obligationId;
@@ -68,4 +71,6 @@ final class ObligationInstance {
   final Money? estimatedAmount;
   final SourceLabel? source;
   final String notes;
+  final String description, categoryName;
+  final ContactLabel? contact;
 }

@@ -68,6 +68,20 @@ abstract final class InstanceDto {
       obligationId: ObligationId(d.text('obligationId', max: 128)),
       owner: owner,
       title: d.object('snapshot').text('title', max: 120, required: true),
+      description: snapshot.data.containsKey('description')
+          ? snapshot.text('description')
+          : '',
+      contact: CatalogDto.contactLabel(
+        snapshot.data.containsKey('contactSnapshot')
+            ? snapshot.nullableObject('contactSnapshot')
+            : null,
+      ),
+      categoryName: snapshot.data.containsKey('categorySnapshot')
+          ? snapshot
+                    .nullableObject('categorySnapshot')
+                    ?.text('name', max: 120) ??
+                ''
+          : '',
       currency: currency,
       amount: amount,
       paidAmount: paid,
@@ -113,10 +127,10 @@ abstract final class InstanceDto {
                   : snapshot.nullableObject('sourceSnapshot'),
             )
           : null,
-      notes: recurring
-          ? data.containsKey('notes')
-                ? d.text('notes')
-                : snapshot.text('notes')
+      notes: data.containsKey('notes')
+          ? d.text('notes')
+          : snapshot.data.containsKey('notes')
+          ? snapshot.text('notes')
           : '',
     );
   }
