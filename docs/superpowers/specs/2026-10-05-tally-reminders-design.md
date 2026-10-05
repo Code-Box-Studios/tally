@@ -63,13 +63,23 @@ ordinary upcoming for automatic modes. Automatic confirmation starts when an
 expected deduction requires confirmation and remains outstanding; it does not
 record payment. Overdue events use due+1, +3, +7, then +14,+21,… civil days,
 with at most one overdue alert per seven days after the first week.
+Confirmation uses the actual saved expectation instant and its original civil
+date; daily preparation does not create a new confirmation date. The overdue
+cadence handles ongoing outstanding confirmations. Owed-to-me alerts also obey
+the corresponding upcoming/due/overdue category toggle, plus the owed-to-me toggle.
 
 Quiet hours use the current profile timezone. If a resolved instant falls in
 quiet hours, postpone to the first quiet-end instant in that zone, using the
 same DST policy: earlier overlap occurrence and first valid instant after a gap.
+If the event is already inside the second occurrence of a repeated quiet hour,
+choose the next actual quiet-end occurrence; do not move backward to the first
+occurrence or deliver while still in quiet hours.
 Use civil arithmetic rather than adding UTC 24-hour durations. Never move the
 stored financial due date. Support the existing 1900–2199 due-date range and
 597 checked-in IANA zones; reject unsupported inputs rather than defaulting.
+Clip the planning window at supported calendar bounds and skip offsets beyond
+them. Quiet-hour postponement beyond 2199 fails explicitly instead of inventing
+a supported financial date.
 
 Generate a bounded window from today minus seven civil days through today plus
 90 days. Do not flood a returning user with every missed event: an old pending
