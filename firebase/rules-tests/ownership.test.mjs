@@ -4,7 +4,8 @@ import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/ru
 import {doc,getDoc,setDoc,updateDoc,deleteDoc,collection,getDocs,query,limit,collectionGroup} from 'firebase/firestore';
 let env;
 before(async () => {
-  env = await initializeTestEnvironment({projectId:'demo-tally',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
+  // Isolate malformed rule fixtures from the demo-tally Functions triggers.
+  env = await initializeTestEnvironment({projectId:'demo-tally-rules',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
   await env.withSecurityRulesDisabled(async context => {
     const db=context.firestore();
     await setDoc(doc(db,'users/alice'),{userId:'alice',accountStatus:'active'});

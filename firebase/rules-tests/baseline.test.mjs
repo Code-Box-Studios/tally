@@ -6,7 +6,8 @@ import {ref, uploadBytes, getBytes} from 'firebase/storage';
 let env;
 before(async () => {
   // Missing rule files intentionally fail, rather than silently skipping security.
-  env = await initializeTestEnvironment({projectId:'demo-tally', firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')},storage:{host:'127.0.0.1',port:9199,rules:readFileSync('storage.rules','utf8')}});
+  // Isolate malformed rule fixtures from the demo-tally Functions triggers.
+  env = await initializeTestEnvironment({projectId:'demo-tally-rules', firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')},storage:{host:'127.0.0.1',port:9199,rules:readFileSync('storage.rules','utf8')}});
   await env.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(),'users/alice/obligations/debt'),{userId:'alice',amount:100});
     await uploadBytes(ref(context.storage(),'users/alice/attachments/receipt'),new Uint8Array([1,2]),{contentType:'image/png'});
