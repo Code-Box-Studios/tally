@@ -33,3 +33,18 @@ The deterministic top-level `systemJobs/projection-{sha256(uid)}` coalesces owne
 Client due queries use `closed=false`, an optional `section` and a conservative civil-date envelope, ordered by `dueDate` and document ID ascending. Actual due-state classification happens against each instance's saved timezone and an injected clock. Continuation pages remain accessible and residual filtering cannot be mistaken for query exhaustion. The closed/date and closed/section/date composite shapes are included for M3 readers.
 
 The trigger and worker retry design follows Firebase's documented [at-least-once Firestore events](https://firebase.google.com/docs/functions/firestore-events) and [scheduled function semantics](https://firebase.google.com/docs/functions/schedule-functions). Financial and publication writes follow [Firestore transaction semantics](https://firebase.google.com/docs/firestore/manage-data/transactions).
+
+## Private reminder inbox
+
+Canonical preferences are watched at `users/{uid}/notificationPreferences/default`
+after bootstrap migrates the legacy seed. Inbox pages query the owner-scoped
+`reminders` collection with `visible == true`, `scheduledAt <= until`, ordered
+by `scheduledAt DESC, documentId DESC`, limit50. The explicit UTC cutoff and
+page limit bind each cursor; a refresh creates a new query context. The matching
+composite index is visible ASC / scheduledAt DESC. Unknown reminder amounts
+still retain a supported native currency; cancelled or future records in a
+published page fail mapping rather than appearing as due records.
+
+The shared SDK query signature now serializes DateTime range values as canonical
+UTC ISO instants and includes the page limit. Existing civil-date/string queries
+retain their query semantics. Deployed index readiness remains a staging gate.

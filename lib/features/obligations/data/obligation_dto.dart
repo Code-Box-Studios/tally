@@ -135,7 +135,7 @@ abstract final class ObligationDto {
       revision: d.revision(),
       createdAt: d.dateTime('createdAt'),
       recurrence: recurrence,
-      reminderPolicy: recurring
+      reminderPolicy: recurring || data['reminderPolicy'] != null
           ? RecurrenceDto.reminder(d.object('reminderPolicy'))
           : null,
       nextGenerationDate: recurring

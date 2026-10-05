@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../core/identifiers/entity_ids.dart';
 import '../domain/data_page.dart';
 
@@ -72,6 +74,8 @@ final class DocumentQuery {
     'ledgerState',
     'deductionAttempts',
     'paymentEvidence',
+    'reminders',
+    'notificationPreferences',
   };
   final String collection;
   final int limit;
@@ -80,6 +84,22 @@ final class DocumentQuery {
   final List<DocumentOrder> order;
   final List<DocumentRange> ranges;
 }
+
+String privateQuerySignature(DocumentQuery request) => jsonEncode(
+  [
+    request.collection,
+    request.limit,
+    request.equals,
+    request.order.map((order) => [order.field, order.descending]).toList(),
+    request.ranges
+        .map((range) => [range.field, range.comparison.name, range.value])
+        .toList(),
+  ],
+  toEncodable: (value) {
+    if (value is DateTime) return value.toUtc().toIso8601String();
+    throw ArgumentError('Unsupported private query value.');
+  },
+);
 
 abstract interface class OwnerDocumentGateway {
   OwnerUid get owner;

@@ -67,6 +67,12 @@ export class OwnerCommandContext {
   }
 }
 export async function executeOwnerCommand<P,R>(uid:string,input:unknown,type:string,validate:(payload:unknown)=>P,handler:(context:OwnerCommandContext,payload:P)=>Promise<R>,db:Firestore):Promise<R> {
+  return runOwnerCommand(uid,input,type,validate,handler,db,true);
+}
+export async function executeMetadataCommand<P,R>(uid:string,input:unknown,type:string,validate:(payload:unknown)=>P,handler:(context:OwnerCommandContext,payload:P)=>Promise<R>,db:Firestore):Promise<R> {
+  return runOwnerCommand(uid,input,type,validate,handler,db,false);
+}
+async function runOwnerCommand<P,R>(uid:string,input:unknown,type:string,validate:(payload:unknown)=>P,handler:(context:OwnerCommandContext,payload:P)=>Promise<R>,db:Firestore,financial:boolean):Promise<R> {
   identifier(uid);
   const envelope=exactObject(input,['commandId','expectedOwnerUid','payload']);
   const commandId=identifier(envelope.commandId);const expectedOwner=identifier(envelope.expectedOwnerUid);
@@ -75,20 +81,20 @@ export async function executeOwnerCommand<P,R>(uid:string,input:unknown,type:str
   const hash=createHash('sha256').update(JSON.stringify(ordered({type,payload}))).digest('hex');
   const root=db.doc(`users/${uid}`);const receiptRef=root.collection('commandReceipts').doc(commandId);const ledgerRef=root.collection('ledgerState').doc('current');
   return db.runTransaction(async transaction=>{
-    const [profileDoc,receipt,ledgerDoc]=await Promise.all([transaction.get(root),transaction.get(receiptRef),transaction.get(ledgerRef)]);
-    const profile=profileDoc.data();const ledger=ledgerDoc.data();
+    const [profileDoc,receipt,ledgerDoc]=await Promise.all([transaction.get(root),transaction.get(receiptRef),financial?transaction.get(ledgerRef):null]);
+    const profile=profileDoc.data();const ledger=ledgerDoc?.data();
     if(!profile || profile.userId!==uid || profile.accountStatus!=='active' || profile.schemaVersion!==1)throw new HttpsError('failed-precondition','Your account is unavailable.');
     if(receipt.exists){
       const data=receipt.data()!;
       if(data.userId!==uid || data.commandType!==type || data.payloadHash!==hash)throw new HttpsError('already-exists','This action identifier was already used.');
       return data.result as R;
     }
-    if(!ledger || ledger.userId!==uid || ledger.schemaVersion!==1 || !Number.isSafeInteger(ledger.revision) || ledger.revision<0 || ledger.revision>=Number.MAX_SAFE_INTEGER)throw new HttpsError('failed-precondition','Your financial records need recovery.');
+    if(financial&&(!ledger || ledger.userId!==uid || ledger.schemaVersion!==1 || !Number.isSafeInteger(ledger.revision) || ledger.revision<0 || ledger.revision>=Number.MAX_SAFE_INTEGER))throw new HttpsError('failed-precondition','Your financial records need recovery.');
     const context=new OwnerCommandContext(transaction,root,uid,commandId,profile);
     const result=await handler(context,payload);
-    await stageProjectionMutation(context,ledger.revision+1,new Date());
+    if(financial)await stageProjectionMutation(context,ledger!.revision+1,new Date());
     context.create('commandReceipts',commandId,{commandType:type,payloadHash:hash,result,recordedAt:FieldValue.serverTimestamp()});
-    context.update('ledgerState','current',{revision:ledger.revision+1,lastMutationAt:FieldValue.serverTimestamp()});
+    if(financial)context.update('ledgerState','current',{revision:ledger!.revision+1,lastMutationAt:FieldValue.serverTimestamp()});
     context.commit();
     return result;
   });

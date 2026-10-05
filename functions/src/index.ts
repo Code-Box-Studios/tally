@@ -16,6 +16,8 @@ import {createRecurring as createOwnerRecurring,editRecurring as editOwnerRecurr
 import {setRecurringAmount as setOwnerRecurringAmount,editRecurringInstance as editOwnerRecurringInstance,skipRecurringInstance as skipOwnerRecurringInstance} from './recurring/instance_service.js';
 import {dispatchReadyJobs,runReadyJob,shouldRunPrompt,promptWorkerEnabled} from './jobs/dispatch.js';
 import {confirmDeduction as confirmOwnerDeduction,reportDeductionFailure as reportOwnerDeductionFailure} from './recurring/automatic_service.js';
+import {updateNotificationPreferences as updateOwnerNotificationPreferences,setObligationReminder as setOwnerObligationReminder} from './notifications/preference_service.js';
+import {markReminderRead as markOwnerReminderRead} from './notifications/inbox_service.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -43,6 +45,9 @@ export const editRecurringInstance = ownerCallable((uid,data)=>editOwnerRecurrin
 export const skipRecurringInstance = ownerCallable((uid,data)=>skipOwnerRecurringInstance(uid,data,database));
 export const confirmDeduction = ownerCallable((uid,data)=>confirmOwnerDeduction(uid,data,database));
 export const reportDeductionFailure = ownerCallable((uid,data)=>reportOwnerDeductionFailure(uid,data,database));
+export const updateNotificationPreferences=ownerCallable((uid,data)=>updateOwnerNotificationPreferences(uid,data,database));
+export const markReminderRead=ownerCallable((uid,data)=>markOwnerReminderRead(uid,data,database));
+export const setObligationReminder=ownerCallable((uid,data)=>setOwnerObligationReminder(uid,data,database));
 
 export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallment(uid,data,database));
 export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));

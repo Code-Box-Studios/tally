@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -22,14 +20,7 @@ final class FirebaseOwnerDocuments implements OwnerDocumentGateway {
   final FirebaseFirestore firestore;
   @override
   final OwnerUid owner;
-  String _signature(DocumentQuery request) => jsonEncode([
-    request.collection,
-    request.equals,
-    request.order.map((order) => [order.field, order.descending]).toList(),
-    request.ranges
-        .map((range) => [range.field, range.comparison.name, range.value])
-        .toList(),
-  ]);
+  String _signature(DocumentQuery request) => privateQuerySignature(request);
   Query<Map<String, dynamic>> _query(DocumentQuery request) {
     Query<Map<String, dynamic>> query = firestore
         .collection('users')

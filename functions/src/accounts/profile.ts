@@ -1,8 +1,10 @@
 import {createHash} from 'node:crypto';
-import {FieldValue, type Firestore} from 'firebase-admin/firestore';
+import {FieldValue,Timestamp,type Firestore} from 'firebase-admin/firestore';
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from '../shared/callable.js';
 import {hasZone} from '../shared/zone_data.js';
+import {defaultNotificationPolicy,migrateNotificationPolicy} from '../notifications/policy.js';
+import {revision} from '../shared/validation.js';
 
 const currencies = ['PHP','USD','EUR','SGD','AUD','JPY','GBP'] as const;
 const themes = ['light','dark','system'] as const;
@@ -70,7 +72,21 @@ export async function bootstrapProfile(uid: string, identity: {displayName:strin
   const profileRef = db.doc(`users/${uid}`);
   return db.runTransaction(async transaction => {
     const existing = await transaction.get(profileRef);
-    if (existing.exists) return activeProfile(uid,existing.data());
+    if (existing.exists) {
+      const profile=activeProfile(uid,existing.data());
+      const canonical=await transaction.get(profileRef.collection('notificationPreferences').doc('default'));
+      if(!canonical.exists) {
+        const legacy=await transaction.get(profileRef.collection('notificationPreferences').doc('current'));
+        const data=legacy.data();
+        if(data&&(data.userId!==uid||data.schemaVersion!==1||!(data.createdAt instanceof Timestamp)))
+          throw new HttpsError('failed-precondition','Your reminder settings need recovery.');
+        transaction.create(canonical.ref,{...migrateNotificationPolicy(data??{}),userId:uid,schemaVersion:1,
+          revision:data?revision(data.revision):1,createdAt:data?.createdAt??FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
+      }else if(canonical.data()?.userId!==uid||canonical.data()?.schemaVersion!==1) {
+        throw new HttpsError('failed-precondition','Your reminder settings need recovery.');
+      }
+      return profile;
+    }
     // A persistent deletion fence survives profile removal.
     const deletion = await transaction.get(db.doc(`accountDeletionJobs/${uid}`));
     if (deletion.exists) throw new HttpsError('failed-precondition','Your account is unavailable.');
@@ -86,8 +102,8 @@ export async function bootstrapProfile(uid: string, identity: {displayName:strin
         ...audit,name,searchName:name.toLocaleLowerCase('en'),iconKey:null,isDefault:true,active:true,revision:1,
       });
     }
-    transaction.create(profileRef.collection('notificationPreferences').doc('current'),{
-      ...audit,enabled:true,pushEnabled:false,offsetDays:[3,0],localTime:'09:00',revision:1,
+    transaction.create(profileRef.collection('notificationPreferences').doc('default'),{
+      ...audit,...defaultNotificationPolicy(),revision:1,
     });
     transaction.create(profileRef.collection('ledgerState').doc('current'),{
       ...audit,revision:0,formulaVersion:1,lastMutationAt:FieldValue.serverTimestamp(),
