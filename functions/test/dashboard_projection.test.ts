@@ -76,3 +76,16 @@ test('a reversed recurring payment can leave an unpaid skipped period without er
   const bucket=calculateProjection(input([parent],[instance],[original,reversal]),context).currencies.PHP;
   assert.equal(bucket.month.outgoing.scheduledMinor,0);assert.equal(bucket.month.outgoing.paidMinor,0);
 });
+test('confirmation evidence upgrades display totals without rewriting assumed payment provenance',()=>{
+  const parent=finite('evidenced',1000,{type:'recurringDue',section:'monthlyDues',singleInstanceId:null,originalAmountMinor:null,totalPaidMinor:null,remainingMinor:null});
+  const instance=period(parent,{instanceId:'evidenced-period',amountMinor:1000,totalPaidMinor:1000,remainingMinor:0,closed:true,financialStatus:'paid'});
+  const original=payment(parent,1000,{paymentId:'evidenced-payment',obligationInstanceId:instance.instanceId,allocations:[{instanceId:instance.instanceId,amountMinor:1000}],provenance:'assumedAutomatic'});
+  const evidence={...audit,evidenceId:'proof',paymentId:original.paymentId,kind:'userConfirmed',actor:'user'};
+  const records={...input([parent],[instance],[original]),paymentEvidence:[evidence]};
+  const bucket=calculateProjection(records,context).currencies.PHP;
+  assert.equal(bucket.month.outgoing.assumedPaidMinor,0);assert.equal(bucket.month.outgoing.confirmedPaidMinor,1000);
+  assert.equal(original.provenance,'assumedAutomatic');
+  const foreign={...records,paymentEvidence:[{...evidence,userId:'foreign'}]},missing={...records,paymentEvidence:[{...evidence,paymentId:'missing'}]};
+  assert.throws(()=>calculateProjection(foreign,context),{code:'failed-precondition'});
+  assert.throws(()=>calculateProjection(missing,context),{code:'failed-precondition'});
+});

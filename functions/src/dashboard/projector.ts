@@ -20,7 +20,7 @@ export function projectionLedger(uid:string,data:DocumentData|undefined):Documen
 }
 export async function scanOwnerCollection(root:DocumentReference,collection:string,deadline:number):Promise<DocumentData[]> {
   const records:DocumentData[]=[];let cursor:string|null=null;
-  const identities:Record<string,string>={obligations:'obligationId',obligationInstances:'instanceId',payments:'paymentId'};
+  const identities:Record<string,string>={obligations:'obligationId',obligationInstances:'instanceId',payments:'paymentId',paymentEvidence:'evidenceId'};
   for(;;) {
     if(performance.now()>deadline)throw new HttpsError('deadline-exceeded','Financial totals are still updating.');
     let query=root.collection(collection).orderBy(FieldPath.documentId()).limit(250);
@@ -42,8 +42,8 @@ export async function projectOwner(uid:string,db:Firestore,injectedNow?:Date):Pr
   const profile=projectionProfile(uid,profileDoc.data());const ledger=projectionLedger(uid,ledgerDoc.data());
   const financialDay=localToday(profile.timezone,now);const yearMonth=financialDay.slice(0,7);
   const deadline=performance.now()+180_000;
-  const [obligations,instances,payments,contacts]=await Promise.all(['obligations','obligationInstances','payments','contacts'].map(collection=>scanOwnerCollection(root,collection,deadline)));
-  const projection=calculateProjection({obligations:obligations!,instances:instances!,payments:payments!,contacts:contacts!},{uid,timezone:profile.timezone,yearMonth,today:financialDay,now});
+  const [obligations,instances,payments,contacts,paymentEvidence]=await Promise.all(['obligations','obligationInstances','payments','contacts','paymentEvidence'].map(collection=>scanOwnerCollection(root,collection,deadline)));
+  const projection=calculateProjection({obligations:obligations!,instances:instances!,payments:payments!,contacts:contacts!,paymentEvidence:paymentEvidence!},{uid,timezone:profile.timezone,yearMonth,today:financialDay,now});
   const zones=new Set<string>([profile.timezone,...instances!.map(instance=>instance.timezone as string)]);
   const nextRefreshAt=new Date(Math.min(...[...zones].map(zone=>nextCivilBoundary(zone,now).getTime())));
   const result=(status:'published'|'stale'):ProjectionResult=>({status,sourceRevision:ledger.revision,nextRefreshAt});

@@ -16,6 +16,11 @@ before(async () => {
     await setDoc(doc(db,'users/alice/summaries/forged'),{userId:'bob'});
     await setDoc(doc(db,'users/deleting/obligations/debt'),{userId:'deleting'});
     for(const name of ['devices','paymentReversals','attachmentSets','unexpected']) await setDoc(doc(db,`users/alice/${name}/private`),{userId:'alice'});
+    for(const name of ['deductionAttempts','paymentEvidence','deductionEvents']) {
+      await setDoc(doc(db,`users/alice/${name}/event`),{userId:'alice'});
+      await setDoc(doc(db,`users/deleting/${name}/event`),{userId:'deleting'});
+    }
+    await setDoc(doc(db,'systemJobs/financial'),{userId:'alice',kind:'automaticDeduction'});
   });
 });
 after(async()=>{if(env){await env.clearFirestore();await env.cleanup();}});
@@ -68,4 +73,23 @@ test('only an active owner can observe a missing summary while it is being gener
     await assertFails(getDoc(doc(db,path)));
   }
   await assertFails(getDoc(doc(env.authenticatedContext('deleting').firestore(),'users/deleting/summaries/dashboard-PHP')));
+});
+
+test('deduction attempts and payment evidence are owner-readable immutable traces; jobs and event locks stay private',async()=>{
+  const own=env.authenticatedContext('alice').firestore();
+  for(const name of ['deductionAttempts','paymentEvidence']) {
+    const path=`users/alice/${name}/event`;
+    await assertSucceeds(getDoc(doc(own,path)));
+    await assertSucceeds(getDocs(query(collection(own,`users/alice/${name}`),limit(50))));
+    await assertFails(setDoc(doc(own,`users/alice/${name}/forged`),{userId:'alice'}));
+    await assertFails(updateDoc(doc(own,path),{amountMinor:1}));await assertFails(deleteDoc(doc(own,path)));
+    for(const actor of [null,'bob','deleting']) {
+      const db=(actor===null?env.unauthenticatedContext():env.authenticatedContext(actor)).firestore();
+      await assertFails(getDoc(doc(db,path)));await assertFails(getDocs(query(collection(db,`users/alice/${name}`),limit(50))));
+    }
+    await assertFails(getDoc(doc(env.authenticatedContext('deleting').firestore(),`users/deleting/${name}/event`)));
+  }
+  for(const path of ['systemJobs/financial','users/alice/deductionEvents/event']) {
+    await assertFails(getDoc(doc(own,path)));await assertFails(updateDoc(doc(own,path),{status:'complete'}));await assertFails(deleteDoc(doc(own,path)));
+  }
 });

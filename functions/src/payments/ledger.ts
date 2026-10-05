@@ -3,12 +3,13 @@ import {HttpsError} from 'firebase-functions/v2/https';
 import {civilDate,currencyCode,identifier,moneyMinor} from '../shared/validation.js';
 import {validateAllocations} from './allocation.js';
 
-export interface LedgerInput {obligations:DocumentData[];instances:DocumentData[];payments:DocumentData[]}
+export interface LedgerInput {obligations:DocumentData[];instances:DocumentData[];payments:DocumentData[];paymentEvidence?:DocumentData[]}
 export interface InstanceBalance {amountMinor:number|null;totalPaidMinor:number;remainingMinor:number|null}
 export interface FinancialLedger {
   parents:Map<string,DocumentData>;instances:Map<string,DocumentData>;
   balances:Map<string,InstanceBalance>;parentBalances:Map<string,{totalPaidMinor:number;remainingMinor:number}>;effectivePayments:DocumentData[];
   historyInstanceIds:Set<string>;historyParentIds:Set<string>;
+  evidencedPaymentIds:Set<string>;
 }
 export function invalidLedger():never {throw new HttpsError('failed-precondition','Your financial history needs recovery.',{reason:'invalidLedger'});}
 export function checkedSum(values:Iterable<number>):number {
@@ -33,6 +34,12 @@ export function foldFinancialLedger(input:LedgerInput,uid:string,verifyCaches=tr
     const parents=ownedMap(input.obligations,'obligationId',uid);
     const instances=ownedMap(input.instances,'instanceId',uid);
     const payments=ownedMap(input.payments,'paymentId',uid);
+    const evidence=ownedMap(input.paymentEvidence??[],'evidenceId',uid),evidencedPaymentIds=new Set<string>();
+    for(const item of evidence.values()) {
+      const original=payments.get(identifier(item.paymentId));
+      if(!original||original.entryType!=='payment'||original.provenance!=='assumedAutomatic'||item.kind!=='userConfirmed'||item.actor!=='user')return invalidLedger();
+      evidencedPaymentIds.add(original.paymentId);
+    }
     const reversed=new Set<string>();const historyInstanceIds=new Set<string>();const historyParentIds=new Set<string>();
     for(const parent of parents.values()) {
       currencyCode(parent.currency);civilDate(parent.originationDate);
@@ -100,7 +107,7 @@ export function foldFinancialLedger(input:LedgerInput,uid:string,verifyCaches=tr
       if(verifyCaches && (parent.totalPaidMinor!==paid || parent.remainingMinor!==remaining))return invalidLedger();
       parentBalances.set(parent.obligationId,{totalPaidMinor:paid,remainingMinor:remaining});
     }
-    return {parents,instances,balances,parentBalances,effectivePayments,historyInstanceIds,historyParentIds};
+    return {parents,instances,balances,parentBalances,effectivePayments,historyInstanceIds,historyParentIds,evidencedPaymentIds};
   } catch(error) {
     if(error instanceof HttpsError && error.code==='failed-precondition')throw error;
     return invalidLedger();

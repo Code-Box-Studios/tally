@@ -43,3 +43,21 @@ Fees, contacts, sources, reminders and rule edits affect newly generated snapsho
 Variable periods use `amountState=unknown`, null amount/remaining, zero paid and an optional estimate in the snapshot. Entering an amount after its automatic deduction time requires confirmation. Template lifetime amounts and `nextDueDate` remain null; outstanding dates come from individual periods and complete projections. `nextGenerationDate` describes schedule processing and must not be presented as the next outstanding bill.
 
 The scheduled generation dispatcher uses `kind=recurringGeneration`, `status=pending` plus `nextRunAt`, and separately expired `status=leased` plus `leaseExpiresAt`. Both indexes reuse the corresponding kind/status/date system-job composites. Parent period pages use obligationId/occurrenceDate ascending; lifecycle retention counts add userId to that server-owned query. Index declarations are in `firestore.indexes.json`; emulator success does not establish production index readiness.
+
+## Payments and automatic deductions
+
+Recurring payments allocate to exactly one chosen period. Known amount minus valid payments is the remaining balance; overpayments are rejected before any writes. Corrections append a full reversal, a reversal marker, and an optional replacement into that same period. Parent lifetime caches remain null. Every owner command atomically records its permanent receipt, financial changes, activity, ledger revision and one coalesced owner projection job.
+
+An automatic scheduled event is identified by the period and saved rule version. Its permanent receipt is independent of any transient worker lease. A known, timely registered automatic bill assumes only its unpaid remainder. Confirmation mode, unknown amounts, and retrospective registration create an expected attempt without inventing a payment. Early processing defers; closed, skipped, failed or resolved periods never receive another assumption from the same scheduled event.
+
+Assumptions retain their original source, civil payment date, saved timezone, amount and provenance. Confirming identical terms appends immutable payment evidence rather than modifying or duplicating the payment. Changed terms require correction. A confirmed expected bill creates its own confirmed payment. Reporting a failed assumed or confirmed charge appends a full reversal and reasoned attempt, reopening its balance. Expected failure creates no payment. An explicit ordinary manual retry can settle the outstanding amount with a `resolved` deduction label and an immutable `manualResolved` attempt.
+
+`deductionAttempts` and `paymentEvidence` are owner-readable, server-write-only history. Internal `deductionEvents`, receipts and global jobs remain private. Full projections fold payment evidence under the same source-revision guard to separate assumed and confirmed monthly totals without changing the source payment.
+
+## Prompt dispatch and recovery
+
+Firestore job writes and the five-minute scheduled recovery worker use the same transactional leases. One dispatch scans at most25 candidates within450seconds; it reserves180seconds before starting a complete projection and60seconds before other jobs. Generation and deduction transactions check current owner, revision, lease token, generation and expiry on every retry and again immediately before staged writes commit. Errors release matching leases with bounded backoff and redacted diagnostics. Completion writes do not recursively run completed or unexpired leased jobs.
+
+New commands coalesce projection work into one deterministic global owner job. After projection, a bounded transaction can retire up to100 compatible legacy pending revision markers already represented by that job. It never removes command receipts, payments, evidence, foreign markers or markers for a future revision.
+
+`npm run test:emulators` builds Functions, runs a fresh normal automatic emulator for the actual Firestore event pipeline, then starts fresh manual-scheduling demo emulators for deterministic financial races and security tests. The manual flag is honored only by a `demo-*` Functions emulator. Production always processes prompt events. Test cleanup marks synthetic owners deleting before removing their history, matching protected account deletion.

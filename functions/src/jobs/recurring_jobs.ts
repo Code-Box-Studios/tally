@@ -56,3 +56,21 @@ export async function releaseRecurringJob(jobId:string,token:string,db:Firestore
       leaseToken:null,leaseExpiresAt:null,leaseGeneration:null,lastError:'processingDelayed',updatedAt:FieldValue.serverTimestamp()});
   });
 }
+export async function claimAutomaticJob(jobId:string,db:Firestore,now=new Date()):Promise<(RecurringLease&{instanceId:string})|null> {
+  const ref=db.collection('systemJobs').doc(identifier(jobId));
+  return db.runTransaction(async transaction=>{
+    const snapshot=await transaction.get(ref),job=snapshot.data();
+    if(!job||job.kind!=='automaticDeduction'||job.schemaVersion!==1||!['pending','leased'].includes(job.status))return null;
+    const uid=identifier(job.userId),instanceId=identifier(job.subjectId),obligationId=identifier(job.obligationId);
+    if(jobId!==periodJobId(uid,instanceId,'automaticDeduction')||!(job.nextRunAt instanceof Timestamp))throw new HttpsError('failed-precondition','Invalid deduction job.');
+    if(!canClaimLease({status:job.status,nextRunAt:job.nextRunAt.toDate(),leaseExpiresAt:job.leaseExpiresAt instanceof Timestamp?job.leaseExpiresAt.toDate():null},now))return null;
+    const root=db.doc(`users/${uid}`),[profileDoc,parentDoc,instanceDoc]=await Promise.all([transaction.get(root),transaction.get(root.collection('obligations').doc(obligationId)),transaction.get(root.collection('obligationInstances').doc(instanceId))]);
+    const profile=profileDoc.data(),parent=parentDoc.data(),instance=instanceDoc.data();
+    if(!profile||profile.userId!==uid||profile.schemaVersion!==1||profile.accountStatus!=='active'||!parent||parent.userId!==uid||parent.schemaVersion!==1||!instance||instance.userId!==uid||instance.schemaVersion!==1||instance.obligationId!==obligationId) {
+      transaction.update(ref,{status:'cancelled',leaseToken:null,leaseGeneration:null,leaseExpiresAt:null,updatedAt:FieldValue.serverTimestamp()});return null;
+    }
+    const token=randomUUID(),generation=revision(job.generation);
+    transaction.update(ref,{status:'leased',targetRevision:revision(instance.revision),leaseToken:token,leaseGeneration:generation,leaseExpiresAt:Timestamp.fromMillis(now.getTime()+6*60000),updatedAt:FieldValue.serverTimestamp()});
+    return {uid,obligationId,instanceId,token,generation};
+  });
+}

@@ -28,7 +28,7 @@ function assertEditable(instance:DocumentData,expected:number):void {
   if(instance.revision!==expected)throw new HttpsError('aborted','This period changed. Refresh and try again.');
   if(instance.closed)throw new HttpsError('failed-precondition','A closed period keeps its history.');
 }
-async function stagePeriodJobs(context:OwnerCommandContext,instance:DocumentData,changes:DocumentData,now:Date):Promise<void> {
+export async function stagePeriodJobs(context:OwnerCommandContext,instance:DocumentData,changes:DocumentData,now:Date):Promise<void> {
   const updated={...instance,...changes};
   for(const kind of ['automaticDeduction','reminderPreparation'] as const) {
     const id=periodJobId(context.uid,instance.instanceId,kind),job=await context.readSystemJob(id);

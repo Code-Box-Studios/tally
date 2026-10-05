@@ -80,7 +80,7 @@ export function calculateProjection(input:LedgerInput & {contacts:DocumentData[]
     if(payment.paymentDate.slice(0,7)!==context.yearMonth)continue;
     const totals=buckets[payment.currency as Currency].month[payment.direction==='owedByMe'?'outgoing':'incoming'];
     totals.paidMinor=checkedSum([totals.paidMinor,payment.amountMinor]);
-    const field=payment.provenance==='assumedAutomatic'?'assumedPaidMinor':'confirmedPaidMinor';
+    const field=payment.provenance==='assumedAutomatic'&&!ledger.evidencedPaymentIds.has(payment.paymentId)?'assumedPaidMinor':'confirmedPaidMinor';
     totals[field]=checkedSum([totals[field],payment.amountMinor]);
   }
   for(const bucket of Object.values(buckets))bucket.netPositionMinor=checkedSum([bucket.owedToYouMinor,-bucket.youOweMinor]);

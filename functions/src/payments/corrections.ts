@@ -6,6 +6,7 @@ import {identifier,moneyMinor,textValue,revision} from '../shared/validation.js'
 import {allocatePayment,validateAllocations} from './allocation.js';
 import {applyFiniteBalances,changeAllocatedBalance,readFiniteDebt,recovery} from './finite_debt.js';
 import {paymentDocument,paymentSourceSnapshot,validatePaymentDate,validatePaymentTerms} from './payment_service.js';
+import {correctRecurringPayment} from '../recurring/recurring_balance.js';
 export function validateCorrection(input:unknown){
   const withRevision=input!==null && typeof input==='object' && Object.hasOwn(input,'expectedObligationRevision');
   const raw=exactObject(input,['paymentId','reason','replacement',...(withRevision?['expectedObligationRevision']:[])]);
@@ -20,6 +21,8 @@ export async function correctPayment(uid:string,input:unknown,db:Firestore){
     if(original.paymentId!==payload.paymentId || original.entryType!=='payment')throw new HttpsError('failed-precondition','Only an original payment can be corrected.');
     const marker=await context.maybeRead('paymentReversals',payload.paymentId);
     if(marker)throw new HttpsError('failed-precondition','This payment has already been corrected.');
+    const linked=await context.read('obligations',identifier(original.obligationId));
+    if(['recurringDue','subscription'].includes(linked.type))return correctRecurringPayment(context,original,payload);
     const debt=await readFiniteDebt(context,identifier(original.obligationId));const parent=debt.parent;
     if(payload.expectedObligationRevision!==undefined && payload.expectedObligationRevision!==parent.revision)
       throw new HttpsError('aborted','This obligation changed. Refresh before correcting its payment.');

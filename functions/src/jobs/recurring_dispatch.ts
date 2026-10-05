@@ -19,7 +19,7 @@ export async function dispatchRecurringJobs(db:Firestore,injectedNow?:Date,limit
     let token:string|null=null;
     try {
       const lease=await claimRecurringJob(candidate.id,db,time);if(!lease)continue;token=lease.token;
-      await generateRecurringBatch(candidate.id,lease.token,db,time);processed++;
+      await generateRecurringBatch(candidate.id,lease.token,db,injectedNow);processed++;
     }catch {
       if(token)await releaseRecurringJob(candidate.id,token,db,injectedNow??new Date());
       logger.warn('Recurring generation delayed',{jobId:candidate.id});

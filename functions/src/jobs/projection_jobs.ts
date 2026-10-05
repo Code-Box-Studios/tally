@@ -7,6 +7,7 @@ import {HttpsError} from 'firebase-functions/v2/https';
 import {projectOwner,projectionLedger,projectionProfile} from '../dashboard/projector.js';
 import {invalidLedger} from '../payments/ledger.js';
 import {canClaimLease,leaseMatches} from './leases.js';
+import type {OwnerCommandContext} from '../shared/commands.js';
 
 export function projectionJobId(uid:string):string {return `projection-${createHash('sha256').update(identifier(uid)).digest('hex')}`;}
 function target(profile:DocumentData,ledger:DocumentData,now:Date) {
@@ -25,6 +26,29 @@ function assertJob(id:string,job:DocumentData):void {
   if(job.kind!=='ownerProjection' || job.schemaVersion!==1 || projectionJobId(job.userId)!==id)return invalidLedger();
 }
 const clearedLease={leaseToken:null,leaseGeneration:null,leaseExpiresAt:null};
+export async function stageProjectionMutation(context:OwnerCommandContext,sourceRevision:number,now:Date):Promise<void> {
+  const id=projectionJobId(context.uid),job=await context.readSystemJob(id);
+  if(job)assertJob(id,job);
+  context.systemJob(id,{kind:'ownerProjection',...target(context.profile,{revision:sourceRevision},now),
+    generation:nextGeneration(job??undefined),status:'pending',nextRunAt:Timestamp.fromDate(now),...clearedLease,attempts:0,lastErrorCode:null},job!==null);
+}
+export async function retireLegacyProjectionMarkers(uid:string,db:Firestore):Promise<number> {
+  const root=db.doc(`users/${identifier(uid)}`),jobRef=db.collection('systemJobs').doc(projectionJobId(uid));
+  return db.runTransaction(async transaction=>{
+    const [jobDoc,profileDoc]=await Promise.all([transaction.get(jobRef),transaction.get(root)]),job=jobDoc.data(),profile=profileDoc.data();
+    if(!job||!profile||profile.userId!==uid||profile.accountStatus!=='active'||job.userId!==uid||!Number.isSafeInteger(job.targetSourceRevision))return 0;
+    assertJob(jobRef.id,job);
+    const markers=await transaction.get(root.collection('projectionJobs').where('sourceRevision','<=',job.targetSourceRevision).limit(100));
+    let removed=0;
+    for(const marker of markers.docs) {
+      const value=marker.data();
+      if(value.userId===uid&&value.schemaVersion===1&&value.formulaVersion===1&&value.status==='pending'&&Number.isSafeInteger(value.sourceRevision)&&marker.id===`revision-${value.sourceRevision}`) {
+        transaction.delete(marker.ref);removed++;
+      }
+    }
+    return removed;
+  });
+}
 export async function enqueueProjection(uid:string,db:Firestore,now=new Date(),force=false):Promise<boolean> {
   const root=db.doc(`users/${identifier(uid)}`);const jobRef=db.collection('systemJobs').doc(projectionJobId(uid));
   return db.runTransaction(async transaction=>{
@@ -85,7 +109,7 @@ export async function finishProjectionJob(jobId:string,db:Firestore,token:string
     return true;
   });
 }
-async function releaseFailedJob(jobId:string,db:Firestore,token:string,now:Date,error:unknown):Promise<void> {
+export async function releaseFailedJob(jobId:string,db:Firestore,token:string,now:Date,error:unknown):Promise<void> {
   const code=error instanceof HttpsError?error.code:'internal';
   await db.runTransaction(async transaction=>{
     const ref=db.collection('systemJobs').doc(jobId);const snapshot=await transaction.get(ref);const job=snapshot.data();

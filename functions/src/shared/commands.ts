@@ -3,6 +3,7 @@ import {FieldValue,type DocumentReference,type DocumentData,type Firestore,type 
 import {HttpsError} from 'firebase-functions/v2/https';
 import {exactObject} from './callable.js';
 import {identifier} from './validation.js';
+import {stageProjectionMutation} from '../jobs/projection_jobs.js';
 
 export function commandDocumentId(commandId:string,role:string):string {
   if(!/^[a-z][a-zA-Z0-9-]{0,31}$/.test(role))throw new Error('Invalid internal command role.');
@@ -15,6 +16,7 @@ function ordered(value:unknown):unknown {
 }
 export class OwnerCommandContext {
   private writes:Array<{kind:'create'|'update';ref:DocumentReference;data:DocumentData}> = [];
+  private guards:Array<()=>void> = [];
   constructor(private readonly transaction:Transaction,readonly root:DocumentReference,readonly uid:string,readonly commandId:string,readonly profile:DocumentData) {}
   id(role:string):string {return commandDocumentId(`${this.uid}:${this.commandId}`,role);}
   ref(collection:string,id:string):DocumentReference {return this.root.collection(collection).doc(identifier(id));}
@@ -49,8 +51,20 @@ export class OwnerCommandContext {
     const snapshot=await this.transaction.get(query.count());
     return snapshot.data().count;
   }
-  activity(type:string,data:DocumentData):void {this.create('activities',this.id(`activity-${type}`),{type,recordedAt:FieldValue.serverTimestamp(),...data});}
-  commit():void {for(const write of this.writes){if(write.kind==='create')this.transaction.create(write.ref,write.data);else this.transaction.update(write.ref,write.data);}}
+  activity(type:string,data:DocumentData):void {
+    const role=`activity-${type}`;
+    // Keep every legacy short-role ID stable. New long event names use their
+    // full type in the hash seed rather than truncating distinct action names.
+    const id=role.length<=32?this.id(role):commandDocumentId(JSON.stringify([this.uid,this.commandId,type]),'activity');
+    this.create('activities',id,{type,recordedAt:FieldValue.serverTimestamp(),...data});
+  }
+  beforeCommit(guard:()=>void):void {this.guards.push(guard);}
+  commit():void {
+    // Recheck time-sensitive server leases after every transaction read,
+    // including the projection job read staged by executeOwnerCommand.
+    for(const guard of this.guards)guard();
+    for(const write of this.writes){if(write.kind==='create')this.transaction.create(write.ref,write.data);else this.transaction.update(write.ref,write.data);}
+  }
 }
 export async function executeOwnerCommand<P,R>(uid:string,input:unknown,type:string,validate:(payload:unknown)=>P,handler:(context:OwnerCommandContext,payload:P)=>Promise<R>,db:Firestore):Promise<R> {
   identifier(uid);
@@ -72,9 +86,9 @@ export async function executeOwnerCommand<P,R>(uid:string,input:unknown,type:str
     if(!ledger || ledger.userId!==uid || ledger.schemaVersion!==1 || !Number.isSafeInteger(ledger.revision) || ledger.revision<0 || ledger.revision>=Number.MAX_SAFE_INTEGER)throw new HttpsError('failed-precondition','Your financial records need recovery.');
     const context=new OwnerCommandContext(transaction,root,uid,commandId,profile);
     const result=await handler(context,payload);
+    await stageProjectionMutation(context,ledger.revision+1,new Date());
     context.create('commandReceipts',commandId,{commandType:type,payloadHash:hash,result,recordedAt:FieldValue.serverTimestamp()});
     context.update('ledgerState','current',{revision:ledger.revision+1,lastMutationAt:FieldValue.serverTimestamp()});
-    context.create('projectionJobs',`revision-${ledger.revision+1}`,{status:'pending',sourceRevision:ledger.revision+1,formulaVersion:1});
     context.commit();
     return result;
   });

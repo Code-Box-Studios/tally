@@ -5,6 +5,7 @@ import {executeOwnerCommand,type OwnerCommandContext} from '../shared/commands.j
 import {civilDate,currencyCode,enumValue,identifier,invalid,localToday,moneyMinor,nullableId,textValue,type Currency} from '../shared/validation.js';
 import {allocatePayment,validateAllocations,type Allocation} from './allocation.js';
 import {applyFiniteBalances,changeAllocatedBalance,readFiniteDebt} from './finite_debt.js';
+import {recordRecurringPayment} from '../recurring/recurring_balance.js';
 export const paymentMethods=['cash','bankTransfer','card','eWallet','payroll','other'] as const;
 export interface PaymentTerms {amountMinor:number;paymentDate:string;paymentSourceId:string|null;paymentMethod:typeof paymentMethods[number];notes:string}
 export interface PaymentInput extends PaymentTerms {obligationId:string;obligationInstanceId:string;currency:Currency}
@@ -66,7 +67,10 @@ async function recordFinitePayment(context:OwnerCommandContext,payload:PaymentIn
     obligationRevision:applied.obligationRevision,instanceRevision,allocationRevisions:applied.allocationRevisions};
 }
 export async function recordPayment(uid:string,input:unknown,db:Firestore) {
-  return executeOwnerCommand(uid,input,'recordPayment',validatePayment,recordFinitePayment,db);
+  return executeOwnerCommand(uid,input,'recordPayment',validatePayment,async(context,payload)=>{
+    const parent=await context.read('obligations',payload.obligationId);
+    return ['recurringDue','subscription'].includes(parent.type)?recordRecurringPayment(context,payload):recordFinitePayment(context,payload);
+  },db);
 }
 export async function recordInstallmentPayment(uid:string,input:unknown,db:Firestore) {
   return executeOwnerCommand(uid,input,'recordInstallmentPayment',validateInstallmentPayment,recordFinitePayment,db);

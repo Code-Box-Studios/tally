@@ -28,7 +28,7 @@ function eligible(state:RecurringState):{next:RecurringOccurrence|null;paused:bo
   if(next && state.endedOn!==null && next.date>state.endedOn)return {next:null,paused:false};
   return {next,paused:false};
 }
-export async function generateRecurringBatch(jobId:string,token:string,db:Firestore,now=new Date()):Promise<{created:number;hasMore:boolean;nextRunAt:string|null}> {
+export async function generateRecurringBatch(jobId:string,token:string,db:Firestore,injectedNow?:Date):Promise<{created:number;hasMore:boolean;nextRunAt:string|null}> {
   identifier(jobId);identifier(token);
   const initial=(await db.collection('systemJobs').doc(jobId).get()).data();
   if(!initial)throw new HttpsError('failed-precondition','The schedule job is unavailable.');
@@ -40,7 +40,9 @@ export async function generateRecurringBatch(jobId:string,token:string,db:Firest
   },async context=>{
     const job=await context.readSystemJob(jobId),parent=await readRecurringParent(context,obligationId);
     if(!job||job.kind!=='recurringGeneration'||job.subjectId!==obligationId)throw new HttpsError('failed-precondition','Invalid schedule job.');
+    const clock=()=>injectedNow??new Date(),now=clock();
     assertRecurringLease(job,token,parent.revision,now);
+    context.beforeCommit(()=>assertRecurringLease(job,token,parent.revision,clock()));
     const state=readRecurringState(parent.recurrence),horizon=addCivilDays(localToday(state.rule.timezone,now),90);
     let created=0,considered=0,candidate=eligible(state);
     while(candidate.next && candidate.next.date<=horizon && considered<30) {

@@ -25,7 +25,11 @@ export async function withOwner(label,run){
   return await run({user,call,command,root,adminDb,db});
  }finally{
   if(user){
-    await adminDb.recursiveDelete(adminDb.doc(`users/${user.uid}`));
+    const root=adminDb.doc(`users/${user.uid}`);
+    // Match protected account deletion: close ownership before children are
+    // removed, so delayed financial triggers never see an active partial ledger.
+    await root.update({accountStatus:'deleting'});
+    await adminDb.recursiveDelete(root);
     const jobs=await adminDb.collection('systemJobs').where('userId','==',user.uid).get();
     for(const job of jobs.docs)await job.ref.delete();
     await deleteUser(user);
