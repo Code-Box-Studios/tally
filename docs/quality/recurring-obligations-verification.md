@@ -29,9 +29,9 @@ Public Hosting still serves the earlier preview; these checks use `demo-tally`.
 
 ## Automated evidence
 
-The Task 5 Flutter suite passes 279 tests; the TypeScript Functions suite passes
-77. Flutter analysis reports no issues. The recurring subset passes 59 tests;
-five owner-scope/provider cases also pass in Chrome.
+The post-review Flutter suite passes 283 tests; the TypeScript Functions suite passes
+77. Flutter analysis reports no issues. The focused lifecycle/resolution suite passes 20 tests;
+five owner-scope/provider cases also pass in Chrome. The fresh emulator gate passes one actual prompt-trigger check and 69 deterministic financial/security checks.
 Regression evidence includes period partial/full payments and corrections,
 original-attempt confirmation after partial payment, failure/retry, unknown
 overdue amounts, captured stale revisions, uncertain retries after live updates,
@@ -44,6 +44,19 @@ for the real Firestore-trigger pipeline and manual scheduling for deterministic
 financial, lease, race, and ownership/rules checks. See
 `npm run test:emulators` and `tool/test_emulators.mjs`. Manual mode is restricted
 to the local demo emulator; production processing remains automatic.
+
+## Post-review corrections
+
+Four Important findings were reproduced before their fixes. The emulator tests
+now verify assumption → reversal → reconfirmation → reported failure, with the
+new confirmed payment reversed and permanent receipts safely replayed. A failed
+automatic remainder reports PHP349 in activity and preserves the PHP200 manual
+payment of the PHP549 bill. Manual, confirmation and assumed paths reject an
+edited due date before the immutable occurrence; valid payments remain usable.
+Widget regressions verify future pause/end dates, pause-today/resume-tomorrow,
+and the same occurrence lower bound. All four new widget and five emulator
+cases first failed for these behaviors, then passed; the complete gate is green.
+No second review was substituted for those regressions.
 
 ## Actual browser workflow
 

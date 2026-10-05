@@ -123,6 +123,61 @@ test('a confirmed expected deduction can subsequently fail without leaving a fal
   assert.equal((await read(root,created.firstInstanceId)).remainingMinor,54900);
   const entries=await all(root,'payments');assert.equal(entries.length,2);assert.equal(entries.filter(x=>x.entryType==='reversal').length,1);
 }));
+test('failure reverses the reconfirmed payment after an assumption was corrected and receipts replay safely',async()=>withOwner('auto-reconfirmed-fail',async({call,command,root,user,adminDb})=>{
+  const created=await call('createRecurring',command('create',draft()));await registeredEarlier(root,created.firstInstanceId);
+  const scheduled=await runAutomatic(adminDb,user,created.firstInstanceId),assumed=(await all(root,'payments'))[0];
+  const eventBefore=await all(root,'deductionEvents');
+  await call('correctPayment',command('reverse-assumption',{paymentId:assumed.paymentId,reason:'Deduction did not happen',replacement:null}));
+  let instance=await read(root,created.firstInstanceId);assert.equal(instance.deductionStatus,'expected');
+  const confirmation=command('reconfirm',{obligationId:created.obligationId,instanceId:created.firstInstanceId,expectedRevision:instance.revision,...terms(54900)});
+  const confirmed=await call('confirmDeduction',confirmation);assert.notEqual(confirmed.paymentId,assumed.paymentId);
+  instance=await read(root,created.firstInstanceId);
+  const failure=command('fail-reconfirmation',{obligationId:created.obligationId,instanceId:created.firstInstanceId,expectedRevision:instance.revision,reason:'Reconfirmation was mistaken'});
+  const failed=await call('reportDeductionFailure',failure);
+  assert.deepEqual(await balance(root,created.firstInstanceId),{paid:0,remaining:54900,closed:false,deduction:'failed'});
+  assert.ok(failed.reversalId);
+  assert.equal((await root.collection('payments').doc(failed.reversalId).get()).data().reversesPaymentId,confirmed.paymentId);
+  assert.deepEqual(await call('reportDeductionFailure',failure),failed);
+  assert.deepEqual(await call('confirmDeduction',confirmation),confirmed);
+  assert.deepEqual(await require('./lib/src/recurring/automatic_service.js').processAutomatic(scheduled.jobId,scheduled.token,adminDb,now),scheduled.result);
+  assert.deepEqual(await all(root,'deductionEvents'),eventBefore);
+  assert.equal((await all(root,'payments')).length,4);
+  assert.equal((await all(root,'paymentReversals')).length,2);
+  assert.equal((await all(root,'deductionAttempts')).find(x=>x.eventType==='failed').paymentId,confirmed.paymentId);
+}));
+test('failed automatic remainder activity reports 349 and keeps the manual 200 payment',async()=>withOwner('auto-failed-remainder',async({call,command,root,user,adminDb})=>{
+  const created=await call('createRecurring',command('create',draft()));await registeredEarlier(root,created.firstInstanceId);
+  const manual=await call('recordPayment',command('manual-partial',{obligationId:created.obligationId,obligationInstanceId:created.firstInstanceId,currency:'PHP',...terms(20000)}));
+  await runAutomatic(adminDb,user,created.firstInstanceId);
+  const instance=await read(root,created.firstInstanceId);
+  await call('reportDeductionFailure',command('fail',{obligationId:created.obligationId,instanceId:created.firstInstanceId,expectedRevision:instance.revision,reason:'Automatic remainder failed'}));
+  assert.deepEqual(await balance(root,created.firstInstanceId),{paid:20000,remaining:34900,closed:false,deduction:'failed'});
+  assert.equal((await root.collection('paymentReversals').doc(manual.paymentId).get()).exists,false);
+  assert.equal((await all(root,'deductionAttempts')).find(x=>x.eventType==='failed').expectedAmountMinor,34900);
+  const activity=(await all(root,'activities')).find(x=>x.type==='automaticPaymentFailed');
+  assert.equal(activity.amountMinor,34900);assert.equal(activity.currency,'PHP');
+}));
+for(const paymentMode of ['manual','automaticConfirmation','automatic']) {
+  test(`${paymentMode} period rejects an edited due date before its immutable occurrence`,async()=>withOwner(`due-lower-${paymentMode}`,async({call,command,root,user,adminDb})=>{
+    const created=await call('createRecurring',command('create',draft({paymentMode})));
+    const original=await read(root,created.firstInstanceId);
+    const input={obligationId:created.obligationId,instanceId:created.firstInstanceId,expectedRevision:original.revision,paymentSourceId:null,notes:'',reason:'Move due date'};
+    await assert.rejects(call('editRecurringInstance',command('earlier',{...input,dueDate:'2026-10-03'})),{code:'functions/invalid-argument'});
+    assert.deepEqual(await read(root,created.firstInstanceId),original);
+    if(paymentMode!=='automatic')await call('editRecurringInstance',command('valid',{...input,dueDate:'2026-10-04'}));
+    if(paymentMode==='automatic')await registeredEarlier(root,created.firstInstanceId);
+    if(paymentMode==='manual') {
+      await call('recordPayment',command('pay',{obligationId:created.obligationId,obligationInstanceId:created.firstInstanceId,currency:'PHP',...terms(54900)}));
+    }else {
+      await runAutomatic(adminDb,user,created.firstInstanceId);
+      const ready=await read(root,created.firstInstanceId);
+      assert.equal(ready.deductionStatus,paymentMode==='automatic'?'deducted':'expected');
+      await call('confirmDeduction',command('confirm',{obligationId:created.obligationId,instanceId:created.firstInstanceId,expectedRevision:ready.revision,...terms(54900)}));
+    }
+    assert.equal((await read(root,created.firstInstanceId)).remainingMinor,0);
+    assert.ok((await all(root,'payments')).every(p=>p.paymentDate==='2026-10-04'));
+  }));
+}
 test('duplicate prompt-worker and scheduled-dispatch invocations share one persisted financial lease',async()=>withOwner('auto-dispatch',async({call,command,root,user,adminDb})=>{
   const created=await call('createRecurring',command('create',draft()));await registeredEarlier(root,created.firstInstanceId);
   const {runReadyJob,dispatchReadyJobs}=require('./lib/src/jobs/dispatch.js'),{periodJobId}=require('./lib/src/jobs/recurring_jobs.js');

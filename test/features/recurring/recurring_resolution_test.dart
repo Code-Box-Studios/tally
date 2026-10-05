@@ -12,12 +12,55 @@ import 'package:tally/features/recurring/presentation/deduction_dialogs.dart';
 import 'package:tally/features/recurring/data/deduction_dto.dart';
 import 'package:tally/features/payments/data/payment_dto.dart';
 import 'package:tally/features/payments/presentation/payment_correction_editor.dart';
+import 'package:tally/features/recurring/presentation/recurring_period_editor.dart';
 
 import '../../support/recurring_fixtures.dart';
 import '../../support/recurring_ui.dart';
 import '../../support/upcoming_fixtures.dart';
 
 void main() {
+  testWidgets(
+    'period due-date editor rejects dates before the immutable occurrence',
+    (tester) async {
+      final docs = recurringUiDocuments(),
+          commands = UpcomingCommands(recurringOwner)
+            ..response = recurringUiResponse();
+      addTearDown(docs.changes.close);
+      final raw = recurringData('scheduled'),
+          instance = InstanceDto.fromMap(
+            raw['instanceId'] as String,
+            raw,
+            recurringOwner,
+          );
+      await recurringHost(
+        tester,
+        docs,
+        commands,
+        Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: RecurringPeriodEditDialog(instance: instance),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Due date (YYYY-MM-DD)'),
+        instance.occurrenceDate.addDays(-1).toString(),
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Reason'),
+        'Provider adjustment',
+      );
+      await tester.ensureVisible(find.byKey(const Key('period-save')));
+      await tester.tap(find.byKey(const Key('period-save')));
+      await tester.pumpAndSettle();
+      expect(commands.calls, isEmpty);
+      expect(
+        find.textContaining('on or after the period starts'),
+        findsOneWidget,
+      );
+    },
+  );
   testWidgets(
     'deduction confirmation rejects a date before its billing period',
     (tester) async {

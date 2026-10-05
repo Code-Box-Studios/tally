@@ -94,13 +94,16 @@ export async function reportDeductionFailure(uid:string,input:unknown,db:Firesto
     if(instance.revision!==payload.expectedRevision)throw new HttpsError('aborted','This deduction changed. Refresh and try again.');
     if(!['expected','deducted','confirmed'].includes(instance.deductionStatus))throw new HttpsError('failed-precondition','Review an expected or recorded deduction first.');
     const event=await scheduledEvent(context,instance);
-    const latest=event.paymentId===null?await context.read('deductionAttempts',identifier(instance.lastDeductionAttemptId)):null;
-    if(latest&&(latest.instanceId!==instance.instanceId||latest.obligationId!==instance.obligationId))throw new HttpsError('failed-precondition','This deduction needs recovery.');
-    const relatedPaymentId=event.paymentId??latest?.paymentId??null;
+    // The scheduled event stays immutable. Corrections and reconfirmations
+    // append attempts, so its original payment is not necessarily current.
+    const latest=await context.read('deductionAttempts',identifier(instance.lastDeductionAttemptId));
+    const allowed=instance.deductionStatus==='expected'?['expected','corrected']:instance.deductionStatus==='deducted'?['assumed']:['confirmed'];
+    if(latest.attemptId!==instance.lastDeductionAttemptId||latest.instanceId!==instance.instanceId||latest.obligationId!==instance.obligationId||latest.eventKey!==event.eventKey||!allowed.includes(latest.eventType))throw new HttpsError('failed-precondition','This deduction needs recovery.');
+    const relatedPaymentId=instance.deductionStatus==='expected'?null:identifier(latest.paymentId);
     let reversalId:string|null=null,paid=instance.totalPaidMinor,attemptAmount=instance.remainingMinor;
     if(relatedPaymentId!==null) {
       const original=await context.read('payments',identifier(relatedPaymentId)),marker=await context.maybeRead('paymentReversals',original.paymentId);
-      if(!['assumedAutomatic','confirmedAutomatic'].includes(original.provenance)||original.eventKey!==event.eventKey||original.obligationInstanceId!==instance.instanceId||original.entryType!=='payment')throw new HttpsError('failed-precondition','This deduction needs recovery.');
+      if(!['assumedAutomatic','confirmedAutomatic'].includes(original.provenance)||original.eventKey!==event.eventKey||original.obligationId!==instance.obligationId||original.obligationInstanceId!==instance.instanceId||original.currency!==instance.currency||original.amountMinor!==latest.expectedAmountMinor||original.entryType!=='payment'||marker)throw new HttpsError('failed-precondition','This deduction needs recovery.');
       attemptAmount=original.amountMinor;
       if(!marker) {
         if(paid<original.amountMinor)throw new HttpsError('failed-precondition','This payment history needs recovery.');
@@ -117,7 +120,7 @@ export async function reportDeductionFailure(uid:string,input:unknown,db:Firesto
       await stagePeriodJobs(context,instance,changes,new Date());context.update('obligationInstances',instance.instanceId,changes);
       applied={instanceRevision:changes.revision,obligationRevision:parent.revision};
     }
-    context.activity('automaticPaymentFailed',{obligationId:parent.obligationId,instanceId:instance.instanceId,reversalId,title:instance.snapshot.title,amountMinor:instance.amountMinor,currency:instance.amountMinor===null?null:instance.currency,reason:payload.reason});
+    context.activity('automaticPaymentFailed',{obligationId:parent.obligationId,instanceId:instance.instanceId,reversalId,title:instance.snapshot.title,amountMinor:attemptAmount,currency:attemptAmount===null?null:instance.currency,reason:payload.reason});
     return {obligationId:parent.obligationId as string,instanceId:instance.instanceId as string,reversalId,attemptId,...applied};
   },db);
 }

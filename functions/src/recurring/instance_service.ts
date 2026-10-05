@@ -66,6 +66,7 @@ export async function editRecurringInstance(uid:string,input:unknown,db:Firestor
   },async(context,payload)=>{
     const {parent,instance}=await readRecurringInstance(context,payload.obligationId,payload.instanceId);assertEditable(instance,payload.expectedRevision);
     if(instance.totalPaidMinor!==0)throw new HttpsError('failed-precondition','A paid period keeps its due date and source.');
+    if(payload.dueDate<instance.occurrenceDate)throw new HttpsError('invalid-argument','Choose a due date on or after this billing period starts.');
     const snapshot=payload.paymentSourceId===instance.paymentSourceId?instance.paymentSourceOverrideSnapshot??instance.snapshot.sourceSnapshot:await paymentSourceSnapshot(context,payload.paymentSourceId);
     const now=new Date(),instanceRevision=revision(instance.revision)+1,automatic=instance.paymentMode!=='manual';
     const deductionAt=automatic?Timestamp.fromDate(scheduledInstant(payload.dueDate,instance.localDeductionTime,instance.timezone)):null;

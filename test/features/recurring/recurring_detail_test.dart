@@ -6,12 +6,121 @@ import 'package:tally/features/recurring/presentation/recurring_detail.dart';
 import 'package:tally/features/obligations/presentation/obligation_detail_screen.dart';
 import 'package:tally/features/obligations/presentation/obligation_row.dart';
 import 'package:tally/features/dashboard/presentation/widgets/home_due.dart';
+import 'package:tally/shared/presentation/financial_form_support.dart';
+import 'package:tally/features/recurring/domain/recurring_commands.dart';
+import 'package:tally/features/recurring/presentation/recurring_period_editor.dart';
 
 import '../../support/recurring_fixtures.dart';
 import '../../support/recurring_ui.dart';
 import '../../support/upcoming_fixtures.dart';
 
 void main() {
+  for (final action in [
+    RecurringLifecycleAction.pause,
+    RecurringLifecycleAction.end,
+  ]) {
+    testWidgets('${action.name} accepts a future effective date', (
+      tester,
+    ) async {
+      final docs = recurringUiDocuments(),
+          commands = UpcomingCommands(recurringOwner)
+            ..response = recurringUiResponse();
+      addTearDown(docs.changes.close);
+      final raw = recurringData('parent'),
+          parent = ObligationDto.fromMap(
+            raw['obligationId'] as String,
+            raw,
+            recurringOwner,
+          ),
+          tomorrow = todayIn(parent.timezone).addDays(1);
+      await recurringHost(
+        tester,
+        docs,
+        commands,
+        Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: RecurringLifecycleDialog(
+              parent: parent,
+              action: action,
+              loadedFutureCount: 2,
+              complete: true,
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('lifecycle-date')),
+        tomorrow.toString(),
+      );
+      await tester.ensureVisible(find.byKey(const Key('lifecycle-save')));
+      await tester.tap(find.byKey(const Key('lifecycle-save')));
+      await tester.pumpAndSettle();
+      expect(
+        commands.calls.single.payload['effectiveDate'],
+        tomorrow.toString(),
+      );
+      expect(commands.calls.single.payload['action'], action.name);
+    });
+  }
+  testWidgets(
+    'pause today can resume tomorrow but cannot resume on its pause start',
+    (tester) async {
+      final docs = recurringUiDocuments(),
+          commands = UpcomingCommands(recurringOwner)
+            ..response = recurringUiResponse();
+      addTearDown(docs.changes.close);
+      final raw = recurringData('parent'),
+          today = todayIn(raw['timezone'] as String);
+      raw['lifecycle'] = 'paused';
+      raw['recurrence'] = {
+        ...raw['recurrence'] as Map<String, Object?>,
+        'pauseRanges': [
+          {'startDate': today.toString(), 'endDate': null},
+        ],
+      };
+      final parent = ObligationDto.fromMap(
+        raw['obligationId'] as String,
+        raw,
+        recurringOwner,
+      );
+      await recurringHost(
+        tester,
+        docs,
+        commands,
+        Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: RecurringLifecycleDialog(
+              parent: parent,
+              action: RecurringLifecycleAction.resume,
+              loadedFutureCount: 2,
+              complete: true,
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('lifecycle-date')),
+        today.toString(),
+      );
+      await tester.ensureVisible(find.byKey(const Key('lifecycle-save')));
+      await tester.tap(find.byKey(const Key('lifecycle-save')));
+      await tester.pumpAndSettle();
+      expect(commands.calls, isEmpty);
+      await tester.enterText(
+        find.byKey(const Key('lifecycle-date')),
+        today.addDays(1).toString(),
+      );
+      await tester.tap(find.byKey(const Key('lifecycle-save')));
+      await tester.pumpAndSettle();
+      expect(
+        commands.calls.single.payload['effectiveDate'],
+        today.addDays(1).toString(),
+      );
+      expect(commands.calls.single.payload['action'], 'resume');
+    },
+  );
   testWidgets('desktop dues table identifies the fee column as per period', (
     tester,
   ) async {

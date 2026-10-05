@@ -160,13 +160,22 @@ class _RecurringLifecycleDialogState extends State<RecurringLifecycleDialog> {
           decoration: const InputDecoration(
             labelText: 'Effective date (YYYY-MM-DD)',
           ),
-          validator: (value) =>
-              dateValidation(value) ??
-              (LocalDate.parse(value!.trim())
-                          .compareTo(todayIn(widget.parent.timezone)) >
-                      0
-                  ? 'Choose today or an earlier date in this bill’s timezone.'
-                  : null),
+          validator: (value) {
+            final error = dateValidation(value);
+            if (error != null) return error;
+            final date = LocalDate.parse(value!.trim());
+            if (date.compareTo(todayIn(widget.parent.timezone)) < 0) {
+              return 'Choose today or a future date in this bill’s timezone.';
+            }
+            final ranges = widget.parent.recurrence?.pauseRanges;
+            if (widget.action == RecurringLifecycleAction.resume &&
+                ranges != null &&
+                ranges.isNotEmpty &&
+                date.compareTo(ranges.last.startDate) <= 0) {
+              return 'Choose a resume date after the pause starts.';
+            }
+            return null;
+          },
         ),
       ],
       payload: () => LifecycleChange(
@@ -247,7 +256,13 @@ class _RecurringPeriodEditDialogState
       TextFormField(
         controller: _date,
         decoration: const InputDecoration(labelText: 'Due date (YYYY-MM-DD)'),
-        validator: dateValidation,
+        validator: (value) =>
+            dateValidation(value) ??
+            (LocalDate.parse(value!.trim())
+                        .compareTo(widget.instance.occurrenceDate) <
+                    0
+                ? 'Choose a due date on or after the period starts.'
+                : null),
       ),
       const SizedBox(height: 18),
       Wrap(
