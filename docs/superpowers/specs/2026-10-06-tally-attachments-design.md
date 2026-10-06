@@ -94,8 +94,12 @@ Firestore retains the existing owner-private, server-write-only metadata policy;
 attachmentSets and attachment jobs stay inaccessible to clients. Storage create
 requires active auth/path ownership, an awaitingUpload reservation with exactly
 the requested path, matching owner/attachment custom metadata, allowed MIME and
-bounded declared/actual size. Unexpected custom metadata and client download
-tokens are denied. Client overwrite, object delete and list are denied. Reads
+bounded declared/actual size. Unexpected exposed custom metadata, including
+download tokens, is denied. The Storage emulator moves its reserved token key
+out of custom metadata before evaluating rules; tests record that limitation
+and require trusted finalization to strip the managed token channel before
+ready. Staging must verify actual Firebase normalization and token removal.
+Client overwrite, object delete and list are denied. Reads
 require matching ready metadata and active ownership. Missing reservations,
 processing files and foreign paths deny access.
 

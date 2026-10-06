@@ -22,6 +22,7 @@ import {enqueueOwnerReminders} from './notifications/reconciliation.js';
 import {registerNotificationDevice as registerOwnerNotificationDevice,unregisterNotificationDevice as unregisterOwnerNotificationDevice,
   listNotificationDevices as listOwnerNotificationDevices} from './notifications/device_service.js';
 import {cleanupNotificationDevices} from './notifications/device_cleanup.js';
+import {reserveAttachment as reserveOwnerAttachment,removeAttachment as removeOwnerAttachment} from './attachments/reservation_service.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -55,6 +56,8 @@ export const setObligationReminder=ownerCallable((uid,data)=>setOwnerObligationR
 export const registerNotificationDevice=ownerCallable((uid,data)=>registerOwnerNotificationDevice(uid,data,database));
 export const unregisterNotificationDevice=ownerCallable((uid,data)=>unregisterOwnerNotificationDevice(uid,data,database));
 export const listNotificationDevices=ownerCallable((uid,data)=>listOwnerNotificationDevices(uid,data,database));
+export const reserveAttachment=ownerCallable((uid,data)=>reserveOwnerAttachment(uid,data,database));
+export const removeAttachment=ownerCallable((uid,data)=>removeOwnerAttachment(uid,data,database));
 
 export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallment(uid,data,database));
 export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));

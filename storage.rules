@@ -1,7 +1,43 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Keep all uploads and downloads private until M1/M6 ownership checks exist.
+    function activeOwner(uid) {
+      let profile = firestore.get(/databases/(default)/documents/users/$(uid)).data;
+      return request.auth != null && request.auth.uid == uid
+        && profile.userId == uid && profile.schemaVersion == 1
+        && profile.accountStatus == 'active';
+    }
+    function ownedFile(uid, attachmentId, file) {
+      return uid.matches('[A-Za-z0-9_-]{1,128}')
+        && attachmentId.matches('[A-Za-z0-9_-]{1,128}')
+        && file.userId == uid && file.schemaVersion == 1
+        && file.attachmentId == attachmentId
+        && file.storagePath == 'users/' + uid + '/attachments/' + attachmentId + '/content';
+    }
+    function validCreate(uid, attachmentId) {
+      let file = firestore.get(/databases/(default)/documents/users/$(uid)/attachments/$(attachmentId)).data;
+      return resource == null && ownedFile(uid, attachmentId, file)
+        && file.state == 'awaitingUpload' && request.time < file.expiresAt
+        && request.resource.size > 0 && request.resource.size <= 10485760
+        && request.resource.size == file.declaredSizeBytes
+        && request.resource.contentType == file.declaredContentType
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+        && request.resource.metadata.keys().hasOnly(['userId', 'attachmentId'])
+        && request.resource.metadata.userId == uid
+        && request.resource.metadata.attachmentId == attachmentId;
+    }
+    function validRead(uid, attachmentId) {
+      let file = firestore.get(/databases/(default)/documents/users/$(uid)/attachments/$(attachmentId)).data;
+      return ownedFile(uid, attachmentId, file) && file.state == 'ready'
+        && file.sizeBytes == resource.size && file.contentType == resource.contentType
+        && file.storageGeneration == string(resource.generation)
+        && resource.metadata.userId == uid && resource.metadata.attachmentId == attachmentId;
+    }
+    match /users/{uid}/attachments/{attachmentId}/content {
+      allow create: if activeOwner(uid) && validCreate(uid, attachmentId);
+      allow get: if activeOwner(uid) && validRead(uid, attachmentId);
+      allow update, delete, list: if false;
+    }
     match /{path=**} { allow read, write: if false; }
   }
 }

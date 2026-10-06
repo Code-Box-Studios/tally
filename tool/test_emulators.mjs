@@ -5,7 +5,8 @@ const firebase=fileURLToPath(new URL('../node_modules/firebase-tools/lib/bin/fir
 const nodePath=process.execPath;
 async function run(mode,command) {
   const child=spawn(nodePath,[firebase,'emulators:exec','--project','demo-tally','--only','auth,firestore,functions,storage',command],{
-    stdio:'inherit',env:{...process.env,TALLY_EMULATOR_JOB_MODE:mode,METADATA_SERVER_DETECTION:'none'},
+    stdio:'inherit',env:{...process.env,TALLY_EMULATOR_JOB_MODE:mode,METADATA_SERVER_DETECTION:'none',
+      GOOGLE_CLOUD_PROJECT:'demo-tally',GCLOUD_PROJECT:'demo-tally'},
   });
   const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve);});
   if(code!==0)throw new Error(`The ${mode} emulator suite failed (${code}).`);
