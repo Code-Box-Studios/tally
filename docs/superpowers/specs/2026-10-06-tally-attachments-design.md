@@ -16,19 +16,21 @@ visual design. Banking, OCR and document analysis are outside this scope.
 
 ## Selected approach
 
-Keep user-owned Firestore metadata and authenticated Firebase Storage SDK byte
-uploads/downloads, with trusted reservation, finalization and cleanup. This fits
-the existing security boundary and avoids public evidence URLs. A trusted
-byte-ingestion HTTP service would add a second upload transport; public download
-URLs would create a bearer access path. Neither is needed for this milestone.
+Keep user-owned Firestore metadata, authenticated callable byte ingestion and
+authenticated Firebase Storage SDK downloads, with trusted reservation,
+finalization and cleanup. The observed emulator token channel cannot be cleared
+through a standard metadata patch. Trusted Cloud Storage ingestion creates
+token-free objects and client Storage creates are denied; see
+docs/architecture/private-file-ingestion.md. Public evidence URLs are never used.
 Scheduled cleanup and retry-safe Storage events run without an open client.
 
 The canonical object path is `users/{uid}/attachments/{attachmentId}/content`.
 The app never calls `getDownloadURL`, saves a Firebase bearer URL or supplies
-download tokens. Metadata finalization removes backend-added download-token
-metadata before ready and verifies the same object generation afterward. Real
-staging must separately verify token removal and rule behavior; emulator success
-does not establish those backend semantics.
+download tokens. Metadata finalization independently verifies token absence and the same object
+generation before ready. It attempts standard removal for unexpected tokens
+and fails closed if they remain. Real staging must separately verify token-free
+creation, generation preconditions and rule behavior; emulator success does not
+establish those deployed backend semantics.
 
 ## Limits and validation
 
@@ -91,14 +93,15 @@ silently admitting a new reservation.
 ## Rules and queries
 
 Firestore retains the existing owner-private, server-write-only metadata policy;
-attachmentSets and attachment jobs stay inaccessible to clients. Storage create
+attachmentSets and attachment jobs stay inaccessible to clients. Protected ingestion
 requires active auth/path ownership, an awaitingUpload reservation with exactly
-the requested path, matching owner/attachment custom metadata, allowed MIME and
-bounded declared/actual size. Unexpected exposed custom metadata, including
-download tokens, is denied. The Storage emulator moves its reserved token key
-out of custom metadata before evaluating rules; tests record that limitation
-and require trusted finalization to strip the managed token channel before
-ready. Staging must verify actual Firebase normalization and token removal.
+the requested path, server-written owner/attachment metadata, allowed MIME and
+bounded declared/actual size. Client Storage create is denied. Ingestion writes only controlled owner,
+attachment and upload-checksum metadata. The Storage emulator hides its reserved
+download-token key from rules and retains its managed token array on a null
+metadata patch. Trusted ingestion creates token-free objects; finalization
+checks token absence and fails closed if standard removal cannot clear an
+unexpected token. Staging must verify deployed token absence and preconditions.
 Client overwrite, object delete and list are denied. Reads
 require matching ready metadata and active ownership. Missing reservations,
 processing files and foreign paths deny access.
@@ -145,8 +148,8 @@ preview/download and removal with the original responsive light/dark theme.
 Whole Dart, Functions and Emulator gates remain required per task.
 
 Staging verifies deployed Storage/Firestore rules and indexes, cross-service
-Firestore access permissions, App Check, backend token removal, real SDK upload
-and authenticated download. Android/iOS file picker, preview/export, signing and
+Firestore access permissions, App Check, backend token removal, real protected ingestion
+and authenticated SDK download. Android/iOS file picker, preview/export, signing and
 background cancellation require physical-device or supported native-runner
 evidence. This milestone does not provision paid production resources or deploy
 the emulator web build.

@@ -14,18 +14,6 @@ service firebase.storage {
         && file.attachmentId == attachmentId
         && file.storagePath == 'users/' + uid + '/attachments/' + attachmentId + '/content';
     }
-    function validCreate(uid, attachmentId) {
-      let file = firestore.get(/databases/(default)/documents/users/$(uid)/attachments/$(attachmentId)).data;
-      return resource == null && ownedFile(uid, attachmentId, file)
-        && file.state == 'awaitingUpload' && request.time < file.expiresAt
-        && request.resource.size > 0 && request.resource.size <= 10485760
-        && request.resource.size == file.declaredSizeBytes
-        && request.resource.contentType == file.declaredContentType
-        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-        && request.resource.metadata.keys().hasOnly(['userId', 'attachmentId'])
-        && request.resource.metadata.userId == uid
-        && request.resource.metadata.attachmentId == attachmentId;
-    }
     function validRead(uid, attachmentId) {
       let file = firestore.get(/databases/(default)/documents/users/$(uid)/attachments/$(attachmentId)).data;
       return ownedFile(uid, attachmentId, file) && file.state == 'ready'
@@ -34,7 +22,8 @@ service firebase.storage {
         && resource.metadata.userId == uid && resource.metadata.attachmentId == attachmentId;
     }
     match /users/{uid}/attachments/{attachmentId}/content {
-      allow create: if activeOwner(uid) && validCreate(uid, attachmentId);
+      // Ingestion creates token-free objects through an authenticated callable.
+      allow create: if false;
       allow get: if activeOwner(uid) && validRead(uid, attachmentId);
       allow update, delete, list: if false;
     }

@@ -12,8 +12,12 @@ import {claimReminderJob,reminderJobKinds} from '../notifications/reminder_jobs.
 import {reconcileOwnerReminders} from '../notifications/reconciliation.js';
 import {prepareReminders} from '../notifications/preparation.js';
 import {deliverReminder} from '../notifications/delivery.js';
+import {attachmentJobKinds,claimAttachmentJob,releaseAttachmentJob} from '../attachments/attachment_jobs.js';
+import {finalizeAttachment} from '../attachments/finalization.js';
+import {cleanupAttachment} from '../attachments/cleanup.js';
+import {FirebaseAttachmentStorageGateway,type AttachmentStorageGateway} from '../attachments/storage_gateway.js';
 
-const kinds=['ownerProjection','recurringGeneration','automaticDeduction',...reminderJobKinds];
+const kinds=['ownerProjection','recurringGeneration','automaticDeduction',...reminderJobKinds,...attachmentJobKinds];
 export function promptWorkerEnabled(emulator:boolean,projectId:string|undefined,mode:string|undefined):boolean {
   return !(emulator&&/^demo-[a-z0-9-]+$/.test(projectId??'')&&mode==='manual');
 }
@@ -24,11 +28,16 @@ export function shouldRunPrompt(job:DocumentData|undefined,now=new Date()):boole
   if(!job||job.schemaVersion!==1||!kinds.includes(job.kind)||!['pending','leased'].includes(job.status)||!(job.nextRunAt instanceof Timestamp))return false;
   return canClaimLease({status:job.status,nextRunAt:job.nextRunAt.toDate(),leaseExpiresAt:job.leaseExpiresAt instanceof Timestamp?job.leaseExpiresAt.toDate():null},now);
 }
-export async function runReadyJob(jobId:string,db:Firestore,injectedNow?:Date):Promise<boolean> {
+export async function runReadyJob(jobId:string,db:Firestore,injectedNow?:Date,attachmentStorage?:AttachmentStorageGateway):Promise<boolean> {
   identifier(jobId);const clock=injectedNow?()=>injectedNow:()=>new Date();
   const job=(await db.collection('systemJobs').doc(jobId).get()).data();if(!shouldRunPrompt(job,clock()))return false;
   let token:string|null=null;
   try {
+    if(attachmentJobKinds.includes(job!.kind)) {
+      const lease=await claimAttachmentJob(jobId,db,clock());if(!lease)return false;token=lease.token;
+      const storage=attachmentStorage??new FirebaseAttachmentStorageGateway();
+      return lease.kind==='attachmentFinalization'?await finalizeAttachment(jobId,lease.token,db,storage,injectedNow):await cleanupAttachment(jobId,lease.token,db,storage,injectedNow);
+    }
     if(job!.kind==='ownerProjection') {
       const lease=await claimProjectionJob(jobId,db,clock());if(!lease)return false;token=lease.token;
       const projection=await projectOwner(lease.uid,db,injectedNow);
@@ -52,6 +61,7 @@ export async function runReadyJob(jobId:string,db:Firestore,injectedNow?:Date):P
   }catch(error) {
     if(token) {
       if(job!.kind==='ownerProjection')await releaseFailedJob(jobId,db,token,clock(),error);
+      else if(attachmentJobKinds.includes(job!.kind))await releaseAttachmentJob(jobId,token,db,clock());
       else await releaseRecurringJob(jobId,token,db,clock());
     }
     logger.warn('Financial job delayed',{jobId,kind:job!.kind});return false;

@@ -20,10 +20,11 @@ async function reservation(id,patch={}){
     expiresAt:Timestamp.fromMillis(Date.now()+86_400_000),...patch,
   }));
 }
-test('canonical reserved upload and owner ready bytes succeed; others cannot read, overwrite, delete or list',async()=>withOwner('storage-ready',async owner=>{
+test('direct reserved upload is denied; owner ready bytes succeed while others cannot read, overwrite, delete or list',async()=>withOwner('storage-ready',async owner=>{
   uid=owner.user.uid;
   await reservation('valid');const storage=env.authenticatedContext(uid).storage(),object=ref(storage,path('valid'));
-  await assertSucceeds(uploadBytes(object,new Uint8Array([1,2,3,4]),metadata('valid')));
+  await assertFails(uploadBytes(object,new Uint8Array([1,2,3,4]),metadata('valid')));
+  await env.withSecurityRulesDisabled(async ctx=>await uploadBytes(ref(ctx.storage(),path('valid')),new Uint8Array([1,2,3,4]),metadata('valid')));
   await assertFails(getBytes(object));
   let generation;await env.withSecurityRulesDisabled(async ctx=>{generation=(await getMetadata(ref(ctx.storage(),path('valid')))).generation;});
   await reservation('valid',{state:'ready',contentType:'application/pdf',sizeBytes:4,storageGeneration:generation==='1'?'2':'1'});
@@ -56,13 +57,12 @@ test('reservation, MIME, size, owner, state and metadata checks reject forged up
   await reservation('foreign-client');await assertFails(uploadBytes(ref(env.authenticatedContext('bob').storage(),path('foreign-client')),new Uint8Array(4),metadata('foreign-client')));
   await assertFails(uploadBytes(ref(storage,`users/${uid}/attachments/foreign-client/other`),new Uint8Array(4),metadata('foreign-client')));
 }));
-test('emulator hides reserved download-token metadata; unpublished owner bytes remain gated',async()=>withOwner('storage-token-normalization',async owner=>{
+test('direct token-bearing SDK uploads are denied as well as ordinary creates',async()=>withOwner('storage-token-normalization',async owner=>{
   uid=owner.user.uid;await reservation('token');
   const object=ref(env.authenticatedContext(uid).storage(),path('token'));
-  // firebase-tools StoredFileMetadata moves this reserved field to its token
-  // channel before asRulesResource(). Task3 must strip that channel before ready;
-  // this is observed emulator behavior, not proof of a production rule denial.
-  await assertSucceeds(uploadBytes(object,new Uint8Array(4),metadata('token',{
+  // No client create can bypass trusted ingestion, including this reserved key
+  // that firebase-tools hides from rule-visible custom metadata.
+  await assertFails(uploadBytes(object,new Uint8Array(4),metadata('token',{
     customMetadata:{userId:uid,attachmentId:'token',firebaseStorageDownloadTokens:'synthetic-unusable-token'},
   })));
   await assertFails(getBytes(object));

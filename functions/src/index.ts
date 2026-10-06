@@ -1,12 +1,13 @@
 import {onDocumentWritten} from 'firebase-functions/v2/firestore';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
+import {onObjectFinalized} from 'firebase-functions/v2/storage';
 import {enqueueProjection,refreshDashboard as requestDashboardRefresh} from './jobs/projection_jobs.js';
 import {repairFiniteDebt as repairOwnerFiniteDebt} from './dashboard/repair.js';
 import { onCall } from 'firebase-functions/v2/https';
 import { validateEmulatorHealthRequest } from './emulator_health.js';
 import {getAuth} from 'firebase-admin/auth';
 import {bootstrapProfile,updateProfile as updateAccountProfile} from './accounts/profile.js';
-import {database,exactObject,ownerCallable} from './shared/callable.js';
+import {database,exactObject,ownerCallable,authorizeCaller} from './shared/callable.js';
 import {saveCatalog as saveOwnerCatalog} from './catalog/catalog.js';
 import {createObligation as createOwnerObligation,editObligation as editOwnerObligation,cancelObligation as cancelOwnerObligation} from './obligations/obligation_service.js';
 import {recordPayment as recordOwnerPayment,recordInstallmentPayment as recordOwnerInstallmentPayment} from './payments/payment_service.js';
@@ -23,6 +24,10 @@ import {registerNotificationDevice as registerOwnerNotificationDevice,unregister
   listNotificationDevices as listOwnerNotificationDevices} from './notifications/device_service.js';
 import {cleanupNotificationDevices} from './notifications/device_cleanup.js';
 import {reserveAttachment as reserveOwnerAttachment,removeAttachment as removeOwnerAttachment} from './attachments/reservation_service.js';
+import {uploadAttachment as uploadOwnerAttachment} from './attachments/upload_service.js';
+import {FirebaseAttachmentStorageGateway} from './attachments/storage_gateway.js';
+import {enqueueAttachmentFinalization} from './attachments/attachment_jobs.js';
+import {cleanupExpiredAttachments} from './attachments/cleanup.js';
 
 const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
 export const emulatorHealth = onCall(
@@ -58,6 +63,18 @@ export const unregisterNotificationDevice=ownerCallable((uid,data)=>unregisterOw
 export const listNotificationDevices=ownerCallable((uid,data)=>listOwnerNotificationDevices(uid,data,database));
 export const reserveAttachment=ownerCallable((uid,data)=>reserveOwnerAttachment(uid,data,database));
 export const removeAttachment=ownerCallable((uid,data)=>removeOwnerAttachment(uid,data,database));
+export const uploadAttachment=onCall(
+  {region:'asia-southeast1',enforceAppCheck:!(emulator&&/^demo-[a-z0-9-]+$/.test(process.env.GCLOUD_PROJECT??'')),memory:'512MiB',concurrency:2,maxInstances:5,timeoutSeconds:120},
+  request=>uploadOwnerAttachment(authorizeCaller(request.auth?.uid,request.app!==undefined,emulator,process.env.GCLOUD_PROJECT),request.data,database,new FirebaseAttachmentStorageGateway()),
+);
+export const finalizePrivateFile=onObjectFinalized(
+  {region:'asia-southeast1',retry:true,maxInstances:10},
+  event=>enqueueAttachmentFinalization(event.data,database).then(()=>{}),
+);
+export const expirePrivateFileReservations=onSchedule(
+  {schedule:'every 60 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,maxInstances:1},
+  async()=>{await cleanupExpiredAttachments(database,new FirebaseAttachmentStorageGateway());},
+);
 
 export const createInstallment = ownerCallable((uid,data)=>createOwnerInstallment(uid,data,database));
 export const editInstallment = ownerCallable((uid,data)=>editOwnerInstallment(uid,data,database));
@@ -87,7 +104,7 @@ export const retireStaleNotificationDevices=onSchedule(
   async()=>{await cleanupNotificationDevices(database);},
 );
 export const processReadyFinancialJob=onDocumentWritten(
-  {document:'systemJobs/{jobId}',region:'asia-southeast1',retry:true,maxInstances:10,timeoutSeconds:540,memory:'1GiB'},
+  {document:'systemJobs/{jobId}',region:'asia-southeast1',retry:true,maxInstances:10,timeoutSeconds:540,memory:'1GiB',concurrency:2},
   async event=>{
     if(!promptWorkerEnabled(emulator,process.env.GCLOUD_PROJECT,process.env.TALLY_EMULATOR_JOB_MODE))return;
     if(event.data?.after.exists&&shouldRunPrompt(event.data.after.data()))await runReadyJob(event.params.jobId,database);
