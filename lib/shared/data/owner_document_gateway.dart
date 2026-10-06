@@ -76,6 +76,7 @@ final class DocumentQuery {
     'paymentEvidence',
     'reminders',
     'notificationPreferences',
+    'attachments',
   };
   final String collection;
   final int limit;
