@@ -237,8 +237,8 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           IconButton.outlined(
-            tooltip: 'Activity and reminders',
-            onPressed: () => go(4),
+            tooltip: 'Reminders',
+            onPressed: () => context.go('/settings/reminders/inbox'),
             icon: const Icon(Icons.notifications_none, size: 18),
           ),
         ],

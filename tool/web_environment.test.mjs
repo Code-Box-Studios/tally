@@ -9,3 +9,7 @@ test('rejects mismatch, emulator, different app platform, or secret-bearing conf
   assert.throws(()=>validateWebEnvironment({...config,...update}));
  }
 });
+test('web push public key is optional and checked without accepting secrets',()=>{
+ assert.doesNotThrow(()=>validateWebEnvironment({...config,TALLY_WEB_PUSH_VAPID_KEY:'B'+'A'.repeat(86)}));
+ assert.throws(()=>validateWebEnvironment({...config,TALLY_WEB_PUSH_VAPID_KEY:'private-key'}));
+});

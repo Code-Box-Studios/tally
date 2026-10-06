@@ -10,6 +10,8 @@ import 'package:tally/core/config/environment_providers.dart';
 import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/features/auth/domain/auth_repository.dart';
 import 'package:tally/features/auth/presentation/auth_providers.dart';
+import 'package:tally/features/notifications/data/installation_store.dart';
+import 'package:tally/features/notifications/presentation/notification_session_providers.dart';
 import 'package:tally/shared/presentation/financial_providers.dart';
 import 'package:tally/shared/domain/financial_failure.dart';
 
@@ -17,6 +19,8 @@ import '../auth/session_controller_test.dart'
     show AuthFixture, ProfileFixture, profile;
 import 'financial_forms_test.dart' show UiDocuments, UiCommands, enter, tap;
 import 'financial_dto_test.dart' show obligationData;
+import '../notifications/local_notification_adapter_test.dart'
+    show MemoryValues;
 
 void main() {
   testWidgets(
@@ -43,6 +47,9 @@ void main() {
           ),
           authRepositoryProvider.overrideWithValue(auth),
           profileRepositoryProvider.overrideWithValue(profiles),
+          installationStoreProvider.overrideWithValue(
+            InstallationStore(MemoryValues()),
+          ),
           ownerDocumentsFactoryProvider.overrideWithValue(
             (owner) => owner.value == 'alice' ? alice : bob,
           ),

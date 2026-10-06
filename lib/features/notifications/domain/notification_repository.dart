@@ -6,6 +6,11 @@ import 'notification_preferences.dart';
 import 'reminder_entry.dart';
 import 'notification_device.dart';
 
+final class NotificationUpcomingQuery {
+  NotificationUpcomingQuery({required DateTime from}) : from = from.toUtc();
+  final DateTime from;
+}
+
 final class NotificationInboxQuery {
   NotificationInboxQuery({required DateTime until, this.limit = 50})
     : until = until.toUtc() {
@@ -26,6 +31,10 @@ final class NotificationInboxQuery {
 
 abstract interface class NotificationRepository {
   OwnerUid get owner;
+  Stream<DataPage<ReminderEntry>> watchUpcoming(
+    NotificationUpcomingQuery query,
+  );
+  Future<DataRecord<ReminderEntry>?> getReminder(String id);
   Future<NotificationDevice> registerDevice(
     CommandId commandId,
     NotificationDeviceRegistration registration,

@@ -5,6 +5,7 @@ import '../../../core/identifiers/entity_ids.dart';
 import '../data/auth_failure.dart';
 import '../domain/user_profile.dart';
 import 'auth_providers.dart';
+import '../../../shared/presentation/private_session_cleanup_provider.dart';
 
 final authActionsProvider = AsyncNotifierProvider<AuthActions, void>(
   AuthActions.new,
@@ -37,7 +38,14 @@ class AuthActions extends AsyncNotifier<void> {
       _run(ref.read(authRepositoryProvider).signInWithGoogle);
   Future<bool> reset(String email) =>
       _run(() => ref.read(authRepositoryProvider).resetPassword(email));
-  Future<bool> signOut() => _run(ref.read(sessionControllerProvider).signOut);
+  Future<bool> signOut() => _run(() async {
+    final controller = ref.read(sessionControllerProvider),
+        owner = controller.identity?.uid;
+    if (owner != null) {
+      await ref.read(privateSessionCleanupProvider).prepareSignOut(owner);
+    }
+    await controller.signOut();
+  });
 }
 
 final profileActionsProvider =

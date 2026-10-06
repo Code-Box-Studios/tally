@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/presentation/catalog_manager.dart';
 
@@ -73,6 +74,17 @@ class SettingsScreen extends ConsumerWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             const CatalogManager(kind: CatalogEditorKind.source),
+            const SizedBox(height: 24),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.notifications_none),
+                title: const Text('Reminders'),
+                subtitle: const Text(
+                  'Your private inbox, reminder times and device alerts.',
+                ),
+                onTap: () => context.go('/settings/reminders'),
+              ),
+            ),
             const SizedBox(height: 24),
             const CatalogManager(kind: CatalogEditorKind.category),
             const SizedBox(height: 24),

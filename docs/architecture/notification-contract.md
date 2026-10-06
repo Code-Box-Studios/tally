@@ -83,3 +83,41 @@ when its source key changes, or reset that one owned job to pending with a new
 generation and null cursor. Preserve terminal deduction events and published
 reminders. Do not delete receipts, fabricate amounts, or bypass the account
 deletion fence. Run repair against emulator/staging data first.
+
+## Client session and delivery capabilities
+
+An owner-scoped Riverpod session starts without requesting notification
+permission. The user requests permission explicitly in reminder settings.
+Preview and emulator runtimes do not initialize real Messaging. A web runtime
+without a validated public VAPID key keeps the inbox available without calling
+Messaging. iOS without a ready APNs token can use permitted local alerts.
+Unsupported desktop platforms keep the private inbox.
+
+Each installation stores a stable nonsecret ID and, for local scheduling, at
+most 50 numeric notification IDs per owner. This adapter stores no credentials,
+token or financial payload. One device chooses push, local or none; it does not
+schedule both external channels. Cached future snapshots cancel local alerts
+until a current server snapshot arrives. Both local and remote alerts contain
+only generic text and validated reminder/obligation/instance IDs.
+
+On sign-out or owner disposal the session closes its generation fence first.
+SDK stream cancellation runs concurrently with a bounded timeout. Owner-local
+alerts are cancelled and the loaded device is unregistered while old auth is
+still available; unregister has a three-second timeout. Platform clearing is
+also bounded, and paused presentation listeners cannot hold authentication
+sign-out. Late completions and native callbacks cannot reopen a disposed owner.
+Independent cleanup stages can each time out; this is not a claim of a global
+three-second sign-out deadline.
+
+The private inbox resolves an incoming target against the current owner's
+visible reminder and requires all three IDs to match before navigation. The
+web worker opens `/#/settings/reminders/inbox` with those IDs, never financial
+text or an arbitrary origin. Worker Firebase configuration is generated from
+validated public app options. Native permission, background delivery, signing,
+web VAPID and cold-start routing are verified on staging in the release gates,
+not inferred from emulator success.
+
+Future local queries use `reminders(visible,status,scheduledAt ASC)` with an
+explicit UTC cutoff and a maximum of 50. Inbox cursors retain their cutoff and
+limit. Refresh creates a new query context rather than silently changing a
+cursor's time boundary.

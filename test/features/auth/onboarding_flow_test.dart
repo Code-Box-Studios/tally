@@ -8,8 +8,17 @@ import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/features/auth/domain/auth_repository.dart';
 import 'package:tally/features/auth/domain/user_profile.dart';
 import 'package:tally/features/auth/presentation/auth_providers.dart';
+import 'package:tally/features/auth/presentation/auth_actions.dart';
+import 'package:tally/core/session/private_session_cleanup.dart';
+import 'package:tally/features/notifications/presentation/notification_providers.dart';
+import 'package:tally/features/notifications/presentation/notification_session_providers.dart';
+import 'package:tally/features/notifications/presentation/notification_session.dart';
+import 'package:tally/shared/presentation/private_session_cleanup_provider.dart';
 
 import 'session_controller_test.dart' show AuthFixture, ProfileFixture, profile;
+import '../notifications/notification_session_test.dart'
+    show PlatformStub, LocalStub;
+import '../../support/notification_fixtures.dart';
 
 class EditableProfileFixture extends ProfileFixture {
   UserProfile? saved;
@@ -43,6 +52,19 @@ void main() {
     (tester) async {
       final auth = AuthFixture();
       final profiles = EditableProfileFixture();
+      final notifications = FakeNotifications();
+      addTearDown(notifications.dispose);
+      final platform = PlatformStub();
+      final notificationSession = NotificationSession(
+        repository: notifications,
+        platform: platform,
+        local: LocalStub(),
+        installationId: () async => 'onboarding-fixture',
+      );
+      final cleanup = PrivateSessionCleanup()
+        ..register(notifications.owner, notificationSession.close);
+      addTearDown(notificationSession.close);
+      addTearDown(platform.close);
       addTearDown(auth.identities.close);
       addTearDown(() async {
         for (final stream in profiles.streams.values) {
@@ -60,6 +82,9 @@ void main() {
             ),
             authRepositoryProvider.overrideWithValue(auth),
             profileRepositoryProvider.overrideWithValue(profiles),
+            notificationRepositoryProvider.overrideWithValue(notifications),
+            notificationSessionProvider.overrideWithValue(notificationSession),
+            privateSessionCleanupProvider.overrideWithValue(cleanup),
           ],
           child: const TallyApp(),
         ),
@@ -95,6 +120,16 @@ void main() {
       await tester.ensureVisible(find.text('Sign out'));
       await tester.tap(find.text('Sign out'));
       await tester.pumpAndSettle();
+      final actions = ProviderScope.containerOf(
+        tester.element(find.byType(TallyApp)),
+      ).read(authActionsProvider);
+      expect(actions.hasError, isFalse, reason: '${actions.error}');
+      expect(
+        actions.isLoading,
+        isFalse,
+        reason:
+            'notification commands: ${notifications.commands.map((c) => c.$1)}',
+      );
       expect(find.text('Welcome back.'), findsOneWidget);
       expect(find.text('Alice'), findsNothing);
       expect(tester.takeException(), isNull);

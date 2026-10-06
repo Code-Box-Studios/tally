@@ -30,6 +30,45 @@ final class _InboxCursor implements PageCursor {
 final class FirestoreNotificationRepository extends FinancialRepositoryBase
     implements NotificationRepository {
   FirestoreNotificationRepository(super.documents, super.commands);
+  @override
+  Stream<DataPage<ReminderEntry>> watchUpcoming(
+    NotificationUpcomingQuery query,
+  ) => watch(
+    DocumentQuery(
+      'reminders',
+      limit: 50,
+      equals: const {'visible': false, 'status': 'pending'},
+      ranges: [
+        DocumentRange('scheduledAt', RangeComparison.greaterThan, query.from),
+      ],
+      order: const [DocumentOrder('scheduledAt')],
+    ),
+    (raw) {
+      final entry = NotificationDto.entry(raw.id, raw.data, owner);
+      if (entry.visibleAt != null ||
+          entry.status != ReminderStatus.pending ||
+          !entry.scheduledAt.isAfter(query.from)) {
+        throw DocumentReader.invalid();
+      }
+      return entry;
+    },
+  );
+  @override
+  Future<DataRecord<ReminderEntry>?> getReminder(String id) async {
+    CommandId(id);
+    try {
+      final record = await documents.watchDocument('reminders', id).first;
+      return record.document == null
+          ? null
+          : DataRecord(
+              NotificationDto.entry(id, record.document!.data, owner),
+              isFromCache: record.isFromCache,
+            );
+    } catch (error) {
+      throw financialFailure(error);
+    }
+  }
+
   Future<NotificationDevice> _deviceCommand(
     String name,
     CommandId id,

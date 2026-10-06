@@ -1,8 +1,9 @@
 import {execFileSync} from 'node:child_process';
-import {readFileSync, rmSync, statSync} from 'node:fs';
+import {readFileSync, rmSync, statSync,writeFileSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {validateWebEnvironment} from './web_environment.mjs';
+import {generateMessagingConfig} from './messaging_config.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const environment = process.env.TALLY_BUILD_ENVIRONMENT || 'production';
@@ -16,6 +17,7 @@ const source = join(root, `build/web-${environment}`);
 execFileSync('flutter', ['pub', 'get', '--enforce-lockfile'], {cwd:root, stdio:'inherit'});
 rmSync(source, {recursive:true, force:true});
 execFileSync('flutter', ['build', 'web', '--release', '--target', environment === 'production' ? 'lib/main_prod.dart' : 'lib/main_staging.dart', '--dart-define-from-file', definesFile, '--no-web-resources-cdn', '--output', source], {cwd:root, stdio:'inherit'});
+writeFileSync(join(source,'tally-messaging-config.js'),generateMessagingConfig(config,environment));
 for (const asset of ['index.html','main.dart.js','flutter_bootstrap.js','assets/FontManifest.json','assets/assets/fonts/DMSans.ttf','assets/assets/fonts/Manrope.ttf','canvaskit/canvaskit.wasm']) {
   const file = statSync(join(source, asset));
   if (!file.isFile() || !file.size) throw new Error(`Incomplete web build: ${asset}`);

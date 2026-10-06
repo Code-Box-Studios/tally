@@ -6,6 +6,8 @@ import '../domain/visible_financial_status.dart';
 
 import 'package:go_router/go_router.dart';
 
+import '../../notifications/presentation/finite_reminder_dialog.dart';
+
 import '../../../core/identifiers/entity_ids.dart';
 import '../../../shared/presentation/financial_actions.dart';
 import '../../../shared/presentation/financial_form_support.dart';
@@ -144,6 +146,16 @@ class ObligationDetailScreen extends ConsumerWidget {
                         ),
                         child: const Text('Cancel obligation'),
                       ),
+                    OutlinedButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        useRootNavigator: false,
+                        builder: (_) =>
+                            FiniteReminderDialog(obligation: parent),
+                      ),
+                      icon: const Icon(Icons.notifications_none),
+                      label: const Text('Reminder settings'),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),

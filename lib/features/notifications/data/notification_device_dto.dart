@@ -34,7 +34,8 @@ abstract final class NotificationDeviceDto {
     final version = r.text('appVersion', max: 64, required: true),
         raw = r.text('lastSeenAt', max: 24, required: true);
     if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$').hasMatch(version) ||
-        !RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$').hasMatch(raw)) {
+        !RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$')
+            .hasMatch(raw)) {
       throw DocumentReader.invalid();
     }
     final date = DateTime.tryParse(raw);

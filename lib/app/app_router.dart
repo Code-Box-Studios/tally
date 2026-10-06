@@ -28,6 +28,10 @@ import '../features/auth/presentation/startup_screen.dart';
 import '../features/auth/domain/session_state.dart';
 import 'session_route_gate.dart';
 import 'responsive_shell.dart';
+import '../features/notifications/presentation/reminders_screen.dart';
+import '../features/notifications/presentation/notification_settings.dart';
+import '../features/notifications/presentation/notification_session_providers.dart';
+import '../features/notifications/domain/notification_platform.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   SessionRouteGate? gate;
@@ -176,6 +180,20 @@ GoRouter createAppRouter({
             GoRoute(
               path: '/settings',
               builder: (_, _) => const SettingsScreen(),
+              routes: [
+                GoRoute(
+                  path: 'reminders',
+                  builder: (_, _) => const _FinancialRoute(
+                    child: NotificationSettingsScreen(),
+                  ),
+                  routes: [
+                    GoRoute(
+                      path: 'inbox',
+                      builder: (_, state) => _remindersRoute(state.uri),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -249,7 +267,31 @@ class _PrivateWorkspace extends ConsumerWidget {
         ownerUidProvider.overrideWithValue(profile.uid),
         userProfileProvider.overrideWithValue(profile),
       ],
-      child: ResponsiveShell(navigationShell: navigationShell),
+      child: NotificationSessionHost(
+        child: ResponsiveShell(navigationShell: navigationShell),
+      ),
+    );
+  }
+}
+
+Widget _remindersRoute(Uri uri) {
+  try {
+    final query = uri.queryParameters;
+    final intent = query.keys.any({'reminder', 'obligation', 'period'}.contains)
+        ? ReminderIntent.fromData({
+            'reminderId': query['reminder'],
+            'obligationId': query['obligation'],
+            'instanceId': query['period'],
+          })
+        : null;
+    return _FinancialRoute(child: RemindersScreen(initialIntent: intent));
+  } catch (_) {
+    return const _FinancialRoute(
+      child: EmptyState(
+        icon: Icons.notifications_off_outlined,
+        title: 'This reminder link isn’t available',
+        description: 'Open your inbox to see the latest reminders.',
+      ),
     );
   }
 }

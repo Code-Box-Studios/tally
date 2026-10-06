@@ -81,12 +81,14 @@ final class EnvironmentConfig {
       options = null,
       region = null,
       appCheckSiteKey = null,
+      webPushKey = null,
       declaredEnvironment = null;
   const EnvironmentConfig.emulator({required this.projectId, this.endpoints})
     : mode = AppEnvironment.emulator,
       options = null,
       region = null,
       appCheckSiteKey = null,
+      webPushKey = null,
       declaredEnvironment = null;
   const EnvironmentConfig.unconfigured(this.mode)
     : projectId = null,
@@ -94,6 +96,7 @@ final class EnvironmentConfig {
       options = null,
       region = null,
       appCheckSiteKey = null,
+      webPushKey = null,
       declaredEnvironment = null;
   const EnvironmentConfig.firebase({
     required this.mode,
@@ -102,11 +105,13 @@ final class EnvironmentConfig {
     required this.region,
     required this.appCheckSiteKey,
     required this.declaredEnvironment,
+    this.webPushKey,
   }) : endpoints = null;
   factory EnvironmentConfig.fromDefines(AppEnvironment mode) =>
       EnvironmentConfig.firebase(
         mode: mode,
         declaredEnvironment: const String.fromEnvironment('TALLY_ENVIRONMENT'),
+        webPushKey: const String.fromEnvironment('TALLY_WEB_PUSH_VAPID_KEY'),
         projectId: const String.fromEnvironment('TALLY_PROJECT_ID'),
         region: const String.fromEnvironment('TALLY_FUNCTIONS_REGION'),
         appCheckSiteKey: const String.fromEnvironment(
@@ -131,6 +136,7 @@ final class EnvironmentConfig {
   final FirebaseRuntimeOptions? options;
   final String? region;
   final String? appCheckSiteKey;
+  final String? webPushKey;
   final String? declaredEnvironment;
   void validate() {
     if (mode == AppEnvironment.preview) {
@@ -151,6 +157,7 @@ final class EnvironmentConfig {
         throw _invalidEnvironment();
       }
       options!.validate(id);
+      if(webPushKey?.isNotEmpty==true&&!RegExp(r'^[A-Za-z0-9_-]{87}$').hasMatch(webPushKey!))throw _invalidEnvironment();
       return;
     }
     final id = projectId;
