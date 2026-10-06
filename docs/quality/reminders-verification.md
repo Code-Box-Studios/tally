@@ -33,11 +33,19 @@ warning, not production user data.
 
 The browser also signed in a second synthetic owner, verified the actual empty
 inbox, rejected an original owner's real reminder target and signed out with
-zero unhandled rejections. The fresh whole gate passed static analysis, 487
+zero unhandled rejections. The final fresh whole gate passed static analysis, 496
 Flutter tests, 125 Functions unit tests, seven worker/configuration tests, one
 prompt-worker emulator scenario and 111 deterministic emulator scenarios.
 Dart MCP hot reload succeeded and reported no runtime errors. The named
-completion gate repeats the required suite before the final M5b review.
+completion gate passed before the independent whole-plan review. Its four
+Important client recovery findings were fixed in one pass: current device
+revisions and uncertain receipt recovery, obsolete local subscription fencing,
+owned due-pending native opens, and retryable startup/foreground recovery.
+Seven new session regressions and the foreground widget failed before their
+fixes; future/cancelled target rejection was an existing behavior characterized
+by the ninth new test. The final browser run processed17 owned jobs, preserved
+payment history and signed out with zero unhandled rejections. Physical
+transport claims remain subject to the release gates below.
 The plan ledger retains RED/GREEN evidence and distinguishes actual defects
 from automation and fixture mistakes.
 

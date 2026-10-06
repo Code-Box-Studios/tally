@@ -109,8 +109,12 @@ sign-out. Late completions and native callbacks cannot reopen a disposed owner.
 Independent cleanup stages can each time out; this is not a claim of a global
 three-second sign-out deadline.
 
-The private inbox resolves an incoming target against the current owner's
-visible reminder and requires all three IDs to match before navigation. The
+The private inbox resolves a web inbox target against the current owner's
+visible reminder and requires all three IDs to match before navigation. Native
+session opens also accept an owned pending reminder whose scheduled instant is
+already due: local alerts can precede the five-minute inbox publication. Future,
+cancelled and foreign targets cannot use this path. Failed lookup retains one
+bounded intent and opens only the private inbox until it can be verified. The
 web worker opens `/#/settings/reminders/inbox` with those IDs, never financial
 text or an arbitrary origin. Worker Firebase configuration is generated from
 validated public app options. Native permission, background delivery, signing,
@@ -121,3 +125,19 @@ Future local queries use `reminders(visible,status,scheduledAt ASC)` with an
 explicit UTC cutoff and a maximum of 50. Inbox cursors retain their cutoff and
 limit. Refresh creates a new query context rather than silently changing a
 cursor's time boundary.
+
+Device registration loads the current server revision rather than retaining a
+startup-only revision. An uncertain registration keeps its frozen command ID and
+payload for permanent-receipt recovery. A confirmed conflict refreshes metadata
+and retries at most once. Receipt recovery verifies the current revision before
+assuming its historical result is still the active device. Sign-out refreshes
+the current owned installation within the same three-second unregister budget.
+
+Preferences, token changes and replacement subscriptions advance a separate
+binding generation synchronously. Queued local pages/errors must match that
+generation and current enabled/local preferences; a failed registration cannot
+restore a previously disabled schedule. Open listeners and the initial intent
+are installed independently of online device preparation. Foreground resume and
+at most three delayed30-second retries repair transient setup without prompting.
+Each background preparation/network step has a bounded timeout; permission
+prompts themselves remain explicit user actions.

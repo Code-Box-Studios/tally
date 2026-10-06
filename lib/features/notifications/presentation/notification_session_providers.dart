@@ -70,15 +70,42 @@ final notificationSessionStateProvider =
       dependencies: [notificationSessionProvider],
     );
 
-class NotificationSessionHost extends ConsumerWidget {
+class NotificationSessionHost extends ConsumerStatefulWidget {
   const NotificationSessionHost({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationSessionHost> createState() =>
+      _NotificationSessionHostState();
+}
+
+class _NotificationSessionHostState
+    extends ConsumerState<NotificationSessionHost>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (mounted && state == AppLifecycleState.resumed) {
+      unawaited(ref.read(notificationSessionProvider).resume());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(notificationSessionProvider);
     session.onOpen = (uri) {
       if (context.mounted) context.go(uri.toString());
     };
-    return child;
+    return widget.child;
   }
 }

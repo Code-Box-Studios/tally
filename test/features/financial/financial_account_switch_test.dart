@@ -124,7 +124,14 @@ void main() {
       // the externally owned container's view and let autoDispose cancel it.
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
+      // Let bounded startup/SDK cancellation deadlines expire in fake time.
+      // A closed owner cannot resume a command after these late completions.
+      await tester.pump(const Duration(seconds: 3));
       await tester.pumpAndSettle();
+      // The sign-out cleanup may read this owner's device metadata; it may
+      // never resume the pending financial command in the replacement scope.
+      expect(bobCommands.requests, everyElement('listNotificationDevices'));
+      expect(tester.takeException(), isNull);
     },
   );
 }
