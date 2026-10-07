@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/presentation/private_session_cleanup_provider.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../domain/attachment.dart';
+import '../domain/attachment_preview_policy.dart';
 import 'attachment_actions.dart';
 
 class AttachmentPreview extends ConsumerStatefulWidget {
@@ -18,7 +19,7 @@ class AttachmentPreview extends ConsumerStatefulWidget {
 
 class _AttachmentPreviewState extends ConsumerState<AttachmentPreview> {
   AttachmentBytes? _bytes;
-  MemoryImage? _image;
+  ImageProvider? _image;
   Uint8List? _imageBytes;
   void Function()? _unregister;
   bool _saving = false;
@@ -27,9 +28,14 @@ class _AttachmentPreviewState extends ConsumerState<AttachmentPreview> {
   void initState() {
     super.initState();
     _bytes = widget.bytes;
-    if (_bytes!.file.contentType != AttachmentContentType.pdf) {
+    if (AttachmentPreviewPolicy.canPreview(_bytes!.file)) {
       _imageBytes = Uint8List.fromList(_bytes!.file.bytes);
-      _image = MemoryImage(_imageBytes!);
+      _image = ResizeImage(
+        MemoryImage(_imageBytes!),
+        width: AttachmentPreviewPolicy.maxDecodedEdge,
+        height: AttachmentPreviewPolicy.maxDecodedEdge,
+        policy: ResizeImagePolicy.fit,
+      );
     }
     _unregister = ref.read(privateSessionCleanupProvider).register(
       widget.bytes.owner,
@@ -114,6 +120,15 @@ class _AttachmentPreviewState extends ConsumerState<AttachmentPreview> {
                     SizedBox(height: 12),
                     Text('PDF ready to save'),
                   ],
+                ),
+              ),
+            if (owned &&
+                _image == null &&
+                bytes.file.contentType != AttachmentContentType.pdf)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'Image preview is unavailable. You can save or share the original file.',
                 ),
               ),
             if (owned)

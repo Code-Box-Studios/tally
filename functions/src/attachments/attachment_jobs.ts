@@ -25,10 +25,10 @@ export function parseAttachmentObject(event:unknown,bucket:string):AttachmentEve
 }
 export function validateAttachmentJob(id:string,job:DocumentData):void {
  const uid=identifier(job.userId),subject=identifier(job.subjectId);
- const expected=job.kind==='attachmentFinalization'?attachmentFinalizationId(uid,subject,generation(job.storageGeneration)):
-  job.kind==='attachmentCleanup'?attachmentCleanupId(uid,subject):null;
- if(id!==expected||job.schemaVersion!==1)return fileRecovery();revision(job.generation);
- if(job.storageGeneration!==null)generation(job.storageGeneration);
+ const storageGeneration=job.storageGeneration===null?null:generation(job.storageGeneration);
+ const validId=job.kind==='attachmentFinalization'?storageGeneration!==null&&id===attachmentFinalizationId(uid,subject,storageGeneration):
+  job.kind==='attachmentCleanup'&&(id===attachmentCleanupId(uid,subject)||storageGeneration!==null&&id===attachmentCleanupId(uid,subject,storageGeneration));
+ if(!validId||job.schemaVersion!==1)return fileRecovery();revision(job.generation);
 }
 export function assertAttachmentLease(job:DocumentData,token:string,now:Date):boolean {
  if(!leaseMatches(job as Parameters<typeof leaseMatches>[0],token))return false;
@@ -45,12 +45,14 @@ export async function enqueueAttachmentFinalization(event:unknown,db:Firestore):
   const active=profile?.accountStatus==='active';
   if(!active||!file||['rejected','deleted'].includes(file.state)){
    if(profile&&!active&&!['deleting','deleted'].includes(profile.accountStatus))return null;
-   const cleanupId=attachmentCleanupId(subject.uid,subject.attachmentId),cleanupRef=db.collection('systemJobs').doc(cleanupId),previous=(await transaction.get(cleanupRef)).data();
-   if(previous){validateAttachmentJob(cleanupId,previous);if(previous.storageGeneration===subject.generation)return cleanupId;}
+   // Each delivered object generation retains its own cleanup. Storage events
+   // may arrive out of order; an older event must not replace newer work.
+   const cleanupId=attachmentCleanupId(subject.uid,subject.attachmentId,subject.generation),cleanupRef=db.collection('systemJobs').doc(cleanupId),previous=(await transaction.get(cleanupRef)).data();
+   if(previous){validateAttachmentJob(cleanupId,previous);return cleanupId;}
    if(existing.exists){validateAttachmentJob(id,existing.data()!);transaction.update(ref,{status:'cancelled',...clearedFileLease,updatedAt:FieldValue.serverTimestamp()});}
    transaction.set(cleanupRef,{kind:'attachmentCleanup',subjectId:subject.attachmentId,storageGeneration:subject.generation,userId:subject.uid,schemaVersion:1,
-    generation:previous?revision(previous.generation+1):1,status:'pending',nextRunAt:Timestamp.now(),attempts:0,...clearedFileLease,lastError:null,
-    createdAt:previous?.createdAt??FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});return cleanupId;
+    generation:1,status:'pending',nextRunAt:Timestamp.now(),attempts:0,...clearedFileLease,lastError:null,
+    createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});return cleanupId;
   }
   if(existing.exists){validateAttachmentJob(id,existing.data()!);return id;}
   if(!['awaitingUpload','processing'].includes(file.state))return null;

@@ -52,6 +52,10 @@ class _TargetFiles extends ConsumerWidget {
       children: [
         const Text('JPEG, PNG, WebP or PDF · up to 10 MB'),
         const SizedBox(height: 8),
+        const Text(
+          'Uploading needs a connection. If you close or refresh Tally before it finishes, you may need to select your file again.',
+        ),
+        const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
           child: OutlinedButton.icon(

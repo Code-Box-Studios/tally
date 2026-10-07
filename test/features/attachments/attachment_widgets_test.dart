@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -155,6 +156,14 @@ class WidgetFiles implements AttachmentsRepository {
 
 class WidgetCursor implements PageCursor {}
 
+class CapturedExport extends NoExport {
+  AttachmentBytes? saved;
+  @override
+  Future<void> export(AttachmentBytes bytes) async {
+    saved = bytes;
+  }
+}
+
 Future<void> hostFiles(
   WidgetTester tester,
   WidgetFiles repo, {
@@ -273,6 +282,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Image), findsOneWidget);
       final image = tester.widget<Image>(find.byType(Image)).image;
+      final key = await image.obtainKey(ImageConfiguration.empty);
+      expect(PaintingBinding.instance.imageCache.containsKey(key), isTrue);
       final container = ProviderScope.containerOf(
         tester.element(find.byType(AttachmentPreview)),
       );
@@ -282,10 +293,91 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Image), findsNothing);
       expect(find.text('Private file closed'), findsOneWidget);
-      expect(PaintingBinding.instance.imageCache.containsKey(image), isFalse);
+      expect(PaintingBinding.instance.imageCache.containsKey(key), isFalse);
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'large pixel images skip decoding and still export original bytes',
+    (tester) async {
+      final repo = WidgetFiles();
+      addTearDown(repo.changes.close);
+      final original = File('test/fixtures/attachments/large-pixels.png')
+          .readAsBytesSync();
+      expect(original.length, lessThan(10485760));
+      final bytes = AttachmentBytes(
+        owner: repo.owner,
+        id: AttachmentId('file-1'),
+        filename: 'large.png',
+        contentType: AttachmentContentType.png,
+        bytes: original,
+      );
+      final exporter = CapturedExport();
+      await hostFiles(
+        tester,
+        repo,
+        exporter: exporter,
+        child: AttachmentPreview(bytes: bytes),
+      );
+      await tester.pump();
+      expect(find.byType(Image), findsNothing);
+      expect(
+        find.text(
+          'Image preview is unavailable. You can save or share the original file.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Save or share'));
+      await tester.pumpAndSettle();
+      expect(exporter.saved?.file.bytes, orderedEquals(original));
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('safe image preview decodes within its pixel cache limit', (
+    tester,
+  ) async {
+    final repo = WidgetFiles();
+    addTearDown(repo.changes.close);
+    final bytes = AttachmentBytes(
+      owner: repo.owner,
+      id: AttachmentId('file-1'),
+      filename: 'safe.png',
+      contentType: AttachmentContentType.png,
+      bytes: File('test/fixtures/attachments/preview-safe.png')
+          .readAsBytesSync(),
+    );
+    await hostFiles(tester, repo, child: AttachmentPreview(bytes: bytes));
+    final provider = tester.widget<Image>(find.byType(Image)).image;
+    final decoded = Completer<ImageInfo>();
+    final listener = ImageStreamListener(
+      (info, _) {
+        if (!decoded.isCompleted) decoded.complete(info.clone());
+      },
+      onError: (error, stack) {
+        if (!decoded.isCompleted) decoded.completeError(error, stack);
+      },
+    );
+    final stream = provider.resolve(ImageConfiguration.empty);
+    stream.addListener(listener);
+    try {
+      // Image streams deliver decoded frames on the scheduler's next frame.
+      for (var i = 0; i < 100 && !decoded.isCompleted; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+      expect(decoded.isCompleted, isTrue);
+    } finally {
+      stream.removeListener(listener);
+    }
+    final info = await decoded.future;
+    expect(info.image.width, 1024);
+    expect(info.image.height, 768);
+    info.dispose();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'collapsed sections do not subscribe; keyboard opens labelled file actions',
     (tester) async {

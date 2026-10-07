@@ -85,6 +85,11 @@ The trigger stages bounded retry-safe work instead of relying on the UI to finis
 Cleanup processes at most100 subjects per invocation, with deterministic
 continuations. Abandoned reservations expire after24 hours. Rejected/deleted
 blobs are removed with a matching generation precondition. Orphan events cannot
+overwrite cleanup work from another generation: object-event cleanup uses a
+deterministic owner/attachment/generation identifier. Attachment-level removal
+and expiry jobs retain their legacy identifier and persist a selected generation
+before network deletion. Duplicate events never reset a completed or leased job.
+Orphan events cannot
 create owner metadata. Cleanup and account deletion must never resurrect records
 or delete another owner's/current replacement object. Stored counts are
 repairable from active metadata; inconsistent counts fail visibly instead of
@@ -123,6 +128,13 @@ object is reconciled rather than overwritten.
 
 Obligation, period and payment history surfaces show relevant attachments and
 “Attachment removed” tombstones. Image previews use authenticated bytes; PDF
+evidence remains exportable without decoding. Before any image decoder runs,
+bounded PNG/JPEG/WebP header inspection requires a static image with at most
+4,194,304 pixels. Unknown, malformed, animated or contradictory dimensions skip
+preview, retaining the original verified file for explicit save/share. Safe images
+use a 1,024 × 1,024 aspect-preserving decode/cache bound. The original pixel cap
+also protects platforms that ignore decode hints. Owner cleanup evicts the actual
+resized cache key and wipes the mutable preview copy. PDF
 evidence can be downloaded/shared through a capability adapter. Web uses a
 short-lived local blob URL, revoked after the explicit download. Native export
 uses temporary owner-scoped files and an explicit system share/save action.

@@ -21,6 +21,16 @@ source Blob cleanup on completion and late owner callbacks, and the protected pr
 reader's callable identity/size limits/owner-disposal fences. Contract network doubles are
 identified as doubles; the end-to-end flow uses genuine emulator transport.
 The complete fresh gate and final review results are recorded in the plan ledger.
+The final review added an actual out-of-order object-event cleanup regression
+for removed, deleting and missing owners, plus a concurrent tenth-slot/removal/
+finalization case. A genuine 12,000 × 9,000 PNG of 120,927 bytes must never reach
+the preview decoder, while explicit export preserves its original bytes. A genuine
+1,600 × 1,200 PNG must decode to 1,024 × 768 pixels. Header contracts also cover
+PNG, JPEG, lossy/lossless/extended WebP, animation, mismatched canvas dimensions
+and truncated headers. The policy follows Flutter's documented
+[bounded decoding](https://api.flutter.dev/flutter/painting/ResizeImage-class.html)
+with [aspect-preserving fit](https://api.flutter.dev/flutter/painting/ResizeImagePolicy.html),
+and applies a source pixel cap before decoding.
 Focused protected transport checks passed 5 Dart contracts and 24 actual Emulator
 cases, including a 10 MiB response and owner/removal fences after each network
 boundary. The final browser flow confirmed an actual downloadAttachment request,

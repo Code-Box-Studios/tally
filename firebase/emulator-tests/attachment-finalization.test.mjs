@@ -94,6 +94,60 @@ test('an old object event cannot publish or delete a replacement generation',asy
  assert.notEqual((await f.meta.get()).data().state,'ready');
  assert.equal(await f.gateway.delete(f.reservation.storagePath,f.event.generation),false);assert.equal((await owner.adminBucket.file(f.reservation.storagePath).exists())[0],true);
 },{storage:true}));
+test('late old events retain newer exact-generation cleanup for removed and inactive owners',async()=>{
+ for(const state of ['removed','deleting','missing'])await withOwner(`file-late-cleanup-${state}`,async owner=>{
+  const f=await fixture(owner),profile=(await owner.root.get()).data();
+  const object=owner.adminBucket.file(f.reservation.storagePath);
+  await object.save(png,{resumable:false,metadata:{contentType:'image/png',metadata:{userId:owner.user.uid,attachmentId:f.reservation.attachmentId}}});
+  const [replacement]=await object.getMetadata();assert.notEqual(replacement.generation,f.event.generation);
+  if(state==='removed')await owner.call('removeAttachment',owner.command('remove',{attachmentId:f.reservation.attachmentId,expectedRevision:1}));
+  else if(state==='deleting')await owner.root.update({accountStatus:'deleting'});
+  else await owner.root.delete();
+  const history=(await f.meta.get()).data(),count=(await owner.root.collection('attachmentSets').get()).docs[0].data();
+  try{
+   const newer=await jobs().enqueueAttachmentFinalization({...f.event,generation:replacement.generation},owner.adminDb);
+   const older=await jobs().enqueueAttachmentFinalization(f.event,owner.adminDb);
+   assert.notEqual(older,newer,'Each delivered generation must retain its own cleanup work.');
+   assert.equal((await owner.adminDb.collection('systemJobs').doc(newer).get()).data().storageGeneration,replacement.generation);
+   const oldLease=await jobs().claimAttachmentJob(older,owner.adminDb);assert.ok(oldLease);
+   assert.equal(await cleanup().cleanupAttachment(older,oldLease.token,owner.adminDb,f.gateway),true);
+   assert.equal((await object.exists())[0],true,'An old event must never delete a replacement.');
+   const newLease=await jobs().claimAttachmentJob(newer,owner.adminDb);assert.ok(newLease);
+   assert.equal(await cleanup().cleanupAttachment(newer,newLease.token,owner.adminDb,f.gateway),true);
+   assert.equal((await object.exists())[0],false,'Already-delivered newer cleanup cannot be lost.');
+   assert.equal(await jobs().enqueueAttachmentFinalization({...f.event,generation:replacement.generation},owner.adminDb),newer);
+   assert.equal(await jobs().claimAttachmentJob(newer,owner.adminDb),null);
+   assert.deepEqual((await f.meta.get()).data(),history);
+   assert.deepEqual((await owner.root.collection('attachmentSets').get()).docs[0].data(),count);
+  }finally{if(state==='missing')await owner.root.set(profile);}
+ },{storage:true});
+});
+test('tenth-slot contenders and removal during finalization release only one reservation',async()=>withOwner('file-count-overlap',async owner=>{
+ const f=await fixture(owner);
+ await Promise.all(Array.from({length:9},(_,i)=>owner.call('reserveAttachment',owner.command(`slot-${i}`,payload(f.created.obligationId,png)))));
+ const ledger=(await owner.root.collection('ledgerState').doc('current').get()).data();
+ let entered,continueRead;const reading=new Promise(resolve=>entered=resolve),released=new Promise(resolve=>continueRead=resolve);
+ const gateway={bucket:f.gateway.bucket,metadata:(...args)=>f.gateway.metadata(...args),stripTokens:(...args)=>f.gateway.stripTokens(...args),delete:(...args)=>f.gateway.delete(...args),
+  download:async(...args)=>{const bytes=await f.gateway.download(...args);entered();await released;return bytes;}};
+ const finalizing=finish(owner,f,gateway);await reading;
+ const revision=(await f.meta.get()).data().revision;
+ const contenders=[0,1].map(i=>owner.command(`contender-${i}`,payload(f.created.obligationId,png)));
+ try{
+  const results=await Promise.allSettled([owner.call('removeAttachment',owner.command('remove',{attachmentId:f.reservation.attachmentId,expectedRevision:revision})),...contenders.map(c=>owner.call('reserveAttachment',c))]);
+  assert.equal(results[0].status,'fulfilled');
+  const accepted=results.slice(1).filter(r=>r.status==='fulfilled');assert.ok(accepted.length<=1);
+  for(const result of results.slice(1))if(result.status==='rejected')assert.equal(result.reason.code,'functions/resource-exhausted');
+  if(accepted.length===0)await owner.call('reserveAttachment',contenders[0]);
+ }finally{continueRead();}
+ assert.equal(await finalizing,false);
+ assert.equal((await f.meta.get()).data().state,'deleted');
+ assert.equal((await owner.root.collection('attachmentSets').get()).docs[0].data().activeCount,10);
+ assert.equal((await owner.root.collection('attachments').get()).docs.filter(d=>!['deleted','rejected'].includes(d.data().state)).length,10);
+ assert.equal(await jobs().claimAttachmentJob(f.id,owner.adminDb),null);
+ assert.equal((await owner.root.collection('attachmentSets').get()).docs[0].data().activeCount,10);
+ assert.deepEqual((await owner.root.collection('ledgerState').doc('current').get()).data(),ledger);
+ assert.equal((await owner.root.collection('payments').get()).size,0);
+},{storage:true}));
 function receiptPdf(){
  let body='%PDF-1.7\n',offsets=[0];
  const stream='BT /F1 12 Tf 20 20 Td (Emulator receipt) Tj ET';
@@ -179,7 +233,8 @@ test('owner deactivation during ingestion queues exact-generation cleanup withou
  const storage=new (storageGateway().FirebaseAttachmentStorageGateway)(owner.adminBucket);
  const gateway={bucket:storage.bucket,metadata:(...args)=>storage.metadata(...args),download:(...args)=>storage.download(...args),stripTokens:(...args)=>storage.stripTokens(...args),delete:(...args)=>storage.delete(...args),create:async(...args)=>{await storage.create(...args);await owner.root.update({accountStatus:'deleting'});}};
  await assert.rejects(require('./lib/src/attachments/upload_service.js').uploadAttachment(owner.user.uid,owner.command('upload',{attachmentId:reserved.attachmentId,expectedRevision:1,contentBase64:png.toString('base64')}),owner.adminDb,gateway),{code:'aborted'});
- const id=require('./lib/src/attachments/cleanup_jobs.js').attachmentCleanupId(owner.user.uid,reserved.attachmentId);
+ const [object]=await owner.adminBucket.file(reserved.storagePath).getMetadata();
+ const id=require('./lib/src/attachments/cleanup_jobs.js').attachmentCleanupId(owner.user.uid,reserved.attachmentId,object.generation);
  assert.equal((await owner.adminDb.collection('systemJobs').doc(id).get()).exists,true);
  const lease=await jobs().claimAttachmentJob(id,owner.adminDb);assert.ok(lease);
  await cleanup().cleanupAttachment(id,lease.token,owner.adminDb,storage);
