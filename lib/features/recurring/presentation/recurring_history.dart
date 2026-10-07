@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../attachments/domain/attachment.dart';
+import '../../attachments/presentation/attachment_panel.dart';
+
 import '../../../shared/presentation/financial_form_support.dart';
 import '../../../shared/presentation/financial_providers.dart';
 import '../../../shared/widgets/financial_labels.dart';
@@ -36,6 +39,11 @@ class RecurringPeriodHistory extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      AttachmentPanel(
+        target: AttachmentTarget.forInstance(instance.id),
+        title: 'Files for this period',
+      ),
+      const SizedBox(height: 16),
       Text('Deduction history', style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 8),
       PagedRecords<DeductionAttempt>(
@@ -245,6 +253,11 @@ class RecurringPeriodHistory extends ConsumerWidget {
                       if (entry.notes.isNotEmpty) Text(entry.notes),
                       if (entry.correctionReason != null)
                         Text('Correction reason: ${entry.correctionReason}'),
+                      const SizedBox(height: 12),
+                      AttachmentPanel(
+                        target: AttachmentTarget.forPayment(entry.id),
+                        title: 'Receipts',
+                      ),
                     ],
                   ),
                 ),

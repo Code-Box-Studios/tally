@@ -26,12 +26,14 @@ final class AttachmentActionState {
     this.id,
     this.failure,
     this.canRetry = false,
+    this.target,
   });
   final AttachmentActionPhase phase;
   final String? filename;
   final AttachmentId? id;
   final FinancialFailure? failure;
   final bool canRetry;
+  final AttachmentTarget? target;
   bool get isBusy => {
     AttachmentActionPhase.selecting,
     AttachmentActionPhase.reserving,
@@ -75,7 +77,10 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
 
   Future<void> select(AttachmentTarget target) async {
     if (state.isBusy || _pending != null) return;
-    state = const AttachmentActionState(phase: AttachmentActionPhase.selecting);
+    state = AttachmentActionState(
+      phase: AttachmentActionPhase.selecting,
+      target: target,
+    );
     try {
       final file = await ref.read(attachmentPickerProvider).select();
       if (!ref.mounted) return;
@@ -91,6 +96,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
         state = AttachmentActionState(
           phase: AttachmentActionPhase.failed,
           failure: financialFailure(error),
+          target: target,
         );
       }
     }
@@ -98,6 +104,14 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
 
   Future<void> retry() async {
     if (!state.isBusy && _pending != null) await _submit();
+  }
+
+  void stopRetrying() {
+    if (state.isBusy) return;
+    _pending = null;
+    _retryLease?.close();
+    _retryLease = null;
+    state = const AttachmentActionState();
   }
 
   Future<void> _submit() async {
@@ -109,6 +123,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
         state = AttachmentActionState(
           phase: AttachmentActionPhase.reserving,
           filename: pending.file.filename,
+          target: pending.target,
         );
         pending.reservation = await repo.reserve(
           pending.command,
@@ -125,6 +140,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
       state = AttachmentActionState(
         phase: AttachmentActionPhase.uploading,
         filename: pending.file.filename,
+        target: pending.target,
         id: pending.reservation!.id,
       );
       await for (final progress in repo.upload(
@@ -137,6 +153,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
               ? AttachmentActionPhase.processing
               : AttachmentActionPhase.uploading,
           filename: pending.file.filename,
+          target: pending.target,
           id: progress.id,
         );
       }
@@ -150,6 +167,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
         state = AttachmentActionState(
           phase: AttachmentActionPhase.failed,
           filename: pending.file.filename,
+          target: pending.target,
           id: pending.reservation?.id,
           failure: financialFailure(error),
           canRetry: true,
@@ -174,6 +192,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
           phase: AttachmentActionPhase.failed,
           failure: financialFailure(error),
           canRetry: _pending != null,
+          target: _pending?.target,
         );
       }
       return false;
@@ -190,6 +209,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
           phase: AttachmentActionPhase.failed,
           failure: financialFailure(error),
           canRetry: _pending != null,
+          target: _pending?.target,
         );
       }
       return null;
@@ -209,6 +229,7 @@ class AttachmentActions extends Notifier<AttachmentActionState> {
           phase: AttachmentActionPhase.failed,
           failure: financialFailure(error),
           canRetry: _pending != null,
+          target: _pending?.target,
         );
       }
       return false;

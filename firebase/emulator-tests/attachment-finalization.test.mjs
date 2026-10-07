@@ -28,14 +28,17 @@ async function finish(owner,fixture,gateway=fixture.gateway){
  const lease=await jobs().claimAttachmentJob(fixture.id,owner.adminDb);assert.ok(lease);
  return workers().finalizeAttachment(fixture.id,lease.token,owner.adminDb,gateway);
 }
-test('genuine SDK image finalization removes tokens, publishes once and permits authenticated bytes only',async()=>withOwner('file-ready',async owner=>{
+test('genuine image finalization publishes once and permits only protected token-free bytes',async()=>withOwner('file-ready',async owner=>{
  const f=await fixture(owner),ledger=(await owner.root.collection('ledgerState').doc('current').get()).data();
  const object=owner.adminBucket.file(f.reservation.storagePath),[before]=await object.getMetadata();
  assert.ok(!before.metadata?.firebaseStorageDownloadTokens);
  await finish(owner,f);
  const ready=(await f.meta.get()).data();assert.equal(ready.state,'ready');assert.equal(ready.sha256,sha(png));assert.equal(ready.sizeBytes,png.length);assert.equal(ready.contentType,'image/png');assert.equal(ready.storageGeneration,f.event.generation);
  const [after]=await object.getMetadata();assert.ok(!after.metadata?.firebaseStorageDownloadTokens);
- assert.deepEqual(new Uint8Array(await getBytes(ref(owner.storage,f.reservation.storagePath))),new Uint8Array(png));
+ const downloaded=await owner.call('downloadAttachment',owner.command('read',{attachmentId:f.reservation.attachmentId}));
+ assert.deepEqual(Buffer.from(downloaded.contentBase64,'base64'),png);
+ await assert.rejects(getBytes(ref(owner.storage,f.reservation.storagePath)),{code:'storage/unauthorized'});
+ const [afterRead]=await object.getMetadata();assert.ok(!afterRead.metadata?.firebaseStorageDownloadTokens);
  const response=await fetch(`http://127.0.0.1:9199/v0/b/demo-tally.appspot.com/o/${encodeURIComponent(f.reservation.storagePath)}?alt=media&token=synthetic-unusable-token`);
  assert.ok([401,403,404].includes(response.status));
  assert.equal(await jobs().enqueueAttachmentFinalization(f.event,owner.adminDb),f.id);assert.equal(await jobs().claimAttachmentJob(f.id,owner.adminDb),null);
@@ -149,13 +152,15 @@ test('protected ingestion replays permanent receipts and rejects forged, foreign
  assert.equal('contentBase64' in receipt,false);assert.equal(JSON.stringify(receipt).includes(png.toString('base64')),false);
  assert.equal((await owner.root.collection('attachmentSets').get()).docs[0].data().activeCount,1);
 }),{storage:true}));
-test('a maximum-size genuine PDF traverses the protected callable and private SDK download',async()=>withOwner('file-max-size',async owner=>{
+test('a maximum-size genuine PDF traverses protected upload and download callables without tokens',async()=>withOwner('file-max-size',async owner=>{
  const base=receiptPdf().toString(),split=base.lastIndexOf('%%EOF');
  const bytes=Buffer.from(`${base.slice(0,split)}%${' '.repeat(10_485_760-Buffer.byteLength(base)-2)}\n${base.slice(split)}`);
  assert.equal(bytes.length,10_485_760);
  const f=await fixture(owner,bytes,{filename:'large-receipt.pdf',contentType:'application/pdf'});await finish(owner,f);
  assert.equal((await f.meta.get()).data().state,'ready');
- assert.equal((await getBytes(ref(owner.storage,f.reservation.storagePath),10_485_760)).byteLength,10_485_760);
+ const read=await owner.call('downloadAttachment',owner.command('read',{attachmentId:f.reservation.attachmentId}));
+ const downloaded=Buffer.from(read.contentBase64,'base64');assert.equal(downloaded.byteLength,10_485_760);assert.equal(sha(downloaded),sha(bytes));
+ const [afterRead]=await owner.adminBucket.file(f.reservation.storagePath).getMetadata();assert.ok(!afterRead.metadata?.firebaseStorageDownloadTokens);
  const tooLarge=Buffer.alloc(10_485_761).toString('base64');
  await assert.rejects(owner.call('uploadAttachment',owner.command('too-large',{attachmentId:f.reservation.attachmentId,expectedRevision:1,contentBase64:tooLarge})),{code:'functions/invalid-argument'});
 },{storage:true}));

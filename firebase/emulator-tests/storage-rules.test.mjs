@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {before,after,test} from 'node:test';
 import assert from 'node:assert/strict';
-import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
+import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,setDoc,Timestamp} from 'firebase/firestore';
 import {ref,uploadBytes,getBytes,getMetadata,deleteObject,listAll} from 'firebase/storage';
 import {withOwner} from './support/session.mjs';
@@ -20,7 +20,7 @@ async function reservation(id,patch={}){
     expiresAt:Timestamp.fromMillis(Date.now()+86_400_000),...patch,
   }));
 }
-test('direct reserved upload is denied; owner ready bytes succeed while others cannot read, overwrite, delete or list',async()=>withOwner('storage-ready',async owner=>{
+test('direct Storage access denies even the ready owner, including read, overwrite, delete and list',async()=>withOwner('storage-ready',async owner=>{
   uid=owner.user.uid;
   await reservation('valid');const storage=env.authenticatedContext(uid).storage(),object=ref(storage,path('valid'));
   await assertFails(uploadBytes(object,new Uint8Array([1,2,3,4]),metadata('valid')));
@@ -30,7 +30,7 @@ test('direct reserved upload is denied; owner ready bytes succeed while others c
   await reservation('valid',{state:'ready',contentType:'application/pdf',sizeBytes:4,storageGeneration:generation==='1'?'2':'1'});
   await assertFails(getBytes(object));
   await reservation('valid',{state:'ready',contentType:'application/pdf',sizeBytes:4,storageGeneration:generation});
-  assert.deepEqual(new Uint8Array(await assertSucceeds(getBytes(object))),new Uint8Array([1,2,3,4]));
+  await assertFails(getBytes(object));
   await reservation('valid');await assertFails(uploadBytes(object,new Uint8Array([4,3,2,1]),metadata('valid')));
   await reservation('valid',{state:'ready',contentType:'application/pdf',sizeBytes:4,storageGeneration:generation});
   for(const ctx of [env.unauthenticatedContext(),env.authenticatedContext('bob')])await assertFails(getBytes(ref(ctx.storage(),path('valid'))));
@@ -77,7 +77,7 @@ test('inactive ownership denies existing ready reads and reserved creates',async
   });
   await reservation('inactive',{state:'ready',contentType:'application/pdf',sizeBytes:4,storageGeneration:generation});
   const object=ref(env.authenticatedContext(uid).storage(),path('inactive'));
-  await assertSucceeds(getBytes(object));
+  await assertFails(getBytes(object));
   await owner.root.update({accountStatus:'deleting'});
   await assertFails(getBytes(object));
   await assertFails(uploadBytes(ref(env.authenticatedContext(uid).storage(),path('inactive-create')),new Uint8Array(4),metadata('inactive-create')));

@@ -3,8 +3,13 @@
 Private files are reserved through an owner metadata command, uploaded through
 an authenticated, App Check protected second-generation callable, and stored
 using the Admin Cloud Storage API with a create-only generation precondition.
-FlutterFire Storage remains the authenticated bounded-byte download transport.
-Direct client Storage creates, updates, deletes and lists are denied.
+Private downloads use a read-only protected callable and bounded Admin Cloud
+Storage reads. Every direct client Storage operation, including gets, is denied.
+The actual Task5 browser check found that authorized Firebase media reads mint
+managed tokens even without a public URL helper; this supersedes the original
+SDK download proposal. Server ownership, ready revision/generation, target links,
+type, size, checksum and token absence are rechecked after network boundaries.
+No financial data, receipt or attachment metadata is written by downloads.
 
 The initial direct Firebase Storage SDK design exposed an emulator incompatibility:
 firebase-tools15.32.1 moves firebaseStorageDownloadTokens out of rule-visible

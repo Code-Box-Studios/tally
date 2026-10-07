@@ -26,6 +26,9 @@ enum ActivityType {
   recurringResumed,
   recurringEnded,
   reminderGenerated,
+  attachmentAdded,
+  attachmentReady,
+  attachmentRemoved,
   unknown;
 
   String get label => switch (this) {
@@ -52,6 +55,9 @@ enum ActivityType {
     recurringResumed => 'Recurring bill resumed',
     recurringEnded => 'Recurring bill ended',
     reminderGenerated => 'Reminder created',
+    attachmentAdded => 'File added',
+    attachmentReady => 'File ready',
+    attachmentRemoved => 'File removed',
     unknown => 'Activity recorded',
   };
 }

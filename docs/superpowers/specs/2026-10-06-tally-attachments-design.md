@@ -16,11 +16,11 @@ visual design. Banking, OCR and document analysis are outside this scope.
 
 ## Selected approach
 
-Keep user-owned Firestore metadata, authenticated callable byte ingestion and
-authenticated Firebase Storage SDK downloads, with trusted reservation,
+Keep user-owned Firestore metadata and authenticated callable byte ingestion and
+downloads through Admin Cloud Storage, with trusted reservation,
 finalization and cleanup. The observed emulator token channel cannot be cleared
 through a standard metadata patch. Trusted Cloud Storage ingestion creates
-token-free objects and client Storage creates are denied; see
+token-free objects and all direct client Storage access is denied; see
 docs/architecture/private-file-ingestion.md. Public evidence URLs are never used.
 Scheduled cleanup and retry-safe Storage events run without an open client.
 
@@ -102,8 +102,8 @@ download-token key from rules and retains its managed token array on a null
 metadata patch. Trusted ingestion creates token-free objects; finalization
 checks token absence and fails closed if standard removal cannot clear an
 unexpected token. Staging must verify deployed token absence and preconditions.
-Client overwrite, object delete and list are denied. Reads
-require matching ready metadata and active ownership. Missing reservations,
+All direct client Storage reads and writes are denied. Protected callable reads
+require matching ready metadata, active ownership and verified bytes after each network stage. Missing reservations,
 processing files and foreign paths deny access.
 
 Actual queries are targetType + targetId ordered by createdAt descending and
@@ -149,7 +149,7 @@ Whole Dart, Functions and Emulator gates remain required per task.
 
 Staging verifies deployed Storage/Firestore rules and indexes, cross-service
 Firestore access permissions, App Check, backend token removal, real protected ingestion
-and authenticated SDK download. Android/iOS file picker, preview/export, signing and
+and protected callable downloads. Android/iOS file picker, preview/export, signing and
 background cancellation require physical-device or supported native-runner
 evidence. This milestone does not provision paid production resources or deploy
 the emulator web build.
@@ -158,3 +158,5 @@ Primary references: [authenticated byte downloads](https://firebase.google.com/d
 [SDK uploads and metadata](https://firebase.google.com/docs/storage/flutter/upload-files),
 [Storage event semantics](https://firebase.google.com/docs/functions/gcp-storage-events)
 and [Storage rule conditions](https://firebase.google.com/docs/storage/security/rules-conditions).
+
+Task5 privacy refinement: All private byte reads use the protected downloadAttachment callable and Admin Cloud Storage. Direct client Storage reads and writes are denied. Authorized Firebase media GETs in the installed emulator mint managed tokens even without getDownloadURL, so the earlier web HTTP/native SDK read proposal is superseded. The strict command envelope carries only attachmentId; the read-only result carries attachmentId, storageGeneration and bounded canonical contentBase64. No receipts, financial values or attachment metadata are written by downloads. Active ownership, target links, ready revision/generation, actual type/size/checksum and token absence are fenced around every network stage.

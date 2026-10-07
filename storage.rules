@@ -1,31 +1,10 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function activeOwner(uid) {
-      let profile = firestore.get(/databases/(default)/documents/users/$(uid)).data;
-      return request.auth != null && request.auth.uid == uid
-        && profile.userId == uid && profile.schemaVersion == 1
-        && profile.accountStatus == 'active';
-    }
-    function ownedFile(uid, attachmentId, file) {
-      return uid.matches('[A-Za-z0-9_-]{1,128}')
-        && attachmentId.matches('[A-Za-z0-9_-]{1,128}')
-        && file.userId == uid && file.schemaVersion == 1
-        && file.attachmentId == attachmentId
-        && file.storagePath == 'users/' + uid + '/attachments/' + attachmentId + '/content';
-    }
-    function validRead(uid, attachmentId) {
-      let file = firestore.get(/databases/(default)/documents/users/$(uid)/attachments/$(attachmentId)).data;
-      return ownedFile(uid, attachmentId, file) && file.state == 'ready'
-        && file.sizeBytes == resource.size && file.contentType == resource.contentType
-        && file.storageGeneration == string(resource.generation)
-        && resource.metadata.userId == uid && resource.metadata.attachmentId == attachmentId;
-    }
     match /users/{uid}/attachments/{attachmentId}/content {
-      // Ingestion creates token-free objects through an authenticated callable.
-      allow create: if false;
-      allow get: if activeOwner(uid) && validRead(uid, attachmentId);
-      allow update, delete, list: if false;
+      // Protected callables authorize owners and use Admin Cloud Storage.
+      // Direct Firebase media reads can mint public download tokens.
+      allow read, write: if false;
     }
     match /{path=**} { allow read, write: if false; }
   }

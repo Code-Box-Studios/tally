@@ -19,9 +19,10 @@ import '../domain/attachments_repository.dart';
 final attachmentStorageFactoryProvider =
     Provider<AttachmentStorageGateway Function(OwnerUid)>((ref) {
       final clients = ref.watch(firebaseClientsProvider);
+      final commands = ref.watch(ownerCommandGatewayProvider);
       return (owner) =>
-          FirebaseAttachmentStorage(clients.storage, clients.auth, owner);
-    });
+          FirebaseAttachmentStorage(commands, clients.auth, owner);
+    }, dependencies: [ownerCommandGatewayProvider]);
 final attachmentPickerFactoryProvider =
     Provider<AttachmentPicker Function(OwnerUid)>((ref) {
       final auth = ref.watch(firebaseClientsProvider).auth;

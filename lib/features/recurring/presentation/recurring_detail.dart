@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../attachments/domain/attachment.dart';
+import '../../attachments/presentation/attachment_panel.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/presentation/financial_form_support.dart';
@@ -257,6 +261,8 @@ class RecurringDetail extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          AttachmentPanel(target: AttachmentTarget.forObligation(parent.id)),
           const SizedBox(height: 26),
           Text(
             'Billing periods',

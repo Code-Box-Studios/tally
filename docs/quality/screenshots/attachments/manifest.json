@@ -1,0 +1,26 @@
+[
+  {
+    "name": "desktop-light",
+    "width": 1440,
+    "height": 1100,
+    "sha256": "205c8abb60d55903b87940cb2e298220f2098f959b36791aa81c2b5a262136f9"
+  },
+  {
+    "name": "desktop-dark",
+    "width": 1440,
+    "height": 1100,
+    "sha256": "8f494676766125644923bf368082d0d659334f2e62fc14fdd0a52f7148c364de"
+  },
+  {
+    "name": "mobile-light",
+    "width": 375,
+    "height": 812,
+    "sha256": "2bb52b59b0ed4b17739d6c4153f7410070e0870691f114d07b89a8e2b2e7452f"
+  },
+  {
+    "name": "mobile-dark",
+    "width": 375,
+    "height": 812,
+    "sha256": "5c52606f09b3039ddcde890cc2259deb0f9544e852e238e56c153866b85abddd"
+  }
+]

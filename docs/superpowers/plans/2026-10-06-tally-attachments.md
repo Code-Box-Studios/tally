@@ -14,7 +14,7 @@
 
 - Work on main; do not create branches/worktrees or touch user-owned .ignore.
 - Ten active reservations/files per target; zero-byte and files above10,485,760 bytes rejected; JPEG/PNG/WebP/PDF only; filename1–150 characters without controls/path separators/traversal; optional SHA-256 exactly64 lowercase hex characters.
-- Paths are users/{uid}/attachments/{attachmentId}/content. No getDownloadURL, public evidence URLs or client download-token metadata.
+- Paths are users/{uid}/attachments/{attachmentId}/content. No getDownloadURL, public evidence URLs or client download-token metadata. Task5 actual privacy verification supersedes all earlier SDK/HTTP read proposals: use protected read-only callable downloads and deny all direct client Storage access.
 - Owner path plus stored userId and active schemaVersion1 profile authorize every stage. Target type is obligation|instance|payment with checked owned parent links.
 - Attachment states awaitingUpload|processing|ready|rejected|deleted. Processing/publication recheck generation/lease; generation is an opaque decimal string. Reservation expiry24 hours, bounded cleanup100 per invocation.
 - No attachment operation changes payment/parent/instance amounts, ledger revision or projections. Payment receipt links query metadata rather than rewriting immutable payments.

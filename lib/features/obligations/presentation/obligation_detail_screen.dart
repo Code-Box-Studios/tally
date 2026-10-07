@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../attachments/domain/attachment.dart';
+import '../../attachments/presentation/attachment_panel.dart';
+
 import '../../../core/dates/financial_clock.dart';
 import '../domain/visible_financial_status.dart';
 
@@ -240,6 +243,10 @@ class ObligationDetailScreen extends ConsumerWidget {
                   InstallmentPeriodsPanel(parent: parent),
                   const SizedBox(height: 24),
                 ],
+                AttachmentPanel(
+                  target: AttachmentTarget.forObligation(parent.id),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   'Payment history',
                   style: Theme.of(context).textTheme.titleLarge,
@@ -339,6 +346,13 @@ class ObligationDetailScreen extends ConsumerWidget {
                                     Text(
                                       'Correction reason: ${entry.correctionReason}',
                                     ),
+                                  const SizedBox(height: 12),
+                                  AttachmentPanel(
+                                    target: AttachmentTarget.forPayment(
+                                      entry.id,
+                                    ),
+                                    title: 'Receipts',
+                                  ),
                                 ],
                               ),
                             ),

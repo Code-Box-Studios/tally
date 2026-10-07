@@ -20,10 +20,18 @@ abstract final class ActivityDto {
           ActivityType.unknown;
       // Older canonical repair events carry the currency of the obligation,
       // but do not describe a financial transaction or include an amount.
-      final rawAmount = type == ActivityType.aggregateRepaired
+      final fileEvent = {
+        ActivityType.attachmentAdded,
+        ActivityType.attachmentReady,
+        ActivityType.attachmentRemoved,
+      }.contains(type);
+      final rawAmount = type == ActivityType.aggregateRepaired || fileEvent
           ? data['amountMinor']
           : d.value('amountMinor');
-      final rawCurrency = d.value('currency');
+      final rawCurrency = fileEvent ? data['currency'] : d.value('currency');
+      if (fileEvent && (rawAmount != null || rawCurrency != null)) {
+        throw DocumentReader.invalid();
+      }
       final repairWithoutAmount =
           type == ActivityType.aggregateRepaired && rawAmount == null;
       if (!repairWithoutAmount &&

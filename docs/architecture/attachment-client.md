@@ -16,14 +16,21 @@ An uncertain reservation keeps its frozen selection/action alive when its panel
 closes, and releases that temporary Riverpod keepAlive after success or owner
 scope disposal. This in-memory behavior does not survive a browser refresh.
 
-Downloads use official FlutterFire getData capped at10,485,760 bytes and compare
-the returned size and SHA-256 to ready metadata before returning owned bytes.
-No public Firebase download URL is requested. The adapter verifies the current
-Firebase Auth owner both before and after its request; the repository additionally
-fences outstanding commands/downloads on disposal. Per-operation cancellation
-registrations are removed after completion to avoid retaining finished buffers.
-Accepted server work may complete after client disposal, still under its original
-owner; local results never enter another owner's scope.
+Every platform downloads bytes through the read-only downloadAttachment callable
+using the existing owner command gateway and official FlutterFire Auth/App Check.
+Both the web SDK getData helper and an authenticated Firebase media HTTP request
+were observed minting managed tokens in actual emulator browser checks. Direct
+client Storage reads are denied, so they cannot recreate a bearer capability.
+The server checks the active owner, exact target links, ready revision/generation,
+size, MIME type, checksum and token absence around bounded Admin Cloud Storage
+operations. Its response contains only IDs/generation and canonical base64 up to
+10,485,760 decoded bytes, with no financial or file metadata writes.
+The client verifies identity, generation format, canonical base64 and size before
+the repository compares size and SHA-256 against ready Firestore metadata.
+Owner disposal and the 30-second deadline promptly reject local pending reads;
+the Functions SDK has no request-cancellation API, so accepted server work may
+finish under its original owner. Late results are fenced and completed buffers
+are not retained in session-wide cancellation registrations.
 
 File selection uses file_selector1.1.0 with extensions, MIME types and iOS UTIs.
 Filename/size/type are checked before byte reads, reads remain bounded, and a

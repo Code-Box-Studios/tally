@@ -8,6 +8,7 @@ import '../../../shared/domain/financial_failure.dart';
 import '../domain/attachment.dart';
 import '../domain/attachment_policy.dart';
 import '../domain/attachment_capabilities.dart';
+import 'file_picker_cleanup.dart';
 
 final class AttachmentFilePicker implements AttachmentPicker {
   AttachmentFilePicker({
@@ -63,33 +64,48 @@ final class AttachmentFilePicker implements AttachmentPicker {
   @override
   Future<AttachmentFileInput?> select() async {
     _check();
-    final file = await _owned(_choose());
-    _check();
-    if (file == null) return null;
-    AttachmentPolicy.validateFilename(file.name);
-    final size = await _owned(file.length());
-    _check();
-    AttachmentPolicy.validateSize(size);
-    final mime = file.mimeType;
-    final type =
-        mime != null && mime.isNotEmpty && mime != 'application/octet-stream'
-        ? AttachmentContentType.parse(mime)
-        : switch (file.name.split('.').last.toLowerCase()) {
-            'jpg' || 'jpeg' => AttachmentContentType.jpeg,
-            'png' => AttachmentContentType.png,
-            'webp' => AttachmentContentType.webp,
-            'pdf' => AttachmentContentType.pdf,
-            _ => throw ArgumentError('Choose a JPEG, PNG, WebP or PDF file.'),
-          };
-    final bytes = await _owned(
-      _read(file, size).timeout(const Duration(seconds: 30)),
+    final file = await _owned(
+      _choose().then((file) {
+        if (_closed || currentOwner() != owner) {
+          if (file != null) releasePickedFile(file);
+          _check();
+        }
+        return file;
+      }),
     );
-    _check();
-    return AttachmentFileInput(
-      filename: file.name,
-      contentType: type,
-      bytes: bytes,
-    );
+    if (file == null) {
+      _check();
+      return null;
+    }
+    try {
+      _check();
+      AttachmentPolicy.validateFilename(file.name);
+      final size = await _owned(file.length());
+      _check();
+      AttachmentPolicy.validateSize(size);
+      final mime = file.mimeType;
+      final type =
+          mime != null && mime.isNotEmpty && mime != 'application/octet-stream'
+          ? AttachmentContentType.parse(mime)
+          : switch (file.name.split('.').last.toLowerCase()) {
+              'jpg' || 'jpeg' => AttachmentContentType.jpeg,
+              'png' => AttachmentContentType.png,
+              'webp' => AttachmentContentType.webp,
+              'pdf' => AttachmentContentType.pdf,
+              _ => throw ArgumentError('Choose a JPEG, PNG, WebP or PDF file.'),
+            };
+      final bytes = await _owned(
+        _read(file, size).timeout(const Duration(seconds: 30)),
+      );
+      _check();
+      return AttachmentFileInput(
+        filename: file.name,
+        contentType: type,
+        bytes: bytes,
+      );
+    } finally {
+      releasePickedFile(file);
+    }
   }
 
   Future<Uint8List> _read(XFile file, int expected) async {

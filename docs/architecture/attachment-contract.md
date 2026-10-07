@@ -85,8 +85,8 @@ worker uses1 GiB and concurrency2 to bound simultaneous10 MiB byte buffers.
 
 ## Evidence and remaining release checks
 
-Real local Emulator Suite cases use protected ingestion and authenticated Firebase
-Storage byte downloads for genuine image/PDF content, including exactly10 MiB.
+Real local Emulator Suite cases use protected ingestion and read-only callable
+byte downloads for genuine image/PDF content, including exactly10 MiB.
 They cover forged inputs, private reads, token-free creation, fail-closed handling
 of an unexpected managed token, overlapping commands, lost upload/delete responses,
 late generation/owner/lease fences, immutable financial records and120 expired
@@ -94,8 +94,10 @@ reservations across bounded continuations. Injected delays exercise race boundar
 they are not physical-device or deployed-production evidence.
 
 Staging must verify actual GCS atomic generation/metageneration preconditions,
-App Check, token absence, deployed rules/cross-service permissions, ready indexes
+App Check, token absence, deployed rules and server permissions, ready indexes
 and worst-size callable transport. The emulator's fresh metadata mismatch tests
 do not prove a production precondition against a replacement during a network
 request. Native picker/export and account-wide deletion receive their own later
 gates. Development tests must never depend on private production data.
+
+Task5 privacy refinement: All private byte reads use the protected downloadAttachment callable and Admin Cloud Storage. Direct client Storage reads and writes are denied. Authorized Firebase media GETs in the installed emulator mint managed tokens even without getDownloadURL, so the earlier web HTTP/native SDK read proposal is superseded. The strict command envelope carries only attachmentId; the read-only result carries attachmentId, storageGeneration and bounded canonical contentBase64. No receipts, financial values or attachment metadata are written by downloads. Active ownership, target links, ready revision/generation, actual type/size/checksum and token absence are fenced around every network stage.

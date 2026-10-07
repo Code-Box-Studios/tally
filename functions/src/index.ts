@@ -25,6 +25,7 @@ import {registerNotificationDevice as registerOwnerNotificationDevice,unregister
 import {cleanupNotificationDevices} from './notifications/device_cleanup.js';
 import {reserveAttachment as reserveOwnerAttachment,removeAttachment as removeOwnerAttachment} from './attachments/reservation_service.js';
 import {uploadAttachment as uploadOwnerAttachment} from './attachments/upload_service.js';
+import {downloadAttachment as downloadOwnerAttachment} from './attachments/download_service.js';
 import {FirebaseAttachmentStorageGateway} from './attachments/storage_gateway.js';
 import {enqueueAttachmentFinalization} from './attachments/attachment_jobs.js';
 import {cleanupExpiredAttachments} from './attachments/cleanup.js';
@@ -66,6 +67,10 @@ export const removeAttachment=ownerCallable((uid,data)=>removeOwnerAttachment(ui
 export const uploadAttachment=onCall(
   {region:'asia-southeast1',enforceAppCheck:!(emulator&&/^demo-[a-z0-9-]+$/.test(process.env.GCLOUD_PROJECT??'')),memory:'512MiB',concurrency:2,maxInstances:5,timeoutSeconds:120},
   request=>uploadOwnerAttachment(authorizeCaller(request.auth?.uid,request.app!==undefined,emulator,process.env.GCLOUD_PROJECT),request.data,database,new FirebaseAttachmentStorageGateway()),
+);
+export const downloadAttachment=onCall(
+  {region:'asia-southeast1',enforceAppCheck:!(emulator&&/^demo-[a-z0-9-]+$/.test(process.env.GCLOUD_PROJECT??'')),memory:'512MiB',concurrency:2,maxInstances:5,timeoutSeconds:120},
+  request=>downloadOwnerAttachment(authorizeCaller(request.auth?.uid,request.app!==undefined,emulator,process.env.GCLOUD_PROJECT),request.data,database,new FirebaseAttachmentStorageGateway()),
 );
 export const finalizePrivateFile=onObjectFinalized(
   {region:'asia-southeast1',retry:true,maxInstances:10},

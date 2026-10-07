@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../attachments/domain/attachment.dart';
+import '../../attachments/presentation/attachment_panel.dart';
+
 import '../../../core/dates/financial_clock.dart';
 import '../../../shared/presentation/financial_form_support.dart';
 import '../../../shared/widgets/money_text.dart';
@@ -151,6 +154,10 @@ class InstallmentPeriodsPanel extends ConsumerWidget {
                           child: const Text('Pay this installment'),
                         ),
                       ),
+                    AttachmentPanel(
+                      target: AttachmentTarget.forInstance(periods[i].id),
+                      title: 'Files for this installment',
+                    ),
                     const Divider(),
                   ],
                 ],

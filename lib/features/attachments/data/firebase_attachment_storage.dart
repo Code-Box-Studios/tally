@@ -1,11 +1,11 @@
-import 'dart:typed_data';
-
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/identifiers/entity_ids.dart';
+import '../../../shared/data/owner_command_gateway.dart';
 import '../../../shared/domain/financial_failure.dart';
 import '../domain/attachment_policy.dart';
+import 'private_attachment_download.dart';
 
 abstract interface class AttachmentStorageGateway {
   OwnerUid get owner;
@@ -14,12 +14,18 @@ abstract interface class AttachmentStorageGateway {
 }
 
 final class FirebaseAttachmentStorage implements AttachmentStorageGateway {
-  FirebaseAttachmentStorage(this.storage, this.auth, this.owner);
-  final FirebaseStorage storage;
+  FirebaseAttachmentStorage(this.commands, this.auth, this.owner) {
+    if (commands.owner != owner) {
+      throw ArgumentError('File transport owners must match.');
+    }
+    _download = PrivateAttachmentDownload(commands, checkOwner: _checkOwner);
+  }
+  final OwnerCommandGateway commands;
   final FirebaseAuth auth;
   @override
   final OwnerUid owner;
   bool _closed = false;
+  late final PrivateAttachmentDownload _download;
   void _checkOwner() {
     if (_closed || auth.currentUser?.uid != owner.value) {
       throw const FinancialFailure(
@@ -40,12 +46,11 @@ final class FirebaseAttachmentStorage implements AttachmentStorageGateway {
         maxBytes != AttachmentPolicy.maxBytes) {
       throw ArgumentError('Choose an owned, bounded file.');
     }
-    final bytes = await storage
-        .ref(path)
-        .getData(maxBytes)
-        .timeout(const Duration(seconds: 30));
+    final bytes = await _download.download(
+      AttachmentId(match[2]!),
+      maxBytes: maxBytes,
+    );
     _checkOwner();
-    if (bytes == null) throw StateError('File unavailable.');
     AttachmentPolicy.validateSize(bytes.length);
     return bytes;
   }
@@ -53,5 +58,6 @@ final class FirebaseAttachmentStorage implements AttachmentStorageGateway {
   @override
   Future<void> dispose() async {
     _closed = true;
+    await _download.dispose();
   }
 }
