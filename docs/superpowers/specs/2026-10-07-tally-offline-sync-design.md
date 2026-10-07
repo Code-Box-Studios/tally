@@ -61,8 +61,12 @@ and the [storage implementation enum](https://pub.dev/documentation/drift/latest
 `FrozenCommand` contains schemaVersion=1, owner UID, command ID, strongly typed
 command name, deeply immutable JSON payload, payload identity hash, resource key,
 dependency command IDs, and local creation UTC instant. JSON allows null, bool,
-string, exact safe integers, lists and string-keyed maps; reject floating-point,
-non-JSON and oversized values. Limit payloads to65,536 UTF-8 bytes, dependencies
+string, exact safe integers, lists and string-keyed maps; reject fractional,
+non-finite, unsafe, non-JSON and oversized values. Normalize mathematically exact
+integer-valued numbers before encoding, because native and JavaScript numeric
+runtime types differ. Financial amounts remain integer minor units with existing
+domain bounds. [Dart number representation](https://dart.dev/resources/language/number-representation).
+Limit payloads to65,536 UTF-8 bytes, dependencies
 to16, depth to16, and unresolved rows to1,000 per owner. Local hashes identify
 local payloads; they are not substituted for the server's validated receipt hash.
 

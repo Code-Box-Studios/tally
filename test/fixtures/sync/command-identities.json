@@ -1,0 +1,44 @@
+[
+  {
+    "owner": "alice",
+    "commandId": "pay-1",
+    "role": "obligation",
+    "expectedId": "obligation-96dabeb9c5caf2e1783f443a3b3a6c423b55035ce361e6028262482b02f8976e"
+  },
+  {
+    "owner": "alice",
+    "commandId": "pay-1",
+    "role": "instance",
+    "expectedId": "instance-76c0ad7b101b68f61746b2e85b883c68236fabc73f2f8fba08de7e50825ed5ad"
+  },
+  {
+    "owner": "alice",
+    "commandId": "pay-1",
+    "role": "contact",
+    "expectedId": "contact-f284b70129c286cb2bacbe698d20bfcaaabf2f9281b8282e6bbea43c7246fcd3"
+  },
+  {
+    "owner": "alice",
+    "commandId": "pay-1",
+    "role": "source",
+    "expectedId": "source-79ba045600bce4d456fd34a367913308daaebc90bc26d1fcfa69e383f4e7bd97"
+  },
+  {
+    "owner": "alice",
+    "commandId": "pay-1",
+    "role": "category",
+    "expectedId": "category-b2334cd4ddabfa95d524d2f967be80e134a2c8b4c0ae70558e7c4a073451a35c"
+  },
+  {
+    "owner": "bob",
+    "commandId": "pay-1",
+    "role": "obligation",
+    "expectedId": "obligation-a33da95ca97218dfa10ec30b8ed83992c8e0ac3cc7daba2bfbd16591b032e081"
+  },
+  {
+    "owner": "alice",
+    "commandId": "pay-2",
+    "role": "obligation",
+    "expectedId": "obligation-5ac13e68dd09e52527d668d17627d1d127ccc6b135dce52f74cadfe1e25db4e7"
+  }
+]
