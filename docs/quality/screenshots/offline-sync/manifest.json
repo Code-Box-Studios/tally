@@ -1,0 +1,102 @@
+[
+  {
+    "name": "pending-mobile-light",
+    "width": 400,
+    "height": 1000,
+    "sha256": "c1b791e65bfcf690eeb418e930800bfcae0344068aa4649b9dce5b33ba5d8ae0",
+    "scenario": "offline finite obligation pending detail",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T14:59:18.678750+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-4-pending-400-light.png"
+  },
+  {
+    "name": "pending-mobile-dark",
+    "width": 400,
+    "height": 1000,
+    "sha256": "46fb943533a715907dd9f4bc3da459de9a97b663846b602d83080fc92b8013f6",
+    "scenario": "offline finite obligation pending detail",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T14:59:26.622749+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-4-pending-400-dark.png"
+  },
+  {
+    "name": "pending-tablet-light",
+    "width": 800,
+    "height": 1000,
+    "sha256": "a065120b95e87377b8fd60915c9863e9391b3d112d1e722cd836a978b5a0adcc",
+    "scenario": "offline finite obligation pending detail",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T14:59:33.624749+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-4-pending-800-light.png"
+  },
+  {
+    "name": "pending-tablet-dark",
+    "width": 800,
+    "height": 1000,
+    "sha256": "2aa1cf9b0969aa5bd041799dae142bb0871e985dc409d9e5794aa92dd8bf8a74",
+    "scenario": "offline finite obligation pending detail",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T14:59:41.376748+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-4-pending-800-dark.png"
+  },
+  {
+    "name": "pending-desktop-light",
+    "width": 1440,
+    "height": 1000,
+    "sha256": "cac71bc8d608967beed83992fc80639bb704fa104dbc7375b0776622c6feb4c4",
+    "scenario": "offline finite obligation pending detail",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T14:59:47.599747+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-4-pending-1440-light.png"
+  },
+  {
+    "name": "pending-desktop-dark",
+    "width": 1440,
+    "height": 1000,
+    "sha256": "c94cfb36cc8bb1dcefe0b50eab8bd019b0ed7165f464e6aad32882ddc0dbd97c",
+    "scenario": "offline finite obligation pending detail",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T14:59:56.416747+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-4-pending-1440-dark.png"
+  },
+  {
+    "name": "receipt-mobile-light",
+    "width": 400,
+    "height": 1000,
+    "sha256": "79fbc28f403f97264f50427d9e9b11226026814897e6baa2a464ab05ef8c749a",
+    "scenario": "failed receipt metadata after genuine full document reload; original file required",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T12:27:55.490533+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-5-receipt-400-light.png"
+  },
+  {
+    "name": "receipt-mobile-dark",
+    "width": 400,
+    "height": 1000,
+    "sha256": "95fe566483a5f53791d93e9ded7166e2eb1a52abaa0e40ed42c327044a920dd5",
+    "scenario": "failed receipt metadata after genuine full document reload; original file required",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T12:28:02.787532+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-5-receipt-400-dark.png"
+  },
+  {
+    "name": "receipt-desktop-light",
+    "width": 1440,
+    "height": 1000,
+    "sha256": "204f7b395f180d4d3adf7ea578bc15e1340971cbd3524bb2db0a10d2fc58f787",
+    "scenario": "failed receipt metadata after genuine full document reload; original file required",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T12:28:07.632532+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-5-receipt-1440-light.png"
+  },
+  {
+    "name": "receipt-desktop-dark",
+    "width": 1440,
+    "height": 1000,
+    "sha256": "8c9831cf950fb80195ad9ea3d2c14a1a59cfafa1a81d17a9ca5e5cd0cb70c470",
+    "scenario": "failed receipt metadata after genuine full document reload; original file required",
+    "environment": "localhost:7364 / demo-tally; synthetic data only",
+    "capturedAt": "2026-10-08T12:28:12.649532+00:00",
+    "source": ".superpowers/sdd/2026-10-07-tally-offline-sync/task-5-receipt-1440-dark.png"
+  }
+]

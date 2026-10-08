@@ -58,6 +58,28 @@ console.log(JSON.stringify({mode:opened.mode,reloadDurable:true,multiTabFenced:t
 try {
   // spawnSync would block this process's HTTP server, so keep the CLI asynchronous.
   const {spawn} = await import('node:child_process');
+  const env = {...process.env, CHROME_DEVTOOLS_AXI_SESSION: 'tally-outbox-storage'};
+  const command = args => new Promise((resolve, reject) => {
+    const child = spawn('npx', ['-y', 'chrome-devtools-axi', ...args], {env, stdio: ['ignore', 'pipe', 'pipe']});
+    let output = '', errors = '';
+    child.stdout.on('data', chunk => {output += chunk;});
+    child.stderr.on('data', chunk => {errors += chunk;});
+    child.once('error', reject);
+    child.once('close', status => resolve({status, output, errors}));
+  });
+  const ownedTabs = output => [...output.matchAll(/^\s*(\d+),http:\/\/localhost:7362\/[^,]*,/gm)].map(match => Number(match[1]));
+  let listed = await command(['pages']);
+  if (listed.status !== 0) throw Error('Cannot list the owned probe tabs.');
+  if (!ownedTabs(listed.output).length) {
+    const opened = await command(['newpage', origin]);
+    // The bridge may create the requested tab while reporting lost selection.
+    // Resolve it from the owned origin and select explicitly before page.run.
+    if (opened.status !== 0 && !`${opened.output}${opened.errors}`.includes('No page is currently selected')) throw Error('Cannot create the owned probe tab.');
+    listed = await command(['pages']);
+    if (listed.status !== 0) throw Error('Cannot list the new owned probe tab.');
+  }
+  const ids = ownedTabs(listed.output);
+  if (!ids.length || (await command(['selectpage', String(Math.max(...ids))])).status !== 0) throw Error('Cannot select the owned probe tab.');
   const child = spawn('npx', ['-y', 'chrome-devtools-axi', 'run'], {env: {...process.env, CHROME_DEVTOOLS_AXI_SESSION: 'tally-outbox-storage'}, stdio: ['pipe', 'pipe', 'pipe']});
   let output = '';
   child.stdout.on('data', chunk => {output += chunk;});

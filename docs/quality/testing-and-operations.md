@@ -4,6 +4,15 @@ This specification defines how implementation will prove financial correctness a
 
 ## Offline commands and synchronization
 
+The implemented M6b storage, retry, privacy and evidence boundaries are recorded
+in [the offline verification report](offline-sync-verification.md). The original
+design below describes intended contracts rather than a claim that every
+platform/release gate is complete. In the current implementation, Firestore
+persistent financial caching is disabled; the owned command store and small
+profile-preference snapshot support trusted offline recovery. Browser receipt
+bytes require reselection after reload. Native file IO tests do not establish
+physical-device behavior.
+
 Firestore provides cached reads and offline synchronization for supported clients, with last-write-wins for multiple changes to a document. It does not supply the application-level payment idempotency/conflict policy. Web persistence is not enabled by default and should be enabled only on a trusted device for sensitive data. [Firestore offline behavior](https://firebase.google.com/docs/firestore/manage-data/enable-offline).
 
 Use Firestore cache for read models and a separate durable OutboxStore for mutations. Schema: owner UID, command ID, discriminated command type/version, canonical payload, dependencies, expected revision, created local instant, state (queued/sending/accepted/rejected/blocked), attempts, nextAttemptAt, receipt/result, and redacted failure. Persist before displaying Waiting to sync. A local append/transition transaction prevents losing entries after an app crash.

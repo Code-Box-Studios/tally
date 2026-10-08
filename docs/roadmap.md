@@ -18,6 +18,23 @@ This roadmap decomposes the proposed product into independently testable milesto
 
 Early milestones initialize OutboxStore interfaces and online-only CommandSubmission semantics; M6 adds fully verified durable/offline behavior. M2 cannot pretend a network error is a stored offline payment before M6 supplies that guarantee. Private attachments start only when reservation/finalization/rules can be tested together.
 
+## Current delivery status
+
+The local Flutter/Firebase implementation covers authentication, obligations,
+immutable payments/corrections, people, sources, recurring/automatic periods,
+calendar, search, reminders, activity and private attachments. Durable offline
+commands and independent pending receipts are implemented; their final whole
+gate and fresh review are in progress. The
+[offline verification record](quality/offline-sync-verification.md) distinguishes
+actual browser/emulator/file IO evidence from controlled contracts and device
+or staging checks.
+
+M7 still requires protected account deletion, complete device/accessibility and
+operational checks, deployed App Check/rules/indexes, notification delivery and
+backup/restore evidence. M8 has not released this implementation. The existing
+Hosting site remains the earlier preview; paid project provisioning, database
+region selection and real release artifacts are not inferred from local tests.
+
 ## Milestone boundaries
 
 ### M0 establishes the foundation

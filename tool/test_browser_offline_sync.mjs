@@ -197,6 +197,7 @@ if(await page.eval(()=>window.__qaText().includes('Offline sync verification')||
   console.log(JSON.stringify({pendingHiddenForNextOwner:true,previousOwnerNotDispatched:true}));
 } else if (mode === '--visual-check') {
   browser(`${helpers} await page.eval(()=>{location.hash='/settings/sync';});await page.eval(()=>window.__qaWait('Trust this device for offline saving'));await page.click('[role="switch"]');await page.eval(()=>window.__qaWait('Offline saving is ready'));await page.eval(()=>{location.hash='/obligations/new';});await page.eval(()=>window.__qaWait('Save obligation'));`);
+  const bobUid=JSON.parse(browser(`console.log(JSON.stringify(await page.eval(async()=>{if(!window.__qaBob)throw Error('Synthetic owner session missing');const response=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-tally',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...window.__qaBob,returnSecureToken:true})});const user=await response.json();if(!response.ok)throw Error('Synthetic owner unavailable');return user.localId;})));`));
   await offline(true);
   const detailPath = JSON.parse(browser(`${helpers}
 await page.eval(()=>window.__qaFill('What is this for?','Pending layout verification'));
@@ -223,7 +224,20 @@ if(!await page.eval(()=>location.hash==='#/settings/sync'))throw Error('Keyboard
 await page.eval(()=>{location.hash='/home';});await page.eval(()=>window.__qaWait('Your money, at a glance.'));
 if(await page.eval(()=>window.__qaText().includes('PHP 1,250.00')))throw Error('Pending obligation entered canonical dashboard totals.');
 `);
+  browser(`${helpers}
+await page.eval(()=>{location.hash=${JSON.stringify(detailPath.replace(/^#/,''))};});await page.eval(()=>window.__qaWait('Record payment'));
+await page.eval(()=>window.__qaClick('Record payment'));await page.wait(200);
+await page.eval(()=>window.__qaFill('Amount','250'));await page.eval(()=>window.__qaClick('Save payment'));
+await page.eval(()=>window.__qaWait('₱250 PHP'));
+`);
+  const bobRoot=db.doc('users/'+bobUid);
+  if(!(await bobRoot.collection('obligations').get()).empty||!(await bobRoot.collection('payments').get()).empty)throw Error('Pending parent or dependent payment mutated confirmed records offline.');
   await offline(false);
-  console.log(JSON.stringify({pendingDetail:detailPath,widths:[400,800,1440],themes:['light','dark'],keyboardNavigation:true,canonicalTotalsUnchanged:true}));
+  browser(`${helpers}await page.eval(()=>window.dispatchEvent(new Event('online')));await page.eval(()=>{location.hash='/settings/sync';});await page.eval(()=>window.__qaWait('No changes waiting on this device'));`);
+  let parents,dependentPayments;
+  for(let i=0;i<60;i++) {parents=await bobRoot.collection('obligations').get();dependentPayments=await bobRoot.collection('payments').get();if(parents.size===1&&dependentPayments.size===1)break;await new Promise(r=>setTimeout(r,200));}
+  const parent=parents.docs[0]?.data(),dependent=dependentPayments.docs[0]?.data();
+  if(parents.size!==1||dependentPayments.size!==1||parent.title!=='Pending layout verification'||parent.originalAmountMinor!==125000||parent.totalPaidMinor!==25000||parent.remainingMinor!==100000||dependent.amountMinor!==25000||dependent.currency!=='PHP'||dependent.obligationId!==parents.docs[0].id)throw Error('Dependent replay did not create exactly one parent/payment with the original amount, currency and balance.');
+  console.log(JSON.stringify({pendingDetail:detailPath,widths:[400,800,1440],themes:['light','dark'],keyboardNavigation:true,canonicalTotalsUnchanged:true,oneDependentPayment:true,remainingMinor:100000}));
 } else if (mode === '--online') {await offline(false); console.log('Browser restored online.');}
 else throw Error('Use --setup, --save-offline, --reload-offline, --reconnect or --online.');
