@@ -8,6 +8,10 @@ import { validateEmulatorHealthRequest } from './emulator_health.js';
 import {getAuth} from 'firebase-admin/auth';
 import {bootstrapProfile,updateProfile as updateAccountProfile} from './accounts/profile.js';
 import {requestAccountDeletion as requestOwnerAccountDeletion,getAccountDeletionStatus as getOwnerAccountDeletionStatus} from './accounts/deletion_service.js';
+import {dispatchAccountDeletionJobs} from './accounts/deletion_jobs.js';
+import {runAccountDeletionJob,FirebaseAccountDeletionAuth} from './accounts/deletion_worker.js';
+import {FirebaseAccountDeletionStorage} from './accounts/deletion_storage.js';
+import {parseDeletionJob,canClaimDeletionJob} from './accounts/deletion_contract.js';
 import {database,exactObject,ownerCallable,authorizeCaller} from './shared/callable.js';
 import {saveCatalog as saveOwnerCatalog} from './catalog/catalog.js';
 import {createObligation as createOwnerObligation,editObligation as editOwnerObligation,cancelObligation as cancelOwnerObligation} from './obligations/obligation_service.js';
@@ -116,5 +120,22 @@ export const processReadyFinancialJob=onDocumentWritten(
   async event=>{
     if(!promptWorkerEnabled(emulator,process.env.GCLOUD_PROJECT,process.env.TALLY_EMULATOR_JOB_MODE))return;
     if(event.data?.after.exists&&shouldRunPrompt(event.data.after.data()))await runReadyJob(event.params.jobId,database);
+  },
+);
+export const processAcceptedAccountDeletion=onDocumentWritten(
+  {document:'accountDeletionJobs/{uid}',region:'asia-southeast1',retry:true,maxInstances:5,timeoutSeconds:180,concurrency:1},
+  async event=>{
+    if(!promptWorkerEnabled(emulator,process.env.GCLOUD_PROJECT,process.env.TALLY_EMULATOR_JOB_MODE)||!event.data?.after.exists)return;
+    let job;
+    try {job=parseDeletionJob(event.params.uid,event.data.after.data());}catch{return;}
+    if(canClaimDeletionJob(job,new Date()))await runAccountDeletionJob(event.params.uid,database,
+      {auth:new FirebaseAccountDeletionAuth(),storage:new FirebaseAccountDeletionStorage()});
+  },
+);
+export const recoverAccountDeletions=onSchedule(
+  {schedule:'every 5 minutes',timeZone:'UTC',region:'asia-southeast1',timeoutSeconds:540,maxInstances:1},
+  async()=>{
+    if(!promptWorkerEnabled(emulator,process.env.GCLOUD_PROJECT,process.env.TALLY_EMULATOR_JOB_MODE))return;
+    await dispatchAccountDeletionJobs(database,{auth:new FirebaseAccountDeletionAuth(),storage:new FirebaseAccountDeletionStorage()});
   },
 );

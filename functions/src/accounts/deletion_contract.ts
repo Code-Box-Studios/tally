@@ -16,6 +16,8 @@ export interface ActiveDeletionJob {
   storageObjectName:string|null; storageGeneration:string|null; createdAt:Timestamp; updatedAt:Timestamp; completedAt:null;
 }
 export type DeletionJob = ActiveDeletionJob|CompletedDeletionJob;
+export interface DeletionLease {uid:string; token:string; generation:number;}
+export interface DeletionClock {now():Date; monotonicMs():number;}
 
 function ownedEnvelope(uid:string,input:unknown):Record<string,unknown> {
   identifier(uid);
@@ -83,4 +85,26 @@ export function parseDeletionJob(uid:string,input:unknown):DeletionJob {
 }
 export function deletionView(job:DeletionJob):DeletionView {
   return {userId:job.userId,status:job.status,step:job.status==='complete'?'complete':job.step};
+}
+export function canClaimDeletionJob(job:DeletionJob,now:Date):boolean {
+  return job.status==='pending'?job.nextRunAt.toMillis()<=now.getTime():
+    job.status==='leased'&&job.leaseExpiresAt!==null&&job.leaseExpiresAt.toMillis()<=now.getTime();
+}
+export function deletionLeaseMatches(job:DeletionJob,lease:DeletionLease,now:Date):job is ActiveDeletionJob {
+  return job.userId===lease.uid&&job.status==='leased'&&job.leaseToken===lease.token&&
+    job.leaseGeneration===lease.generation&&job.leaseExpiresAt!==null&&job.leaseExpiresAt.toMillis()>now.getTime();
+}
+export function canStartDeletionPage(pages:number,elapsedMs:number):boolean {
+  return Number.isInteger(pages)&&pages>=0&&pages<10&&Number.isFinite(elapsedMs)&&elapsedMs>=0&&elapsedMs<60000;
+}
+export function deletionRetryDelay(attempts:number):number {
+  return Math.min(3600000,30000*2**Math.min(7,Math.max(0,attempts-1)));
+}
+export async function deletionNetwork<T>(operation:()=>Promise<T>):Promise<T> {
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try {
+    return await Promise.race([operation(),new Promise<never>((_,reject)=>{
+      timer=setTimeout(()=>reject(new HttpsError('deadline-exceeded','Account cleanup is delayed.')),20000);
+    })]);
+  } finally {if(timer)clearTimeout(timer);}
 }

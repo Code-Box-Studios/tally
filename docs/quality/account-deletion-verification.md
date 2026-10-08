@@ -34,10 +34,36 @@ fencing, minimized status and malformed-job rejection. The complete fresh gate p
 case, nine isolated legacy cases and 140 remaining cases, including the six new
 deletion tests. Failures, cancellations and required skips were zero.
 
+## Resumable cloud cleanup
+
+The worker is implemented with a 120-second token/generation lease, ten-page and
+60-second monotonic start budgets, 200-document/100-generation pages and bounded
+network calls. It preserves the deleting profile until final checks, deletes Auth
+idempotently, and retains only the minimized permanent UID fence on completion.
+Unknown root/nested structures and orphaned descendants under missing parents
+require recovery. Transferred notification bindings and system jobs are reread
+transactionally and preserved for their new owner.
+
+Four new policy cases and fifteen actual worker cases failed before implementation.
+The first worker iteration passed thirteen cases and exposed two failures. The
+Storage emulator could remove a replacement object on a stale-generation delete;
+selected-revision metadata verification now accompanies production generation
+preconditions. The late-upload fixture lacked the custom ownership metadata that
+protected ingestion actually stores; the fixture was corrected without weakening
+attachment authorization. All fifteen worker cases passed in the subsequent full
+run, including lost-response generation retry and late private-generation cleanup.
+
+The actual automatic Firestore prompt first failed before its trigger was wired,
+then completed synthetic cleanup without Flutter or a scheduler tick. It passed
+alongside the existing financial prompt case. The complete fresh gate passed 178 Functions and 166 emulator tests: two
+automatic prompt cases, nine isolated legacy cases and 155 remaining cases.
+Failures, cancellations and required skips were zero. See the
+[recovery contract](../operations/account-deletion.md) for bounds and limitations.
+
 ## Remaining M7a gates
 
-The resumable worker, Flutter reauthentication and local cleanup, Settings UI,
-actual browser journey and final whole-plan review remain pending. A worker must
-finish successfully before cloud deletion can be reported complete. Physical
+Flutter reauthentication and local cleanup, Settings UI, actual browser journey
+and final whole-plan review remain pending. Cloud completion requires a successfully
+finished job. Physical
 devices, deployed providers/App Check, backup/retention behavior and production
 release remain staging or release checks.

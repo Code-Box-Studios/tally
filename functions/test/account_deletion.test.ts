@@ -4,6 +4,8 @@ import {Timestamp} from 'firebase-admin/firestore';
 
 import {validateDeletionRequest,validateDeletionStatusRequest,requireRecentAuthentication,parseDeletionJob,deletionView}
   from '../src/accounts/deletion_contract.js';
+import {canStartDeletionPage,deletionRetryDelay,canClaimDeletionJob,deletionLeaseMatches}
+  from '../src/accounts/deletion_contract.js';
 
 const now = new Date('2026-10-08T12:00:00Z');
 const seconds = 1791460800;
@@ -73,4 +75,36 @@ for(const [name,patch] of [
   ['raw error leak',{lastErrorCode:'Error: secret token'}],
 ] as const) test(`accepted deletion cannot replay a job with ${name}`, () => {
   assert.throws(() => parseDeletionJob('alice',{...pending,...patch}),{code:'failed-precondition'});
+});
+
+test('deletion starts at most ten pages and stops starting work after sixty monotonic seconds',()=>{
+  assert.equal(canStartDeletionPage(0,0),true);
+  assert.equal(canStartDeletionPage(9,59999),true);
+  assert.equal(canStartDeletionPage(10,0),false);
+  assert.equal(canStartDeletionPage(0,60000),false);
+  assert.equal(canStartDeletionPage(-1,0),false);
+  assert.equal(canStartDeletionPage(1,-1),false);
+});
+test('deletion retries start after thirty seconds and remain bounded at one hour',()=>{
+  assert.equal(deletionRetryDelay(1),30000);assert.equal(deletionRetryDelay(2),60000);
+  assert.equal(deletionRetryDelay(8),3600000);assert.equal(deletionRetryDelay(1000),3600000);
+});
+test('deletion claims only due pending jobs or expired leases',()=>{
+  assert.equal(canClaimDeletionJob(parseDeletionJob('alice',pending),now),true);
+  assert.equal(canClaimDeletionJob(parseDeletionJob('alice',{...pending,nextRunAt:Timestamp.fromMillis(stamp.toMillis()+1)}),now),false);
+  assert.equal(canClaimDeletionJob(parseDeletionJob('alice',{...pending,status:'needsRecovery'}),now),false);
+  assert.equal(canClaimDeletionJob(parseDeletionJob('alice',{userId:'alice',schemaVersion:1,status:'complete',completedAt:stamp}),now),false);
+  const leased={...pending,status:'leased',leaseToken:'lease-original',leaseGeneration:1,attempts:1,leaseExpiresAt:stamp};
+  assert.equal(canClaimDeletionJob(parseDeletionJob('alice',leased),now),true);
+  assert.equal(canClaimDeletionJob(parseDeletionJob('alice',{...leased,leaseExpiresAt:Timestamp.fromMillis(stamp.toMillis()+1)}),now),false);
+});
+test('deletion progress requires the live original token and generation before lease expiry',()=>{
+  const job=parseDeletionJob('alice',{...pending,status:'leased',leaseToken:'lease-original',leaseGeneration:1,attempts:1,
+    leaseExpiresAt:Timestamp.fromMillis(stamp.toMillis()+120000)});
+  const lease={uid:'alice',token:'lease-original',generation:1};
+  assert.equal(deletionLeaseMatches(job,lease,now),true);
+  assert.equal(deletionLeaseMatches(job,{...lease,uid:'bob'},now),false);
+  assert.equal(deletionLeaseMatches(job,{...lease,token:'new-worker'},now),false);
+  assert.equal(deletionLeaseMatches(job,{...lease,generation:2},now),false);
+  assert.equal(deletionLeaseMatches(job,lease,new Date('2026-10-08T12:02:00Z')),false);
 });
