@@ -43,9 +43,10 @@ FinancialFailure _safeFailure(FinancialFailureCode code, [int? remaining]) =>
     }, remainingMinor: remaining);
 
 final class _OutboxCursor implements PageCursor {
-  const _OutboxCursor(this.scope, this.before);
+  const _OutboxCursor(this.scope, this.before, this.unresolvedOnly);
   final String scope;
   final int before;
+  final bool unresolvedOnly;
 }
 
 /// One local owner scope, with every financial transition committed atomically.
@@ -316,16 +317,20 @@ final class DriftOutboxStore implements OutboxStore {
   }
 
   SimpleSelectStatement<$CommandRowsTable, StoredCommand> _pageQuery(
-    int limit, [
+    int limit,
+    bool unresolvedOnly,
     PageCursor? cursor,
-  ]) {
+  ) {
     _limit(limit);
     if (cursor != null &&
-        (cursor is! _OutboxCursor || cursor.scope != _scopeKey)) {
+        (cursor is! _OutboxCursor ||
+            cursor.scope != _scopeKey ||
+            cursor.unresolvedOnly != unresolvedOnly)) {
       throw _safeFailure(FinancialFailureCode.invalid);
     }
     final query = database.select(database.commandRows)
       ..where((t) => t.userId.equals(owner.value));
+    if (unresolvedOnly) query.where((t) => t.state.isIn(_unresolved));
     if (cursor is _OutboxCursor) {
       query.where((t) => t.sequence.isSmallerThanValue(cursor.before));
     }
@@ -334,24 +339,44 @@ final class DriftOutboxStore implements OutboxStore {
       ..limit(limit + 1);
   }
 
-  DataPage<OutboxEntry> _page(List<StoredCommand> rows, int limit) => DataPage(
+  DataPage<OutboxEntry> _page(
+    List<StoredCommand> rows,
+    int limit,
+    bool unresolvedOnly,
+  ) => DataPage(
     items: rows.take(limit).map(_decode),
     nextCursor: rows.length > limit
-        ? _OutboxCursor(_scopeKey, rows[limit - 1].sequence)
+        ? _OutboxCursor(_scopeKey, rows[limit - 1].sequence, unresolvedOnly)
         : null,
     hasMore: rows.length > limit,
     isFromCache: true,
   );
   @override
-  Future<DataPage<OutboxEntry>> getPage({PageCursor? after, int limit = 100}) =>
-      _read(() async => _page(await _pageQuery(limit, after).get(), limit));
+  Future<DataPage<OutboxEntry>> getPage({
+    PageCursor? after,
+    int limit = 100,
+    bool unresolvedOnly = false,
+  }) => _read(
+    () async => _page(
+      await _pageQuery(limit, unresolvedOnly, after).get(),
+      limit,
+      unresolvedOnly,
+    ),
+  );
   @override
-  Stream<DataPage<OutboxEntry>> watch({int limit = 100}) async* {
+  Stream<DataPage<OutboxEntry>> watch({
+    int limit = 100,
+    bool unresolvedOnly = false,
+  }) async* {
     _check();
     try {
-      await for (final rows in _pageQuery(limit).watch()) {
+      await for (final rows in _pageQuery(
+        limit,
+        unresolvedOnly,
+        null,
+      ).watch()) {
         if (_closed) return;
-        yield _page(rows, limit);
+        yield _page(rows, limit, unresolvedOnly);
       }
     } catch (error) {
       if (!_closed) {
@@ -497,6 +522,8 @@ final class DriftOutboxStore implements OutboxStore {
           pending ||
           resourceHeld ||
           liveSending ||
+          entry.state == OutboxState.queued &&
+              entry.failure?.code == FinancialFailureCode.recovery ||
           entry.state == OutboxState.queued &&
               entry.nextAttemptAt.isAfter(now)) {
         continue;

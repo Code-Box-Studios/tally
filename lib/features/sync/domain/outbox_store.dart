@@ -12,8 +12,15 @@ abstract interface class OutboxStore {
   /// missing/foreign/cyclic dependencies and more than 1,000 unresolved rows.
   Future<OutboxEntry> enqueue(FrozenCommand command);
   Future<OutboxEntry?> get(CommandId id);
-  Stream<DataPage<OutboxEntry>> watch({int limit = 100});
-  Future<DataPage<OutboxEntry>> getPage({PageCursor? after, int limit = 100});
+  Stream<DataPage<OutboxEntry>> watch({
+    int limit = 100,
+    bool unresolvedOnly = false,
+  });
+  Future<DataPage<OutboxEntry>> getPage({
+    PageCursor? after,
+    int limit = 100,
+    bool unresolvedOnly = false,
+  });
 
   /// One 60-second owner lease coordinates workers. Clock-jump recovery must
   /// invalidate the former generation before reclaiming a sending row.

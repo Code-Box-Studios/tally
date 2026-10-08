@@ -211,6 +211,67 @@ void main() {
   );
 
   test(
+    'unresolved pages find older drafts independently of accepted history',
+    () async {
+      final store = await open();
+      await store.enqueue(action('old', resource: 'obligation:old'));
+      await store.enqueue(action('new', resource: 'obligation:new'));
+      final dispatch = (await store.claimDispatch(now, token: 'history'))!;
+      final old = (await store.claimNext(dispatch, now))!;
+      await store.defer(old, offline, now.add(const Duration(days: 1)), now);
+      final newer = (await store.claimNext(dispatch, now))!;
+      await store.complete(newer, {'paymentId': 'new'}, now);
+      final history = await store.getPage(limit: 1);
+      expect(history.items.single.command.id.value, 'new');
+      final pending = await store.getPage(limit: 1, unresolvedOnly: true);
+      expect(pending.items.single.command.id.value, 'old');
+      expect(pending.hasMore, isFalse);
+      expect(
+        (await store.watch(limit: 1, unresolvedOnly: true).first)
+            .items
+            .single
+            .command
+            .id
+            .value,
+        'old',
+      );
+      await expectLater(
+        store.getPage(after: history.nextCursor, unresolvedOnly: true),
+        throwsA(isA<FinancialFailure>()),
+      );
+    },
+  );
+
+  test(
+    'unverified responses hold their resource until explicit same-ID retry',
+    () async {
+      final store = await open();
+      await store.enqueue(action('uncertain'));
+      await store.enqueue(action('later'));
+      await store.enqueue(action('independent', resource: 'obligation:other'));
+      final dispatch = (await store.claimDispatch(now, token: 'review'))!;
+      final lease = (await store.claimNext(dispatch, now))!;
+      await store.defer(
+        lease,
+        const FinancialFailure(FinancialFailureCode.recovery, 'Verify.'),
+        now,
+        now,
+      );
+      expect(
+        (await store.claimNext(dispatch, now))!.entry.command.id.value,
+        'independent',
+      );
+      expect(await store.claimNext(dispatch, now), isNull);
+      expect(await store.cancelUnsent(CommandId('uncertain'), now), isFalse);
+      await store.retry(CommandId('uncertain'), now);
+      expect(
+        (await store.claimNext(dispatch, now))!.entry.command.id.value,
+        'uncertain',
+      );
+    },
+  );
+
+  test(
     'rejected and cancelled parents block children with preserved payloads',
     () async {
       final store = await open();
