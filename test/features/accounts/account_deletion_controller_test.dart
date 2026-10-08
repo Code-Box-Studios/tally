@@ -23,6 +23,7 @@ final class Authentication implements RecentAuthentication {
   OwnerUid? active = alice;
   int verified = 0;
   final signedOut = <OwnerUid>[];
+  Object? signOutFailure;
   Completer<void>? held;
   Object? failure;
   @override
@@ -45,6 +46,7 @@ final class Authentication implements RecentAuthentication {
 
   @override
   Future<void> signOutIfOwner(OwnerUid owner) async {
+    if (signOutFailure != null && active == owner) throw signOutFailure!;
     if (active == owner) {
       signedOut.add(owner);
       active = null;
@@ -173,6 +175,20 @@ void main() {
     SharedPreferencesAsyncPlatform.instance = null;
   });
   Future<DeletionHandoff?> marker() => handoffs.read(alice, environment);
+
+  test('failed sign-out after local erasure preserves a durable accepted retry without claiming files remain', () async {
+    authentication.signOutFailure = StateError('sensitive-auth-token');
+    await controller.submit(confirmation, input());
+    expect(controller.state.phase.name, 'signOutRequired');
+    expect((await marker())!.accepted, isTrue);
+    expect(cleanup.owners, [alice]);
+    authentication.signOutFailure = null;
+    await controller.retryCleanup();
+    expect(cleanup.owners, [alice]);
+    expect(authentication.signedOut, [alice]);
+    expect(await marker(), isNull);
+    expect(repository.ids, [CommandId('delete-1')]);
+  });
 
   test(
     'state observation cannot lose a change triggered by its initial snapshot',

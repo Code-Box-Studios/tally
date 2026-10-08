@@ -16,6 +16,7 @@ enum DeletionPhase {
   accepted,
   cleaning,
   cleanupRequired,
+  signOutRequired,
   localComplete,
   recoveryRequired,
 }
@@ -50,6 +51,7 @@ final class AccountDeletionController {
   DeletionState _state = const DeletionState(DeletionPhase.idle);
   final _changes = StreamController<DeletionState>.broadcast(sync: true);
   bool _busy = false, _accepted = false, _disposed = false;
+  bool _deviceCleared = false;
   CommandId? _requestId;
   DeletionView? _view;
   DeletionState get state => _state;
@@ -176,10 +178,25 @@ final class AccountDeletionController {
   Future<void> _finishAccepted() async {
     _set(DeletionPhase.accepted);
     try {
-      await handoffs.write(_marker(DeletionHandoffPhase.accepted));
-      _set(DeletionPhase.cleaning);
-      await cleanup.quiesceAndPurge(scope.owner, scope.environment);
-      await authentication.signOutIfOwner(scope.owner);
+      if (!_deviceCleared) {
+        await handoffs.write(_marker(DeletionHandoffPhase.accepted));
+        _set(DeletionPhase.cleaning);
+        await cleanup.quiesceAndPurge(scope.owner, scope.environment);
+        _deviceCleared = true;
+      }
+      try {
+        await authentication.signOutIfOwner(scope.owner);
+      } catch (_) {
+        try {
+          await handoffs.write(_marker(DeletionHandoffPhase.cleanupRequired));
+        } catch (_) {
+          /* The live accepted handoff still blocks private presentation. */
+        }
+        _set(DeletionPhase.signOutRequired, DeletionFailureCode.unavailable);
+        return;
+      }
+      final marker = await handoffs.read(scope.owner, scope.environment);
+      if (marker != null) await handoffs.remove(marker);
       _set(DeletionPhase.localComplete);
     } catch (_) {
       _set(DeletionPhase.cleanupRequired, DeletionFailureCode.localCleanup);

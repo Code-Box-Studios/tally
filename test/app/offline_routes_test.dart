@@ -1,3 +1,5 @@
+import '../support/preferences_fixture.dart';
+
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -44,6 +46,8 @@ class RouteCommands extends SubmissionCommands {
 }
 
 void main() {
+  setUp(useInMemoryPreferences);
+  tearDown(resetPreferencesPlatform);
   for (final recurring in [false, true]) {
     for (final offline in [false, true]) {
       testWidgets(

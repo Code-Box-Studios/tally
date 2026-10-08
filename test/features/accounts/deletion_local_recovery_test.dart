@@ -71,6 +71,9 @@ void main() {
     await handoffs.write(record('bob', phase: DeletionHandoffPhase.uncertain));
     await handoffs.write(record('alice', env: 'staging-private'));
     final report = await service().recover();
+    expect(report.completed, hasLength(1));
+    expect(report.completed.single.owner, OwnerUid('alice'));
+    expect(report.completed.single.accepted, isTrue);
     expect(cleanup.calls, [(OwnerUid('alice'), environment)]);
     expect(await handoffs.read(OwnerUid('alice'), environment), isNull);
     expect(report.pending.single.owner, OwnerUid('bob'));

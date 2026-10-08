@@ -184,3 +184,24 @@ sign-out rechecks the captured UID inside that queue and cannot erase a later ap
 sign-in. Firebase offers no UID compare-and-swap sign-out primitive; external SDK
 or cross-tab identity changes are not claimed to be serialized by this process.
 Another owner never receives the original owner's progress state or cleanup.
+
+## Progress and recovery presentation
+
+Settings exposes `/settings/account/delete`, with acknowledgement and exact
+`DELETE` confirmation before provider verification. Preview labels the action
+unavailable. The root MaterialApp host withholds its private router child during
+initial marker discovery and on unsafe discovery. Empty verified discovery does
+not require an identity lookup. An accepted original owner is blocked from private
+screens while cleanup continues; another signed-in owner keeps their own workspace.
+
+Completed startup handoffs remain only in root memory until owner-safe sign-out
+and user acknowledgement. If sign-out fails after device erasure, the controller
+restores minimal acceptance for restart and offers `Retry sign-out`. A live retry
+skips already-finished device erasure. Device cleanup failure separately offers
+`Retry device cleanup`; neither state claims cloud completion.
+
+An uncertain handoff offers original-request retry and linked-provider
+verification independent of a private profile. Returning from verification goes
+back to request status; it does not cancel a server job that may already exist.
+Current-device clearing does not clear other devices, exported files or provider
+backups. Retention and deployed-provider behavior remain release checks.

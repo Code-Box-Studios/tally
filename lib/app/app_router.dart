@@ -18,6 +18,7 @@ import '../core/errors/app_failure.dart';
 import '../features/people/presentation/people_screen.dart';
 import '../features/people/presentation/contact_detail_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/accounts/presentation/account_deletion_screen.dart';
 import '../shared/widgets/empty_state.dart';
 import '../core/config/environment.dart';
 import '../core/config/environment_providers.dart';
@@ -185,6 +186,10 @@ GoRouter createAppRouter({
               path: '/settings',
               builder: (_, _) => const SettingsScreen(),
               routes: [
+                GoRoute(
+                  path: 'account/delete',
+                  builder: (_, _) => const AccountDeletionScreen(),
+                ),
                 GoRoute(
                   path: 'sync',
                   builder: (_, _) => const _FinancialRoute(child: SyncScreen()),

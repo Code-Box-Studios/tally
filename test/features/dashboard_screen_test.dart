@@ -1,3 +1,5 @@
+import '../support/preferences_fixture.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -23,6 +25,8 @@ class ControlledRepository implements DashboardRepository {
 }
 
 void main() {
+  setUp(useInMemoryPreferences);
+  tearDown(resetPreferencesPlatform);
   for (final width in [320.0, 800.0, 1440.0]) {
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
       testWidgets('Dashboard width $width / 200% / $mode', (tester) async {

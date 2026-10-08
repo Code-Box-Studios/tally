@@ -1,3 +1,5 @@
+import '../../support/preferences_fixture.dart';
+
 import 'package:tally/features/sync/presentation/sync_providers.dart';
 
 import '../../support/online_commands.dart';
@@ -27,6 +29,8 @@ import '../notifications/local_notification_adapter_test.dart'
     show MemoryValues;
 
 void main() {
+  setUp(useInMemoryPreferences);
+  tearDown(resetPreferencesPlatform);
   testWidgets(
     'real private UID scope removes old financial data and discards a late payment response',
     (tester) async {

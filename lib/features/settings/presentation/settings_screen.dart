@@ -106,6 +106,8 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             const CatalogManager(kind: CatalogEditorKind.category),
             const SizedBox(height: 24),
+            const _AccountDeletionAction(),
+            const SizedBox(height: 24),
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
@@ -191,8 +193,23 @@ class SettingsScreen extends ConsumerWidget {
                 ? 'You’re exploring a preview with sample data. Your choices apply to this session.'
                 : 'Connected to local Firebase emulators. Sign-in and personal records will follow in the next increment.',
           ),
+          const SizedBox(height: 24),
+          const _AccountDeletionAction(),
         ],
       ),
     );
   }
+}
+
+final class _AccountDeletionAction extends StatelessWidget {
+  const _AccountDeletionAction();
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ListTile(
+      leading: const Icon(Icons.delete_outline),
+      title: const Text('Delete account'),
+      subtitle: const Text('Review permanent account and record removal.'),
+      onTap: () => context.go('/settings/account/delete'),
+    ),
+  );
 }

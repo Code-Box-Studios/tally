@@ -1,3 +1,5 @@
+import '../support/preferences_fixture.dart';
+
 import 'package:tally/features/sync/presentation/sync_providers.dart';
 
 import '../support/online_commands.dart';
@@ -21,6 +23,8 @@ import '../features/financial/financial_forms_test.dart'
 import '../features/financial/financial_dto_test.dart' show obligationData;
 
 void main() {
+  setUp(useInMemoryPreferences);
+  tearDown(resetPreferencesPlatform);
   test('private obligation deep link survives startup and sign in', () {
     final gate = SessionRouteGate();
     addTearDown(gate.dispose);

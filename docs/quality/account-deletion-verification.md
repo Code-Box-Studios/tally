@@ -89,8 +89,8 @@ prevent old tabs and later restarts from recreating that UID's local state. It s
 no plain UID, request ID, credential, profile or financial value. Bob and other
 environments remain independent. Root startup attempts accepted cleanup without an
 Auth service, preserves uncertain handoffs, and exposes explicit retry through a
-root-lived controller. Settings confirmation and progress presentation follow in
-Task 5.
+root-lived controller. Settings confirmation and progress presentation consume
+these captured services.
 
 Tests first reproduced premature handle completion, disposed resource loss,
 swallowed close failures, completed-owner reopening, missing recovery and missing
@@ -146,10 +146,44 @@ observation subscribes before delivering the initial snapshot. The complete fres
 Flutter gate passes 802/802 with clean analysis, formatting and diff checks. Live
 Flutter hot reload succeeds with no runtime errors.
 
+## Settings and root progress
+
+`/settings/account/delete` follows the existing Settings branch and visual tokens.
+The connected form requires both acknowledgement and exact `DELETE` text, then
+offers only the linked password/Google providers. Secret text is cleared at submit
+and disposal. Cancel before submission preserves the account. After uncertainty,
+the back action returns to request status and makes no cancellation guarantee.
+Preview clearly labels deletion unavailable and never requests a Firebase client.
+
+A root host sits in `MaterialApp.builder`, above private route scopes. Initial
+handoff discovery hides its router child until the result is known. Unknown
+discovery fails closed. Empty successful discovery needs no identity/client lookup.
+Captured acceptance blocks Alice's private content while preserving Bob's workspace.
+Recovery verification works without a private profile scope and keeps the original
+request ID. Device cleanup failure and sign-out failure have separate, truthful
+retry messages; cloud completion is shown only for a verified completed response.
+
+Startup recovery retains completed handoffs only in root memory so the original
+owner can be signed out after marker removal. Sign-out failure restores acceptance
+for restart, and the live controller retries sign-out without erasing files again.
+No credentials, financial values or additional completed records are persisted.
+
+Tests first reproduced missing form/root gating, missing nested routes, lost
+restart completion, recovery requiring two actions and incorrect sign-out copy.
+The first whole suite also exposed five legacy app fixtures lacking the new
+asynchronous preference capability; the official in-memory plugin fixture was
+added while retaining all original assertions. The onboarding widget fixture now
+explicitly models unsupported receipt storage rather than opening a physical
+database under fake time. The complete fresh gate passes 823/823 with clean
+analysis, formatting and diff checks. Live preview debug reload has no runtime
+errors. Fourteen isolated localhost Chrome renders verify light/dark, 200% text,
+400/800/1440 widths, and uncertainty/device cleanup/completion/sign-out copy;
+all console error reports are empty. These renders use synthetic domain ports;
+the actual Firebase journey remains the next gate.
+
 ## Remaining M7a gates
 
-Settings UI, actual browser journey
-and final whole-plan review remain pending. Cloud completion requires a successfully
+Actual browser journey and final whole-plan review remain pending. Cloud completion requires a successfully
 finished job. Physical
 devices, deployed providers/App Check, backup/retention behavior and production
 release remain staging or release checks.

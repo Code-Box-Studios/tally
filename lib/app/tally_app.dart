@@ -11,6 +11,7 @@ import '../features/auth/presentation/auth_providers.dart';
 import '../features/dashboard/presentation/dashboard_providers.dart';
 import '../core/money/currency_code.dart';
 import '../features/accounts/presentation/deletion_recovery_startup.dart';
+import '../features/accounts/presentation/deletion_handoff_host.dart';
 
 class TallyApp extends StatelessWidget {
   const TallyApp({super.key});
@@ -46,6 +47,8 @@ class TallyApp extends StatelessWidget {
           darkTheme: TallyTheme.dark(),
           themeMode: ref.watch(themeModeProvider),
           routerConfig: ref.watch(appRouterProvider),
+          builder: (_, child) =>
+              DeletionHandoffHost(child: child ?? const SizedBox()),
         ),
       );
     },

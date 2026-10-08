@@ -1,3 +1,5 @@
+import '../../support/preferences_fixture.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +16,8 @@ import 'package:tally/features/notifications/presentation/notification_providers
 import 'package:tally/features/notifications/presentation/notification_session_providers.dart';
 import 'package:tally/features/notifications/presentation/notification_session.dart';
 import 'package:tally/shared/presentation/private_session_cleanup_provider.dart';
+import 'package:tally/features/sync/presentation/pending_evidence_providers.dart';
+import 'package:tally/features/sync/domain/pending_evidence.dart';
 
 import 'session_controller_test.dart' show AuthFixture, ProfileFixture, profile;
 import '../notifications/notification_session_test.dart'
@@ -47,6 +51,8 @@ class EditableProfileFixture extends ProfileFixture {
 }
 
 void main() {
+  setUp(useInMemoryPreferences);
+  tearDown(resetPreferencesPlatform);
   testWidgets(
     'onboarding saves actual selections then opens private home and logout removes account',
     (tester) async {
@@ -85,6 +91,16 @@ void main() {
             notificationRepositoryProvider.overrideWithValue(notifications),
             notificationSessionProvider.overrideWithValue(notificationSession),
             privateSessionCleanupProvider.overrideWithValue(cleanup),
+            // This auth widget test has no real device storage capability.
+            pendingEvidenceFactoryProvider.overrideWithValue(
+              ({
+                required owner,
+                required environmentKey,
+                required trustedDevice,
+              }) async => throw const PendingEvidenceFailure(
+                PendingEvidenceFailureCode.unavailable,
+              ),
+            ),
           ],
           child: const TallyApp(),
         ),

@@ -5,11 +5,14 @@ import 'owner_local_cleanup.dart';
 final class DeletionRecoveryReport {
   DeletionRecoveryReport({
     Iterable<DeletionHandoff> pending = const [],
+    Iterable<DeletionHandoff> completed = const [],
     Iterable<OwnerUid> cleanupFailures = const {},
     this.needsRecovery = false,
   }) : pending = List.unmodifiable(pending),
+       completed = List.unmodifiable(completed),
        cleanupFailures = Set.unmodifiable(cleanupFailures);
   final List<DeletionHandoff> pending;
+  final List<DeletionHandoff> completed;
   final Set<OwnerUid> cleanupFailures;
   final bool needsRecovery;
 }
@@ -26,6 +29,7 @@ final class DeletionLocalRecovery {
   final String environment;
   Future<DeletionRecoveryReport> recover({OwnerUid? retryOwner}) async {
     final failures = <OwnerUid>{};
+    final completed = <DeletionHandoff>[];
     var pending = <DeletionHandoff>[];
     try {
       pending = await handoffs.readEnvironment(environment);
@@ -39,6 +43,7 @@ final class DeletionLocalRecovery {
         }
         try {
           await cleanup.quiesceAndPurge(record.owner, environment);
+          completed.add(record);
         } catch (_) {
           // Server acceptance remains valid. No raw plugin, path, credential or
           // financial exception is retained in root presentation state.
@@ -54,6 +59,9 @@ final class DeletionLocalRecovery {
       }
       return DeletionRecoveryReport(
         pending: pending,
+        completed: completed.where(
+          (done) => !pending.any((saved) => saved.owner == done.owner),
+        ),
         cleanupFailures: failures,
       );
     } catch (_) {

@@ -63,3 +63,8 @@ final accountDeletionControllerProvider =
       ref.onDispose(controller.dispose);
       return controller;
     });
+final accountDeletionStateProvider = StreamProvider.autoDispose
+    .family<DeletionState, DeletionScope>(
+      (ref, scope) =>
+          ref.watch(accountDeletionControllerProvider(scope)).watch(),
+    );

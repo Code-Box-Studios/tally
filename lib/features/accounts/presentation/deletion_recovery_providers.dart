@@ -42,9 +42,36 @@ final class DeletionRecoveryController
   Future<DeletionRecoveryReport> build() =>
       ref.watch(deletionLocalRecoveryProvider).recover();
   Future<void> retry(OwnerUid owner) async {
+    final completed = state.value?.completed ?? [];
     final report = await ref
         .read(deletionLocalRecoveryProvider)
         .recover(retryOwner: owner);
-    if (ref.mounted) state = AsyncData(report);
+    if (ref.mounted) {
+      state = AsyncData(
+        DeletionRecoveryReport(
+          pending: report.pending,
+          completed: [
+            ...completed.where((saved) => saved.owner != owner),
+            ...report.completed,
+          ],
+          cleanupFailures: report.cleanupFailures,
+          needsRecovery: report.needsRecovery,
+        ),
+      );
+    }
+  }
+
+  void dismissCompleted(OwnerUid owner) {
+    final report = state.value;
+    if (report != null) {
+      state = AsyncData(
+        DeletionRecoveryReport(
+          pending: report.pending,
+          completed: report.completed.where((saved) => saved.owner != owner),
+          cleanupFailures: report.cleanupFailures,
+          needsRecovery: report.needsRecovery,
+        ),
+      );
+    }
   }
 }
