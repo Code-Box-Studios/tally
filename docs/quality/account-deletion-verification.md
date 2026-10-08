@@ -60,6 +60,21 @@ automatic prompt cases, nine isolated legacy cases and 155 remaining cases.
 Failures, cancellations and required skips were zero. See the
 [recovery contract](../operations/account-deletion.md) for bounds and limitations.
 
+## Device cleanup in progress
+
+Owner resource cleanup now retains asynchronous closes after provider disposal
+and attempts all owned closes before reporting a failure. Accepted or malformed
+owner/environment handoffs prevent profile snapshot and trusted-device writeback;
+uncertain handoffs preserve the current draft/preferences. Bob and staging
+preferences remain usable. The immutable handoff rejects future schemas, foreign
+ownership, extra credential fields and invalid request IDs.
+
+The three resource and eight preference failures were reproduced before their
+implementation. Thirteen focused cases now pass, along with all 722 VM tests and
+clean Flutter analysis. The live Dart app hot reloaded without runtime errors.
+Persistent marker orchestration, actual owned database/file erasure, resource
+adapter migrations and Chrome deletion contracts still remain in Task 3.
+
 ## Remaining M7a gates
 
 Flutter reauthentication and local cleanup, Settings UI, actual browser journey

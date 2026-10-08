@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/core/session/private_session_cleanup.dart';
@@ -18,5 +20,61 @@ void main() {
     expect(called, ['alice']);
     await cleanup.prepareSignOut(OwnerUid('bob'));
     expect(called, ['alice', 'bob']);
+  });
+
+  test(
+    'a failed private close still closes the other resources of that owner',
+    () async {
+      final cleanup = PrivateSessionCleanup(), called = <String>[];
+      cleanup.register(OwnerUid('alice'), () async {
+        called.add('first');
+        throw StateError('close unavailable');
+      });
+      cleanup.register(OwnerUid('alice'), () async => called.add('second'));
+      cleanup.register(OwnerUid('bob'), () async => called.add('bob'));
+      await expectLater(
+        cleanup.prepareSignOut(OwnerUid('alice')),
+        throwsStateError,
+      );
+      expect(called, ['first', 'second']);
+    },
+  );
+
+  test('disposed resource closing stays awaitable after the signed-in scope disappears', () async {
+    final cleanup = PrivateSessionCleanup(), gate = Completer<void>();
+    var closed = false, purged = false;
+    final handle = cleanup.registerResource(OwnerUid('alice'), () async {
+      await gate.future;
+      closed = true;
+    });
+    final Future<void> disposing = handle.close();
+    final Future<void> finishing = cleanup.quiesceForDeletion(
+      OwnerUid('alice'),
+    );
+    final waiting = finishing.then((_) => purged = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    expect(purged, isFalse);
+    gate.complete();
+    await disposing;
+    await waiting;
+    expect(closed, isTrue);
+    expect(purged, isTrue);
+  });
+
+  test('deletion quiescence closes Alice resources and blocks late Alice registration without closing Bob', () async {
+    final cleanup = PrivateSessionCleanup(), called = <String>[];
+    cleanup.registerResource(
+      OwnerUid('alice'),
+      () async => called.add('alice'),
+    );
+    cleanup.registerResource(OwnerUid('bob'), () async => called.add('bob'));
+    await cleanup.quiesceForDeletion(OwnerUid('alice'));
+    final lateHandle = cleanup.registerResource(
+      OwnerUid('alice'),
+      () async => called.add('late'),
+    );
+    await lateHandle.close();
+    expect(called, ['alice', 'late']);
   });
 }
