@@ -12,6 +12,9 @@
         {"key": "X-Content-Type-Options", "value": "nosniff"},
         {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}
       ]
+    }, {
+      "source": "**/*.wasm",
+      "headers": [{"key": "Content-Type", "value": "application/wasm"}]
     }]
   },
   "functions": [{"source":"functions","codebase":"default","runtime":"nodejs22"}],

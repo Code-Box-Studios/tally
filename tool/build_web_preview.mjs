@@ -14,6 +14,7 @@ execFileSync('flutter', ['pub', 'get', '--enforce-lockfile'], {
   cwd: root,
   stdio: 'inherit',
 });
+execFileSync(process.execPath, [join(root, 'tool/build_outbox_assets.mjs'), '--check'], {cwd:root, stdio:'inherit'});
 // Rebuild the generated web directory; native build artifacts stay separate.
 rmSync(source, { recursive: true, force: true });
 execFileSync('flutter', [
@@ -31,6 +32,10 @@ for (const asset of [
   'assets/assets/fonts/Roboto-Bold.ttf',
   'assets/assets/fonts/LICENSE.txt',
   'canvaskit/canvaskit.wasm',
+  'drift_worker.js',
+  'sqlite3.wasm',
+  'outbox-assets.json',
+  'outbox-third-party-notices.txt',
 ]) {
   const file = statSync(join(source, asset));
   if (!file.isFile() || file.size === 0) {

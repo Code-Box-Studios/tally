@@ -14,11 +14,12 @@ const definesFile = resolve(configPath);
 const config = JSON.parse(readFileSync(definesFile, 'utf8'));
 validateWebEnvironment(config, environment);
 const source = join(root, `build/web-${environment}`);
+execFileSync(process.execPath, [join(root, 'tool/build_outbox_assets.mjs'), '--check'], {cwd:root, stdio:'inherit'});
 execFileSync('flutter', ['pub', 'get', '--enforce-lockfile'], {cwd:root, stdio:'inherit'});
 rmSync(source, {recursive:true, force:true});
 execFileSync('flutter', ['build', 'web', '--release', '--target', environment === 'production' ? 'lib/main_prod.dart' : 'lib/main_staging.dart', '--dart-define-from-file', definesFile, '--no-web-resources-cdn', '--output', source], {cwd:root, stdio:'inherit'});
 writeFileSync(join(source,'tally-messaging-config.js'),generateMessagingConfig(config,environment));
-for (const asset of ['index.html','main.dart.js','flutter_bootstrap.js','assets/FontManifest.json','assets/assets/fonts/DMSans.ttf','assets/assets/fonts/Manrope.ttf','canvaskit/canvaskit.wasm']) {
+for (const asset of ['index.html','main.dart.js','flutter_bootstrap.js','assets/FontManifest.json','assets/assets/fonts/DMSans.ttf','assets/assets/fonts/Manrope.ttf','canvaskit/canvaskit.wasm','drift_worker.js','sqlite3.wasm','outbox-assets.json','outbox-third-party-notices.txt']) {
   const file = statSync(join(source, asset));
   if (!file.isFile() || !file.size) throw new Error(`Incomplete web build: ${asset}`);
 }
