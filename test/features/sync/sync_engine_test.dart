@@ -17,6 +17,8 @@ import 'package:tally/features/sync/domain/retry_policy.dart';
 import 'package:tally/features/sync/domain/sync_engine.dart';
 import 'package:tally/shared/domain/financial_failure.dart';
 
+import '../../support/failing_ack_outbox.dart';
+
 final owner = OwnerUid('alice');
 final initial = DateTime.utc(2026, 10, 8, 12);
 const offline = FinancialFailure(FinancialFailureCode.offline, 'Reconnect.');
@@ -121,6 +123,53 @@ void main() {
     store = await open();
     expect((await store.get(CommandId('one')))!.state, OutboxState.accepted);
     expect((await store.get(CommandId('one')))!.result!['paymentId'], 'one');
+  });
+
+  test('quota after server commit preserves uncertainty and replays one canonical payment', () async {
+    final faulty = FailingAckOutbox(store);
+    final canonical = <CommandId, Map<String, Object?>>{};
+    final transport = ControlledTransport(
+      (command) async =>
+          canonical.putIfAbsent(command.id, () => {'paymentId': 'one-payment'}),
+    );
+    final sync = SyncEngine(
+      store: faulty,
+      transport: transport,
+      validateResult: (_, result) => result,
+      utcNow: () => now,
+      leaseToken: () => 'quota-lease',
+    );
+    engines.add(sync);
+    await expectLater(
+      sync.submit(payment('quota-after-commit')),
+      throwsA(
+        isA<FinancialFailure>()
+            .having(
+              (error) => error.code,
+              'uncertain',
+              FinancialFailureCode.unavailable,
+            )
+            .having(
+              (error) => error.message,
+              'honest confirmation',
+              contains('confirm'),
+            ),
+      ),
+    );
+    expect(canonical, hasLength(1));
+    final waiting = (await store.get(CommandId('quota-after-commit')))!;
+    expect(waiting.state, OutboxState.sending);
+    expect(waiting.command.payload['amountMinor'], 2500);
+    expect(await store.cancelUnsent(waiting.command.id, now), isFalse);
+    faulty.failAcknowledgements = false;
+    now = now.add(const Duration(seconds: 61));
+    final reconciled = await sync.submit(payment('quota-after-commit'));
+    expect((reconciled as AcceptedSubmission<Map<String, Object?>>).value, {
+      'paymentId': 'one-payment',
+    });
+    expect(canonical, hasLength(1));
+    expect(transport.sent, hasLength(2));
+    expect(transport.sent.first.sameIdentity(transport.sent.last), isTrue);
   });
 
   test(

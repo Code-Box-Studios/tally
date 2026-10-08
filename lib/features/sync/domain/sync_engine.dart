@@ -4,6 +4,7 @@ import 'dart:math';
 
 import '../../../core/identifiers/entity_ids.dart';
 import '../../../shared/domain/financial_failure.dart';
+import 'local_outbox_failure.dart';
 import 'command_submission.dart';
 import 'command_transport.dart';
 import 'frozen_command.dart';
@@ -67,21 +68,31 @@ final class SyncEngine {
     _checkOwner();
     if (command.owner != owner) throw _signIn;
     await store.enqueue(command);
-    _checkOwner();
-    await flush();
-    _checkOwner();
-    final row = await store.get(command.id);
-    _checkOwner();
-    if (row == null || !row.command.sameIdentity(command)) throw _review;
-    return switch (row.state) {
-      OutboxState.accepted => AcceptedSubmission(
-        validateResult(row.command, row.result!),
-      ),
-      OutboxState.rejected ||
-      OutboxState.blocked => throw row.failure ?? _review,
-      OutboxState.cancelled => throw _review,
-      _ => QueuedSubmission(owner, command.id),
-    };
+    try {
+      _checkOwner();
+      await flush();
+      _checkOwner();
+      final row = await store.get(command.id);
+      _checkOwner();
+      if (row == null || !row.command.sameIdentity(command)) throw _review;
+      return switch (row.state) {
+        OutboxState.accepted => AcceptedSubmission(
+          validateResult(row.command, row.result!),
+        ),
+        OutboxState.rejected ||
+        OutboxState.dismissed ||
+        OutboxState.blocked => throw row.failure ?? _review,
+        OutboxState.cancelled => throw _review,
+        _ => QueuedSubmission(owner, command.id),
+      };
+    } on LocalOutboxFailure {
+      // Enqueue already committed. A failed acknowledgement cannot establish
+      // whether the server committed; retry this exact frozen intent.
+      throw const FinancialFailure(
+        FinancialFailureCode.unavailable,
+        'Your action is saved on this device, but Tally could not confirm its result. Free storage space and retry the original action to verify it.',
+      );
+    }
   }
 
   Future<void> flush() {

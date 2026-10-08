@@ -23,8 +23,8 @@ Early milestones initialize OutboxStore interfaces and online-only CommandSubmis
 The local Flutter/Firebase implementation covers authentication, obligations,
 immutable payments/corrections, people, sources, recurring/automatic periods,
 calendar, search, reminders, activity and private attachments. Durable offline
-commands and independent pending receipts are implemented; their final whole
-gate and fresh review are in progress. The
+commands and independent pending receipts are locally complete after one fresh
+review, five TDD lifecycle fixes and the full 1,046-test gate. The
 [offline verification record](quality/offline-sync-verification.md) distinguishes
 actual browser/emulator/file IO evidence from controlled contracts and device
 or staging checks.

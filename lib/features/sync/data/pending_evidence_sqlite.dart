@@ -239,14 +239,28 @@ class SqlitePendingEvidenceStore implements PendingEvidenceStore {
     );
   });
   @override
-  Future<void> remove(CommandId id) => _write(() async {
-    final existing = await get(id);
-    if (existing == null) return;
-    await files.remove(existing);
-    await (database.delete(
-      database.evidenceRows,
-    )..where((row) => row.commandId.equals(id.value))).go();
-  });
+  Future<bool> remove(CommandId id, {PendingEvidence? expected}) =>
+      _write(() async {
+        if (expected != null &&
+            (expected.owner != owner || expected.commandId != id)) {
+          throw const PendingEvidenceFailure(
+            PendingEvidenceFailureCode.ownership,
+          );
+        }
+        final existing = await get(id);
+        if (existing == null ||
+            expected != null &&
+                (existing.fileKey != expected.fileKey ||
+                    existing.paymentId != expected.paymentId ||
+                    existing.reservation?.id != expected.reservation?.id)) {
+          return false;
+        }
+        await files.remove(existing);
+        await (database.delete(
+          database.evidenceRows,
+        )..where((row) => row.commandId.equals(id.value))).go();
+        return true;
+      });
   @override
   Future<void> close() => _closing ??= (() async {
     _closed = true;

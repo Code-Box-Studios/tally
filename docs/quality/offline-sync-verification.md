@@ -10,13 +10,17 @@ remain authoritative. A network failure alone never means a payment was saved.
 Commands retain their original owner, environment, callable, ID and frozen
 payload through retries and restarts. Parent dependencies and resource ordering
 block unsafe dispatch. Rejected actions remain reviewable; correction creates a
-new command instead of rewriting the rejected one. An uncertain attempted
+new command instead of rewriting the rejected one. Explicit **Move to history**
+retains the rejected intent/failure but frees unresolved capacity. Its dependents
+remain blocked. New intentional identical payments receive new IDs after a queued
+handoff; explicit outbox retries keep the original ID. An uncertain attempted
 action must reconcile before cancellation can discard it.
 
 Native storage uses private background SQLite. Web storage requires explicit
 device trust and a successfully opened `opfsShared`, `opfsLocks` or
-`sharedIndexedDb` implementation. Unsafe fallbacks, quota failures and unknown
-schemas preserve the draft and do not claim durable saving. Signing out hides
+`sharedIndexedDb` implementation. Unsafe fallbacks, pre-commit quota failures and unknown schemas preserve the
+draft and do not claim durable queuing. Storage failure after a committed intent
+keeps the original editor draft/ID and reports uncertain confirmation. Signing out hides
 the previous owner's pending records and stops their worker. Signing back into
 that same owner can resume the unchanged records.
 
@@ -35,7 +39,9 @@ Retries keep their saved evidence identity. Explicit removal followed by a new
 selection starts a new evidence attempt. Legacy metadata keeps its original
 identities. A rejected or failed receipt does not repeat, reverse or edit the
 financial command. Cached attachment metadata cannot delete a private copy;
-matching fresh server publication is required.
+matching fresh server publication is required. Cleanup additionally matches the
+current local attempt/payment/reservation atomically, so an old observer cannot
+delete a newly selected replacement receipt.
 
 ## Evidence layers
 
@@ -97,18 +103,24 @@ npm run test:emulators
 The exact Chrome contract file list and guarded build/browser commands are
 preserved in this milestone's plan workspace. Environment-specific paths are
 local verification configuration; they are not production Firebase settings.
-The final Task 6 verification passed: 700 VM tests, 44 actual Chrome contracts,
-15 Node tool cases, 133 Functions tests and all 144 fresh emulator cases, with
-zero failing or skipped required tests. Actual storage and application browser
-flows, current debug build, assets, syntax and diff checks also passed. The fresh
-whole-plan review follows this verified commit.
+The fresh whole-plan review found five Important lifecycle defects. Each was
+reproduced RED and corrected in one inline fix pass. The final post-review gate
+reran every suite from the current source: **710 VM tests, 44 actual Chrome
+contracts, 15 Node tool cases, 133 Functions tests and all 144 fresh emulator
+cases**, with zero failing or skipped required tests. All seven compiled browser
+phases, actual two-tab storage, current debug web build, assets, analysis, syntax
+and diff checks passed. All 30 reported browser messages were expanded completely;
+no private marker or unhandled Flutter error was found. Live Dart hot reload and
+runtime collection were clean. Six repeat pending captures have identical hashes.
+See [review fixes and the complete rulings](offline-sync-review.md).
 
-The successful fresh Task 6 suite prefix is SHA-256 sealed with its complete
+The pre-review successful fresh Task 6 suite prefix is SHA-256 sealed with its complete
 counts and source files. After local browser-harness fixes, continuation reran
 all changed tool cases, real browser flows and the build. It rejects changed
 financial/client/backend source or incomplete counts. No test result is borrowed
 from Task 5. Failed harness runs remain visible in the milestone ledger; none
-was reported as a completed gate.
+was reported as a completed gate. Post-review application changes invalidated
+that prefix; the final fix gate reran every suite without prefix reuse.
 
 The emulator runner discovers every required test file. It runs the automatic
 trigger suite, the legacy notification migration file, and all remaining

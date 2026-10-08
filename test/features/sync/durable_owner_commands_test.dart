@@ -126,6 +126,73 @@ void main() {
     expect(payment.payload['amountMinor'], 2500);
     expect(payment.dependencies.every((d) => d.owner == owner), isTrue);
   });
+  test('cancelling a parent before child freezing retains its dependency and blocks dispatch', () async {
+    final parent = await create(
+      CommandName.createObligation,
+      'cancel-before-child',
+    );
+    final payload = {
+      'obligationId': predictedCommandId(owner, parent.id, 'obligation'),
+      'obligationInstanceId': predictedCommandId(owner, parent.id, 'instance'),
+      'amountMinor': 2500,
+      'currency': 'PHP',
+    };
+    // Represents another tab cancelling after the dialog captured these IDs.
+    await store.cancelUnsent(parent.id, now);
+    final child = await freeze(
+      CommandName.recordPayment,
+      'late-child',
+      payload,
+    );
+    expect(child.dependencies.map((d) => d.id), [parent.id]);
+    await store.enqueue(child);
+    final dispatch = (await store.claimDispatch(now, token: 'late-child'))!;
+    expect(await store.claimNext(dispatch, now), isNull);
+    final blocked = (await store.get(child.id))!;
+    expect(blocked.state, OutboxState.blocked);
+    expect(blocked.attempts, 0);
+    expect(blocked.command.payload, payload);
+  });
+
+  test('terminal creations outside the newest thousand history rows still bind new children', () async {
+    final parent = await create(CommandName.createObligation, 'old-cancelled');
+    await store.cancelUnsent(parent.id, now);
+    for (var n = 0; n < 1001; n++) {
+      final old = await create(CommandName.createObligation, 'history-$n');
+      await store.cancelUnsent(old.id, now);
+    }
+    final child = await freeze(CommandName.recordPayment, 'old-parent-child', {
+      'obligationId': predictedCommandId(owner, parent.id, 'obligation'),
+      'obligationInstanceId': predictedCommandId(owner, parent.id, 'instance'),
+    });
+    expect(child.dependencies.single.id, parent.id);
+  });
+  test('an edit of a pending catalog creation retains its parent even after cancellation', () async {
+    final parent = await create(
+      CommandName.saveCatalog,
+      'new-contact',
+      payload: {'kind': 'contact', 'id': null},
+    );
+    final payload = {
+      'kind': 'contact',
+      'id': predictedCommandId(owner, parent.id, 'contact'),
+      'name': 'New name',
+    };
+    final queued = await freeze(
+      CommandName.saveCatalog,
+      'edit-contact',
+      payload,
+    );
+    expect(queued.dependencies.map((d) => d.id), [parent.id]);
+    await store.cancelUnsent(parent.id, now);
+    final cancelled = await freeze(
+      CommandName.saveCatalog,
+      'late-contact-edit',
+      payload,
+    );
+    expect(cancelled.dependencies.map((d) => d.id), [parent.id]);
+  });
+
   test(
     'new recurring and installment periods require canonical generation',
     () async {

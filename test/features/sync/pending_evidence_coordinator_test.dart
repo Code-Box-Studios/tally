@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/features/attachments/domain/attachment.dart';
 import 'package:tally/features/attachments/domain/attachments_repository.dart';
@@ -14,6 +15,8 @@ import 'package:tally/shared/domain/financial_failure.dart';
 import 'pending_evidence_store_test.dart' show receipt;
 
 class ReceiptRepository implements AttachmentsRepository {
+  ReceiptRepository({this.reservationId = 'receipt-1'});
+  final String reservationId;
   @override
   final owner = OwnerUid('alice');
   final reserveIds = <CommandId>[], uploadIds = <CommandId>[];
@@ -27,9 +30,9 @@ class ReceiptRepository implements AttachmentsRepository {
   Completer<AttachmentReservation>? held;
   AttachmentReservation get reservation => AttachmentReservation(
     owner: owner,
-    id: AttachmentId('receipt-1'),
+    id: AttachmentId(reservationId),
     revision: 1,
-    storagePath: 'users/alice/attachments/receipt-1/content',
+    storagePath: 'users/alice/attachments/$reservationId/content',
     expiresAt: DateTime.utc(2027),
   );
   @override
@@ -77,11 +80,11 @@ class ReceiptRepository implements AttachmentsRepository {
         ? []
         : [
             Attachment(
-              id: AttachmentId('receipt-1'),
+              id: AttachmentId(reservationId),
               owner: owner,
               target: target,
               obligationId: ObligationId('loan'),
-              storagePath: 'users/alice/attachments/receipt-1/content',
+              storagePath: 'users/alice/attachments/$reservationId/content',
               filename: input!.filename,
               declaredContentType: input!.contentType,
               declaredSizeBytes: input!.sizeBytes,
@@ -161,6 +164,8 @@ void main() {
     );
   }
 
+  setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+  tearDownAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false);
   setUp(() async {
     root = await Directory.systemTemp.createTemp('tally-receipt-coordinator-');
     files = ReceiptRepository();
@@ -203,6 +208,51 @@ void main() {
     expect(files.reserveIds.length, 1);
     expect(files.uploadIds.length, 1);
   });
+  test('late publication from another tab cannot remove a replacement receipt attempt', () async {
+    await coordinator.stage(id, receipt());
+    accepted = PaymentId('canonical-payment');
+    await coordinator.reconcile();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final old = (await store.get(id))!;
+    final secondStore = await NativePendingEvidenceStore.open(
+      root: root,
+      owner: files.owner,
+      environmentKey: 'emulator-demo-tally',
+    );
+    final secondFiles = ReceiptRepository(reservationId: 'receipt-2');
+    final second = PendingEvidenceCoordinator(
+      store: secondStore,
+      attachments: secondFiles,
+      resolvePayment: (_) async => accepted,
+      isOwnerActive: () => active,
+    );
+    try {
+      await second.cancel(id);
+      final replacement = await second.stage(id, receipt());
+      expect(replacement.fileKey, isNot(old.fileKey));
+      await second.reconcile();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      files.ready = true;
+      files.changes.add(null);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final retained = await secondStore.get(id);
+      expect(retained, isNotNull);
+      expect(retained!.fileKey, replacement.fileKey);
+      expect(retained.reservation!.id.value, 'receipt-2');
+      expect((await secondStore.readFile(id)).sha256, replacement.sha256);
+      secondFiles.ready = true;
+      secondFiles.changes.add(null);
+      for (var i = 0; i < 30 && await secondStore.get(id) != null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(await secondStore.get(id), isNull);
+    } finally {
+      await second.dispose();
+      await secondStore.close();
+      await secondFiles.changes.close();
+    }
+  });
+
   test('cached ready metadata cannot erase receipt bytes before fresh publication is verified', () async {
     await coordinator.stage(id, receipt());
     accepted = PaymentId('canonical-payment');

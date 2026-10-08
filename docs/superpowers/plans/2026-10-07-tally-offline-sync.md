@@ -1,6 +1,6 @@
 # Tally durable offline sync implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Continue inline on `main`; preserve every milestone ledger through M8. One fresh whole-plan review follows all tasks.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking. Continue inline on `main`; preserve every milestone ledger through M8. One fresh whole-plan review follows all tasks.
 
 **Goal:** Persist financial actions before sending, recover them after restart, and show pending changes honestly without changing canonical balances.
 
@@ -106,4 +106,4 @@ No single file owns storage, dispatch, financial validation and UI together.
 - [x] Exercise actual offline payment/reload/reconnect, new pending parent/dependent payment, parent rejection, two tabs, owner switch, unsafe/quota storage, automatic/manual conflict and failed receipt. Assert immutable payment count, correct partial/full remaining, currency isolation and absence of private tokens/data in console diagnostics.
 - [x] Inspect desktop/mobile light/dark captures, keyboard/200% text and live Dart errors after hot reload. Keep screenshots genuine and no production data.
 - [x] Run one final complete gate: analyzer, all Flutter tests, actual Chrome contracts, Functions tests, fresh full emulator suites, guarded browser storage and application flows, emulator web build, asset integrity/tool syntax/git diff checks. Expected zero failing/skipped required cases; report device/staging limits explicitly.
-- [ ] Commit verification after GREEN. Dispatch the one authorized fresh whole-plan reviewer with BASE, spec, plan, Review Focus and every ledger ruling. Re-grade all findings; one Important/Critical RED→GREEN fix pass plus GREEN suite, Minor rulings; no second review. Preserve this workspace and all prior milestones for M8.
+- [x] Commit verification after GREEN. Dispatch the one authorized fresh whole-plan reviewer with BASE, spec, plan, Review Focus and every ledger ruling. Re-grade all findings; one Important/Critical RED→GREEN fix pass plus GREEN suite, Minor rulings; no second review. Preserve this workspace and all prior milestones for M8.

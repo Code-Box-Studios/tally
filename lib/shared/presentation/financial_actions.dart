@@ -53,6 +53,8 @@ class FinancialActions extends AsyncNotifier<void> {
       return AcceptedSubmission(result, owner: _owner, commandId: id);
     } on QueuedCommand catch (queued) {
       if (!ref.mounted || queued.owner != _owner) return null;
+      // Durable handoff ends this UI attempt; outbox retries own its identity.
+      _attempts.remove(fingerprint);
       state = const AsyncData(null);
       return QueuedSubmission(_owner, queued.commandId);
     } catch (error, stack) {

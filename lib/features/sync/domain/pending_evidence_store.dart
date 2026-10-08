@@ -14,6 +14,8 @@ abstract interface class PendingEvidenceStore {
   Stream<List<PendingEvidence>> watch();
   Future<AttachmentFileInput> readFile(CommandId commandId);
   Future<void> update(PendingEvidence evidence);
-  Future<void> remove(CommandId commandId);
+
+  /// Publication cleanup supplies an expected attempt; replacement bytes stay.
+  Future<bool> remove(CommandId commandId, {PendingEvidence? expected});
   Future<void> close();
 }

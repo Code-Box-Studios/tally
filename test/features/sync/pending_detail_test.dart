@@ -15,6 +15,7 @@ import 'package:tally/features/sync/data/durable_owner_commands.dart';
 import 'package:tally/features/sync/data/firebase_command_transport.dart';
 import 'package:tally/features/sync/data/outbox_database.dart';
 import 'package:tally/features/sync/domain/command_dependencies.dart';
+import 'package:tally/features/sync/domain/command_identity.dart';
 import 'package:tally/features/sync/domain/command_name.dart';
 import 'package:tally/features/sync/domain/sync_capability.dart';
 import 'package:tally/features/sync/domain/sync_engine.dart';
@@ -22,6 +23,8 @@ import 'package:tally/features/sync/presentation/pending_obligation_detail.dart'
 import 'package:tally/features/sync/presentation/sync_providers.dart';
 import 'package:tally/shared/domain/financial_failure.dart';
 import 'package:tally/shared/presentation/financial_providers.dart';
+
+import '../../support/failing_ack_outbox.dart';
 
 import '../auth/session_controller_test.dart' show profile;
 import '../financial/financial_forms_test.dart' show UiDocuments, UiCommands;
@@ -138,6 +141,95 @@ void main() {
     },
   );
   testWidgets(
+    'a rejected action can move to history while its original intent stays intact',
+    (tester) async {
+      final dispatch = (await store.claimDispatch(
+        DateTime.now().toUtc(),
+        token: 'reject',
+      ))!;
+      final lease = (await store.claimNext(dispatch, DateTime.now().toUtc()))!;
+      await store.reject(
+        lease,
+        const FinancialFailure(FinancialFailureCode.invalid, 'Check details.'),
+        DateTime.now().toUtc(),
+      );
+      await store.releaseDispatch(dispatch);
+      await render(tester);
+      final dismiss = find.text('Move to history');
+      expect(dismiss, findsOneWidget);
+      await tester.ensureVisible(dismiss);
+      await tester.tap(dismiss);
+      await tester.pumpAndSettle();
+      expect(find.text('Rejected · moved to history'), findsOneWidget);
+      expect(find.text('Move to history'), findsNothing);
+      final original = (await store.get(id))!;
+      expect(original.state.name, 'dismissed');
+      expect(original.command.sameIdentity(lease.entry.command), isTrue);
+      expect((await store.getPage(unresolvedOnly: true)).items, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'post-dispatch quota freezes the original payment draft for reconciliation',
+    (tester) async {
+      await runtime.engine!.dispose();
+      final faulty = FailingAckOutbox(store)..failAcknowledgements = false;
+      final transport = FirebaseCommandTransport(
+        owner: owner,
+        isOwnerActive: () => true,
+        invoke: (name, _) async {
+          if (name == 'recordPayment') faulty.failAcknowledgements = true;
+          return {
+            if (name == 'recordPayment') 'paymentId': 'one-canonical-payment',
+            'obligationId': predictedCommandId(owner, id, 'obligation'),
+            'obligationInstanceId': predictedCommandId(owner, id, 'instance'),
+            'obligationRevision': 1,
+            'instanceRevision': 1,
+          };
+        },
+      );
+      final engine = SyncEngine(
+        store: faulty,
+        transport: transport,
+        validateResult: validateCommandResult,
+      );
+      runtime = SyncRuntime(
+        owner: owner,
+        capability: const SyncCapability(SyncAvailability.durable),
+        store: store,
+        engine: engine,
+        gateway: DurableOwnerCommands(
+          raw: UiCommands(canonical),
+          engine: engine,
+          dependencies: CommandDependencies(store: store),
+        ),
+      );
+      await render(tester);
+      await pay(tester);
+      expect(find.text('Retry original payment'), findsOneWidget);
+      final field = tester.widget<TextFormField>(
+        find.byKey(const Key('pending-payment-amount')),
+      );
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(
+                of: find.byKey(const Key('pending-payment-amount')),
+                matching: find.byType(EditableText),
+              ),
+            )
+            .readOnly,
+        isTrue,
+      );
+      expect(field.controller!.text, '2000');
+      expect(find.textContaining('confirm'), findsWidgets);
+      expect(find.textContaining('not saved'), findsNothing);
+      expect((await store.getPage()).items, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'a real local write denial keeps the payment draft and reports no saved payment',
     (tester) async {
       await render(tester);
@@ -149,7 +241,14 @@ void main() {
         find.byKey(const Key('pending-payment-amount')),
       );
       expect(field.controller!.text, '2000');
-      expect(find.textContaining('Keep your draft'), findsOneWidget);
+      expect(
+        find.textContaining('Keep your draft'),
+        findsOneWidget,
+        reason: tester
+            .widgetList<Text>(find.byType(Text))
+            .map((w) => w.data)
+            .join(' | '),
+      );
       expect(canonical.data['payments'], isEmpty);
     },
   );

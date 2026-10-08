@@ -6,6 +6,7 @@ import 'command_identity.dart';
 import 'command_name.dart';
 import 'frozen_command.dart';
 import 'outbox_store.dart';
+import 'outbox_entry.dart';
 
 typedef CachedPaymentObligation = Future<ObligationId?> Function(PaymentId id);
 
@@ -39,26 +40,6 @@ final class CommandDependencies {
       // attempt. Retrying reuses their original frozen identities, too.
       return existing.command;
     }
-    final page = await store.getPage(limit: 1000, unresolvedOnly: true);
-    final bindings = <String, FrozenCommand>{};
-    for (final entry in page.items) {
-      final parent = entry.command;
-      if (parent.name == CommandName.createObligation ||
-          parent.name == CommandName.createInstallment ||
-          parent.name == CommandName.createRecurring) {
-        bindings[predictedCommandId(owner, parent.id, 'obligation')] = parent;
-        if (parent.name == CommandName.createObligation) {
-          bindings[predictedCommandId(owner, parent.id, 'instance')] = parent;
-        }
-      } else if (parent.name == CommandName.saveCatalog &&
-          parent.payload['id'] == null) {
-        final kind = parent.payload['kind'];
-        if (kind == 'contact' || kind == 'source' || kind == 'category') {
-          bindings[predictedCommandId(owner, parent.id, kind as String)] =
-              parent;
-        }
-      }
-    }
     final references = <String>{};
     void collect(Map<String, Object?> values) {
       for (final key in [
@@ -74,12 +55,40 @@ final class CommandDependencies {
     }
 
     collect(frozen);
+    if (name == CommandName.saveCatalog && frozen['id'] is String) {
+      references.add(frozen['id'] as String);
+    }
     if (frozen['replacement'] case final Map<String, Object?> replacement) {
       collect(replacement);
     }
     if (frozen['explicitAllocations'] case final List<Object?> allocations) {
       for (final allocation in allocations) {
         collect(Map<String, Object?>.from(allocation as Map));
+      }
+    }
+    final creations = await store.findCreations({
+      for (final reference in references)
+        for (final kind in ['obligation', 'contact', 'source', 'category'])
+          '$kind:$reference',
+    });
+    final bindings = <String, FrozenCommand>{};
+    for (final entry in creations) {
+      if (entry.state == OutboxState.accepted) continue;
+      final parent = entry.command;
+      if (parent.name == CommandName.createObligation ||
+          parent.name == CommandName.createInstallment ||
+          parent.name == CommandName.createRecurring) {
+        bindings[predictedCommandId(owner, parent.id, 'obligation')] = parent;
+        if (parent.name == CommandName.createObligation) {
+          bindings[predictedCommandId(owner, parent.id, 'instance')] = parent;
+        }
+      } else if (parent.name == CommandName.saveCatalog &&
+          parent.payload['id'] == null) {
+        final kind = parent.payload['kind'];
+        if (kind == 'contact' || kind == 'source' || kind == 'category') {
+          bindings[predictedCommandId(owner, parent.id, kind as String)] =
+              parent;
+        }
       }
     }
     final parent = bindings[frozen['obligationId']];

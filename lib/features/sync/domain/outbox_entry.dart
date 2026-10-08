@@ -8,7 +8,8 @@ enum OutboxState {
   accepted,
   rejected,
   blocked,
-  cancelled;
+  cancelled,
+  dismissed;
 
   static OutboxState parse(String value) {
     for (final state in values) {
@@ -85,7 +86,12 @@ final class OutboxEntry {
         state == OutboxState.sending && attempts == 0 ||
         state == OutboxState.accepted && (attempts == 0 || failure != null) ||
         state == OutboxState.cancelled && attempts != 0 ||
-        [OutboxState.rejected, OutboxState.blocked].contains(state) &&
+        state == OutboxState.dismissed && attempts == 0 ||
+        [
+              OutboxState.rejected,
+              OutboxState.blocked,
+              OutboxState.dismissed,
+            ].contains(state) &&
             failure == null ||
         lease != null &&
             (lease!.dispatch.owner != command.owner ||

@@ -160,6 +160,50 @@ void main() {
     },
   );
 
+  test('dismissing a definitive rejection frees capacity and retains failed-parent history', () async {
+    final store = await open();
+    for (var n = 0; n < 1000; n++) {
+      await store.enqueue(action('quota-$n', resource: 'obligation:quota-$n'));
+    }
+    final dispatch = (await store.claimDispatch(now, token: 'dismiss'))!;
+    final first = (await store.claimNext(dispatch, now))!;
+    await store.reject(first, invalid, now);
+    await store.releaseDispatch(dispatch);
+    await expectLater(
+      store.enqueue(action('overflow')),
+      throwsA(isA<LocalOutboxFailure>()),
+    );
+    final dismissed = await store.dismissRejected(first.entry.command.id, now);
+    expect(dismissed, isTrue);
+    final archived = (await store.get(first.entry.command.id))!;
+    expect(archived.state.name, 'dismissed');
+    expect(archived.attempts, 1);
+    expect(archived.failure!.code, FinancialFailureCode.invalid);
+    expect(archived.command.sameIdentity(first.entry.command), isTrue);
+    final child = action(
+      'new-child',
+      resource: 'obligation:new-child',
+      parents: [first.entry.command.id.value],
+    );
+    await store.enqueue(child);
+    expect(
+      (await store.getPage(limit: 1000, unresolvedOnly: true)).items,
+      hasLength(1000),
+    );
+    // Clear unrelated rows so the parent's tombstone is the only dependency.
+    for (var n = 1; n < 1000; n++) {
+      await store.cancelUnsent(CommandId('quota-$n'), now);
+    }
+    final next = (await store.claimDispatch(now, token: 'after-dismiss'))!;
+    expect(await store.claimNext(next, now), isNull);
+    expect((await store.get(child.id))!.state, OutboxState.blocked);
+    expect((await store.get(child.id))!.attempts, 0);
+    expect(await store.dismissRejected(child.id, now), isFalse);
+    expect(await store.cancelUnsent(child.id, now), isTrue);
+    expect((await store.getPage(unresolvedOnly: true)).items, isEmpty);
+    expect((await store.getPage(limit: 1000)).hasMore, isTrue);
+  });
+
   test(
     'per-resource order holds while an independent action can dispatch',
     () async {

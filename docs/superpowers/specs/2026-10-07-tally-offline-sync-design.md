@@ -87,11 +87,16 @@ to16, depth to16, and unresolved rows to1,000 per owner. Local hashes identify
 local payloads; they are not substituted for the server's validated receipt hash.
 
 Persist a monotonic insertion sequence, state
-`queued|sending|accepted|rejected|blocked|cancelled`, attempts, nextAttemptAt,
+`queued|sending|accepted|rejected|blocked|cancelled|dismissed`, attempts, nextAttemptAt,
 lease token/generation/deadline, accepted result, safe failure code/message and
 timestamps. The owner/command pair is unique. Re-enqueueing the same identity is
 idempotent; changing its payload or dependencies is a visible conflict.
-Transitions and dependency checks are transactional. Unknown schema/type or
+Transitions and dependency checks are transactional. Explicitly moving a
+rejected action to history records `dismissed`, preserves its immutable intent,
+attempts and failure, and excludes it from unresolved quota and trust gating.
+Dismissed parents still block dependents. Older readers reject the unsupported
+state visibly without deleting history; SQLite and command JSON schemas remain
+unchanged. Unknown schema/type or
 corrupted rows fail visibly without destructive migration or automatic dispatch.
 
 Accepted local results remain available for reconciliation. Local housekeeping
@@ -122,9 +127,16 @@ payload. Predict obligation/finite-instance and contact/source/category IDs.
 Pending installment and recurring creations can sync normally, but recording
 against their future periods requires canonical instances after acceptance.
 
+A durable queued handoff ends the UI submission attempt. A new intentional
+action receives a new ID even when its payload matches; retries from the outbox
+retain the original ID. Storage failure after durable enqueue is uncertain and
+keeps the editor's original frozen draft and identity for reconciliation.
+
 Resource keys serialize actions on the same obligation/catalog record. Extract
 references to pending catalog/finite-obligation creations into explicit
-dependencies before freezing a command. Reject cycles, foreign-owner links,
+dependencies before freezing a command. Use bounded indexed creation lookups
+that include cancelled and dismissed tombstones, even outside the newest history
+page. An open dialog cannot lose its dependency when another tab cancels a parent. Reject cycles, foreign-owner links,
 missing local dependencies and unsupported dependency depth. A pending finite
 obligation's payment references its predicted obligation/instance IDs, without
 rewriting the frozen payment when the parent succeeds.
@@ -217,3 +229,10 @@ M7 release gates; desktop IO or browser tests do not establish device evidence.
 M6b does not deploy the emulator web artifact, provision paid Firebase resources,
 or replace the pending Blaze/database-region decisions. M7/M8 still control
 staging, native signing and the production release.
+
+## Final-review lifecycle clarification
+
+Fresh attachment publication can remove local evidence only when a transaction
+still finds the same file/attempt, payment and reservation. Watchers retain that
+attempt fence; retiring an old observer cannot cancel a replacement observer.
+Publication of an earlier upload must never erase a newly selected receipt.

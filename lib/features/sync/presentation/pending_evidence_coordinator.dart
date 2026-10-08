@@ -24,7 +24,15 @@ final class PendingEvidenceCoordinator {
   final AttachmentsRepository attachments;
   final Future<PaymentId?> Function(CommandId) resolvePayment;
   final bool Function() isOwnerActive;
-  final _published = <CommandId, StreamSubscription<DataPage<Attachment>>>{};
+  final _published =
+      <
+        CommandId,
+        ({
+          String fileKey,
+          AttachmentId reservationId,
+          StreamSubscription<DataPage<Attachment>> subscription,
+        })
+      >{};
   final _cancel = <void Function()>{};
   Future<void>? _running;
   bool _disposed = false;
@@ -200,8 +208,8 @@ final class PendingEvidenceCoordinator {
       return true;
     }
     if (file.state == AttachmentState.ready) {
-      await _owned(store.remove(value.commandId));
-      await _published.remove(value.commandId)?.cancel();
+      await _owned(store.remove(value.commandId, expected: value));
+      await _stopWatching(value);
       return true;
     }
     if (file.state == AttachmentState.rejected ||
@@ -213,7 +221,7 @@ final class PendingEvidenceCoordinator {
           'Receipt needs review.',
         ),
       );
-      await _published.remove(value.commandId)?.cancel();
+      await _stopWatching(value);
       return true;
     }
     if (value.phase == PendingEvidencePhase.processing) {
@@ -223,9 +231,29 @@ final class PendingEvidenceCoordinator {
     return false;
   }
 
+  Future<void> _stopWatching(PendingEvidence value) async {
+    final current = _published[value.commandId];
+    if (current == null ||
+        current.fileKey != value.fileKey ||
+        current.reservationId != value.reservation?.id) {
+      return;
+    }
+    _published.remove(value.commandId);
+    await current.subscription.cancel();
+  }
+
   void _watch(PendingEvidence value) {
-    if (!_active || _published.containsKey(value.commandId)) return;
-    _published[value.commandId] = attachments
+    if (!_active) return;
+    final current = _published[value.commandId];
+    if (current != null) {
+      if (current.fileKey == value.fileKey &&
+          current.reservationId == value.reservation!.id) {
+        return;
+      }
+      _published.remove(value.commandId);
+      unawaited(current.subscription.cancel());
+    }
+    final subscription = attachments
         .watchTarget(AttachmentTarget.forPayment(value.paymentId!))
         .listen(
           (page) {
@@ -242,6 +270,11 @@ final class PendingEvidenceCoordinator {
             if (_active) unawaited(_recordFailure(value, error));
           },
         );
+    _published[value.commandId] = (
+      fileKey: value.fileKey,
+      reservationId: value.reservation!.id,
+      subscription: subscription,
+    );
   }
 
   Future<void> cancel(CommandId id) async {
@@ -251,8 +284,10 @@ final class PendingEvidenceCoordinator {
         PendingEvidenceFailureCode.unavailable,
       );
     }
-    await _published.remove(id)?.cancel();
-    await _owned(store.remove(id));
+    final value = await _owned(store.get(id));
+    if (value == null) return;
+    await _stopWatching(value);
+    await _owned(store.remove(id, expected: value));
   }
 
   Future<void> dispose() async {
@@ -261,8 +296,8 @@ final class PendingEvidenceCoordinator {
     for (final cancel in _cancel.toList()) {
       cancel();
     }
-    for (final subscription in _published.values.toList()) {
-      await subscription.cancel();
+    for (final observer in _published.values.toList()) {
+      await observer.subscription.cancel();
     }
     _published.clear();
   }

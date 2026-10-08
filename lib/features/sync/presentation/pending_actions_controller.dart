@@ -21,6 +21,7 @@ final pendingActionsControllerProvider =
       dependencies: [
         ownerUidProvider,
         outboxStoreProvider,
+        outboxCommandProvider,
         syncEngineProvider,
         ownerCommandGatewayProvider,
       ],
@@ -70,6 +71,19 @@ final class PendingActionsController extends AsyncNotifier<void> {
     }
     if (ref.mounted) ref.invalidate(outboxCommandProvider(id));
   });
+  Future<void> dismiss(CommandId id) => _work(() async {
+    final store = ref.read(outboxStoreProvider);
+    if (store == null) {
+      throw const LocalOutboxFailure(SyncAvailability.unavailable);
+    }
+    if (!await store.dismissRejected(id, DateTime.now().toUtc())) {
+      throw const FinancialFailure(
+        FinancialFailureCode.recovery,
+        'Only a rejected action can move to history. Verify an uncertain action first.',
+      );
+    }
+    if (ref.mounted) ref.invalidate(outboxCommandProvider(id));
+  });
   Future<CommandSubmission<Map<String, Object?>>?> review(
     CommandId originalId,
     Map<String, Object?> payload,
@@ -111,6 +125,7 @@ final class PendingActionsController extends AsyncNotifier<void> {
       if (!ref.mounted || queued.owner != ref.read(ownerUidProvider)) {
         return null;
       }
+      if (key != null) _reviews.remove(key);
       state = const AsyncData(null);
       return QueuedSubmission(queued.owner, queued.commandId);
     } catch (error, stack) {

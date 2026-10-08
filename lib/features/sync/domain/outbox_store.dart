@@ -12,6 +12,10 @@ abstract interface class OutboxStore {
   /// missing/foreign/cyclic dependencies and more than 1,000 unresolved rows.
   Future<OutboxEntry> enqueue(FrozenCommand command);
   Future<OutboxEntry?> get(CommandId id);
+
+  /// Bounded indexed lookup includes terminal creation tombstones. A cancelled
+  /// local parent must still block a dialog that captured its predicted IDs.
+  Future<List<OutboxEntry>> findCreations(Set<String> resourceKeys);
   Stream<DataPage<OutboxEntry>> watch({
     int limit = 100,
     bool unresolvedOnly = false,
@@ -49,6 +53,10 @@ abstract interface class OutboxStore {
   /// Only never-dispatched rows can be cancelled. Retain a local tombstone and
   /// block dependents; an uncertain server action must first be reconciled.
   Future<bool> cancelUnsent(CommandId id, DateTime now);
+
+  /// Move a definitive rejection to history without erasing its failure or
+  /// permitting dependents to dispatch. Uncertain actions cannot be dismissed.
+  Future<bool> dismissRejected(CommandId id, DateTime now);
   Future<void> retry(CommandId id, DateTime now);
   Future<void> close();
 }

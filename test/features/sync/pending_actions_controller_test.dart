@@ -101,6 +101,7 @@ void main() {
       await scope
           .read(pendingActionsControllerProvider.notifier)
           .cancel(CommandId('unsent'));
+      expect(scope.read(pendingActionsControllerProvider).hasError, isFalse);
       expect(
         (await store.get(CommandId('unsent')))!.state,
         OutboxState.cancelled,
@@ -146,6 +147,37 @@ void main() {
     expect(rows.last.command.payload['amountMinor'], 2500);
     expect(rows.last.state, OutboxState.rejected);
   });
+  test('each completed review handoff has a new ID and the rejected original can be dismissed', () async {
+    final original = payment('review-again');
+    await store.enqueue(original);
+    final dispatch = (await store.claimDispatch(now, token: 'review-again'))!;
+    final lease = (await store.claimNext(dispatch, now))!;
+    await store.reject(
+      lease,
+      const FinancialFailure(FinancialFailureCode.overpayment, 'Review.'),
+      now,
+    );
+    await store.releaseDispatch(dispatch);
+    final controller = scope.read(pendingActionsControllerProvider.notifier);
+    final first = await controller.review(original.id, original.payload);
+    final second = await controller.review(original.id, original.payload);
+    expect(
+      (second as QueuedSubmission<Object?>).commandId,
+      isNot((first as QueuedSubmission<Object?>).commandId),
+    );
+    await controller.dismiss(original.id);
+    expect(
+      scope.read(pendingActionsControllerProvider).hasError,
+      isFalse,
+      reason: scope
+          .read(pendingActionsControllerProvider)
+          .stackTrace
+          ?.toString(),
+    );
+    expect((await store.get(original.id))!.state, OutboxState.dismissed);
+    expect((await store.getPage(unresolvedOnly: true)).items, hasLength(2));
+  });
+
   test('uncertain and undispatched actions cannot be replaced by a reviewed new ID', () async {
     final original = payment('waiting');
     await store.enqueue(original);

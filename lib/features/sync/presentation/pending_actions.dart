@@ -49,6 +49,7 @@ String pendingStateLabel(OutboxEntry entry) => switch (entry.state) {
   OutboxState.sending => 'Syncing',
   OutboxState.accepted => 'Confirmed',
   OutboxState.rejected => 'Needs review',
+  OutboxState.dismissed => 'Rejected · moved to history',
   OutboxState.blocked => 'Waiting for an earlier change',
   OutboxState.cancelled => 'Cancelled on this device',
 };

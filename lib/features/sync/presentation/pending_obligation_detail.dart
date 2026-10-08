@@ -65,6 +65,7 @@ class PendingObligationDetail extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(switch (entry.state) {
                   OutboxState.accepted => 'Confirmed on the server. Your balance may take a moment to refresh.',
+                  OutboxState.dismissed => 'This rejected action stays in history. Its original details and failure are preserved.',
                   OutboxState.rejected => 'The server rejected this action. Review its details before creating a new save. This original stays in your history.',
                   OutboxState.cancelled => 'Cancelled before any server attempt. Your confirmed financial records were not changed.',
                   _ => 'These details are saved on this device. Confirmed balances do not include this action.',
@@ -133,6 +134,13 @@ class PendingObligationDetail extends ConsumerWidget {
                       FilledButton(
                         onPressed: () => context.go('/obligations/$canonical'),
                         child: const Text('View obligation'),
+                      ),
+                    if (entry.state == OutboxState.rejected)
+                      OutlinedButton(
+                        onPressed: action.isLoading
+                            ? null
+                            : () => controller.dismiss(commandId),
+                        child: const Text('Move to history'),
                       ),
                     if (entry.state == OutboxState.rejected &&
                         {

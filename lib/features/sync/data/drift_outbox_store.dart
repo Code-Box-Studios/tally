@@ -11,6 +11,7 @@ import '../../../core/identifiers/entity_ids.dart';
 import '../../../shared/domain/data_page.dart';
 import '../../../shared/domain/financial_failure.dart';
 import '../domain/frozen_command.dart';
+import '../domain/command_name.dart';
 import '../domain/outbox_entry.dart';
 import '../domain/outbox_store.dart';
 import '../domain/sync_capability.dart';
@@ -309,6 +310,51 @@ final class DriftOutboxStore implements OutboxStore {
     return (await _get(command.id))!;
   });
 
+  @override
+  Future<List<OutboxEntry>> findCreations(Set<String> resourceKeys) => _read(
+    () async {
+      if (resourceKeys.isEmpty) return const [];
+      if (resourceKeys.length > 512 ||
+          resourceKeys.any((key) => key.length > 320)) {
+        throw _safeFailure(FinancialFailureCode.invalid);
+      }
+      // The owner/resource index bounds candidates independently of the size of
+      // accepted or cancelled history. JSON names come from validated intents.
+      const name = CustomExpression<String>(
+        "json_extract(command_json, '\$.name')",
+      );
+      const catalogId = CustomExpression<String>(
+        "json_extract(json_extract(command_json, '\$.payloadJson'), '\$.id')",
+      );
+      final query = database.select(database.commandRows)
+        ..where(
+          (row) =>
+              row.userId.equals(owner.value) &
+              row.resourceKey.isIn(resourceKeys) &
+              (name.isIn([
+                    CommandName.createObligation.name,
+                    CommandName.createInstallment.name,
+                    CommandName.createRecurring.name,
+                  ]) |
+                  (name.equals(CommandName.saveCatalog.name) &
+                      catalogId.isNull())),
+        )
+        ..limit(resourceKeys.length + 1);
+      final rows = await query.get();
+      if (rows.length > resourceKeys.length) {
+        throw const LocalOutboxFailure(SyncAvailability.unsupportedSchema);
+      }
+      return rows
+          .map(_decode)
+          .where(
+            (entry) =>
+                entry.command.name != CommandName.saveCatalog ||
+                entry.command.payload['id'] == null,
+          )
+          .toList(growable: false);
+    },
+  );
+
   int _limit(int limit) {
     if (limit < 1 || limit > 1000) {
       throw ArgumentError('Use a page size from 1 to 1000.');
@@ -497,6 +543,7 @@ final class DriftOutboxStore implements OutboxStore {
         }
         if ([
           OutboxState.rejected,
+          OutboxState.dismissed,
           OutboxState.blocked,
           OutboxState.cancelled,
         ].contains(parent.state)) {
@@ -679,6 +726,16 @@ final class DriftOutboxStore implements OutboxStore {
       return false;
     }
     await _write(id, _transition(entry, OutboxState.cancelled, now));
+    return true;
+  });
+  @override
+  Future<bool> dismissRejected(CommandId id, DateTime now) => _atomic(() async {
+    final entry = await _get(id);
+    if (entry == null || entry.state != OutboxState.rejected) return false;
+    await _write(
+      id,
+      _transition(entry, OutboxState.dismissed, now, failure: entry.failure),
+    );
     return true;
   });
   @override

@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tally/core/identifiers/entity_ids.dart';
+import 'package:tally/core/dates/local_date.dart';
+import 'package:tally/core/money/currency_code.dart';
+import 'package:tally/core/money/money.dart';
+import 'package:tally/features/payments/domain/payment_commands.dart';
+import 'package:tally/features/payments/domain/payment_entry.dart';
 import 'package:tally/features/auth/presentation/auth_providers.dart';
 import 'package:tally/features/sync/data/local_outbox_failure.dart';
 import 'package:tally/features/sync/domain/command_submission.dart';
@@ -33,6 +38,7 @@ class SubmissionCommands implements OwnerCommandGateway {
     if (failure != null) throw failure!;
     if (queued) throw QueuedCommand(owner, id);
     return {
+      if (name == 'recordPayment') 'paymentId': 'payment-${id.value}',
       'obligationId': 'canonical',
       'obligationInstanceId': 'period',
       'obligationRevision': 1,
@@ -75,7 +81,38 @@ void main() {
     expect(queuedResult.commandId, commands.ids.last);
     expect(scope.read(financialActionsProvider).hasError, isFalse);
     await actions.createObligation(draft());
-    expect(commands.ids[2], commands.ids[1]);
+    expect(commands.ids[2], isNot(commands.ids[1]));
+  });
+  test('new identical payments after queued handoff each get their own identity', () async {
+    final actions = scope.read(financialActionsProvider.notifier);
+    final payment = PaymentDraft(
+      obligationId: ObligationId('loan'),
+      instanceId: InstanceId('period'),
+      terms: PaymentTerms(
+        amount: Money.fromMinorUnits(2500, CurrencyCode.parse('PHP')),
+        date: LocalDate.fromParts(2026, 10, 8),
+        sourceId: null,
+        method: PaymentMethod.cash,
+      ),
+    );
+    commands.queued = true;
+    final first = await actions.recordPayment(payment);
+    final second = await actions.recordPayment(payment);
+    expect(first, isA<QueuedSubmission<PaymentResult>>());
+    expect(second, isA<QueuedSubmission<PaymentResult>>());
+    expect(
+      (second as QueuedSubmission<PaymentResult>).commandId,
+      isNot((first as QueuedSubmission<PaymentResult>).commandId),
+    );
+    // Background acceptance does not keep an editor's completed attempt alive.
+    commands.queued = false;
+    final third = await actions.recordPayment(payment);
+    expect(third, isA<AcceptedSubmission<PaymentResult>>());
+    expect(commands.ids.toSet(), hasLength(3));
+    expect(
+      (third as AcceptedSubmission<PaymentResult>).value.paymentId.value,
+      'payment-${commands.ids.last.value}',
+    );
   });
   test(
     'storage quota retains draft failure and never reports a queued save',
