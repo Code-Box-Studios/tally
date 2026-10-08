@@ -7,6 +7,7 @@ import { onCall } from 'firebase-functions/v2/https';
 import { validateEmulatorHealthRequest } from './emulator_health.js';
 import {getAuth} from 'firebase-admin/auth';
 import {bootstrapProfile,updateProfile as updateAccountProfile} from './accounts/profile.js';
+import {requestAccountDeletion as requestOwnerAccountDeletion,getAccountDeletionStatus as getOwnerAccountDeletionStatus} from './accounts/deletion_service.js';
 import {database,exactObject,ownerCallable,authorizeCaller} from './shared/callable.js';
 import {saveCatalog as saveOwnerCatalog} from './catalog/catalog.js';
 import {createObligation as createOwnerObligation,editObligation as editOwnerObligation,cancelObligation as cancelOwnerObligation} from './obligations/obligation_service.js';
@@ -42,6 +43,8 @@ export const bootstrapUser = ownerCallable(async (uid,data) => {
   return {profile:await bootstrapProfile(uid,{displayName:user.displayName ?? null,photoUrl:user.photoURL ?? null},database)};
 });
 export const updateProfile = ownerCallable(async (uid,data) => ({profile:await updateAccountProfile(uid,data,database)}));
+export const requestAccountDeletion=ownerCallable((uid,data,request)=>requestOwnerAccountDeletion(uid,data,request.auth?.token.auth_time,database));
+export const getAccountDeletionStatus=ownerCallable((uid,data)=>getOwnerAccountDeletionStatus(uid,data,database));
 export const saveCatalog = ownerCallable((uid,data)=>saveOwnerCatalog(uid,data,database));
 export const createObligation = ownerCallable((uid,data)=>createOwnerObligation(uid,data,database));
 export const editObligation = ownerCallable((uid,data)=>editOwnerObligation(uid,data,database));
