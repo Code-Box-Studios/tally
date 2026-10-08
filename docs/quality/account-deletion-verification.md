@@ -72,8 +72,16 @@ ownership, extra credential fields and invalid request IDs.
 The three resource and eight preference failures were reproduced before their
 implementation. Thirteen focused cases now pass, along with all 722 VM tests and
 clean Flutter analysis. The live Dart app hot reloaded without runtime errors.
-Persistent marker orchestration, actual owned database/file erasure, resource
-adapter migrations and Chrome deletion contracts still remain in Task 3.
+Persistent handoffs now survive adapter recreation, preserve the original request,
+reject acceptance regression/foreign or future records, and discover validated
+current-environment markers independently of Auth. Native cleanup waits for
+registered resource closes, validates both databases' schema/scope and owned
+paths, removes only the captured owner's outbox/receipts/profile/trust preferences,
+and retains cleanupRequired on close/schema/ownership failure. Five handoff and
+five native cases failed before implementation and now pass. The fresh complete
+VM suite is 732/732 with clean analysis and no live runtime error. Web erasure,
+resource provider migration, startup recovery and actual Chrome deletion
+contracts remain in Task 3. Physical native-device erasure is not claimed.
 
 ## Remaining M7a gates
 
