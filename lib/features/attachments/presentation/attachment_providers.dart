@@ -40,14 +40,6 @@ final attachmentExporterFactoryProvider =
         () => auth.currentUser == null ? null : OwnerUid(auth.currentUser!.uid),
       );
     });
-Future<void> _close(Future<void> Function() close) async {
-  try {
-    await close().timeout(const Duration(seconds: 1));
-  } catch (_) {
-    /* The capability already fences late owner results. */
-  }
-}
-
 final attachmentsRepositoryProvider =
     Provider.autoDispose<AttachmentsRepository>(
       (ref) {
@@ -58,13 +50,10 @@ final attachmentsRepositoryProvider =
           ref.watch(rawOwnerCommandGatewayProvider),
           storage,
         );
-        final remove = ref
+        final resource = ref
             .read(privateSessionCleanupProvider)
-            .register(owner, repo.dispose);
-        ref.onDispose(() {
-          remove();
-          unawaited(repo.dispose());
-        });
+            .registerResource(owner, repo.dispose);
+        ref.onDispose(() => unawaited(resource.close()));
         return repo;
       },
       dependencies: [
@@ -79,13 +68,10 @@ final attachmentPickerProvider = Provider.autoDispose<AttachmentPicker>(
   (ref) {
     final owner = ref.watch(ownerUidProvider),
         picker = ref.watch(attachmentPickerFactoryProvider)(owner);
-    final remove = ref
+    final resource = ref
         .read(privateSessionCleanupProvider)
-        .register(owner, () => _close(picker.dispose));
-    ref.onDispose(() {
-      remove();
-      unawaited(_close(picker.dispose));
-    });
+        .registerResource(owner, picker.dispose);
+    ref.onDispose(() => unawaited(resource.close()));
     return picker;
   },
   dependencies: [
@@ -98,13 +84,10 @@ final attachmentExporterProvider = Provider.autoDispose<AttachmentExporter>(
   (ref) {
     final owner = ref.watch(ownerUidProvider),
         exporter = ref.watch(attachmentExporterFactoryProvider)(owner);
-    final remove = ref
+    final resource = ref
         .read(privateSessionCleanupProvider)
-        .register(owner, () => _close(exporter.dispose));
-    ref.onDispose(() {
-      remove();
-      unawaited(_close(exporter.dispose));
-    });
+        .registerResource(owner, exporter.dispose);
+    ref.onDispose(() => unawaited(resource.close()));
     return exporter;
   },
   dependencies: [

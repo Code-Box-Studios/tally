@@ -38,7 +38,9 @@ final class NativeOwnerLocalCleanup implements OwnerLocalCleanup {
         phase: DeletionHandoffPhase.cleanupRequired,
       );
       await handoffs.write(retry);
-      await guard.quiesce(owner, environment);
+      await guard
+          .quiesce(owner, environment)
+          .timeout(const Duration(seconds: 20));
       await resources.quiesceForDeletion(owner);
       final support = Directory(await root.resolveSymbolicLinks());
       final name = outboxDatabaseName(owner, environment);

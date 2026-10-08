@@ -92,13 +92,15 @@ final class NativePendingEvidenceStore extends SqlitePendingEvidenceStore {
     super.database,
     _PrivateReceiptFiles super.files,
     super.owner,
-    super.environmentKey,
-  ) : receiptDirectory = files.directory;
+    super.environmentKey, {
+    super.beforeMutation,
+  }) : receiptDirectory = files.directory;
   final Directory receiptDirectory;
   static Future<NativePendingEvidenceStore> open({
     required Directory root,
     required OwnerUid owner,
     required String environmentKey,
+    Future<void> Function()? beforeMutation,
   }) async {
     final directory = Directory(
       paths.join(
@@ -122,8 +124,14 @@ final class NativePendingEvidenceStore extends SqlitePendingEvidenceStore {
       _PrivateReceiptFiles(files),
       owner,
       environmentKey,
+      beforeMutation: beforeMutation,
     );
-    await store.initialize();
-    return store;
+    try {
+      await store.initialize();
+      return store;
+    } catch (_) {
+      await store.close();
+      rethrow;
+    }
   }
 }

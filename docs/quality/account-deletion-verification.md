@@ -60,32 +60,55 @@ automatic prompt cases, nine isolated legacy cases and 155 remaining cases.
 Failures, cancellations and required skips were zero. See the
 [recovery contract](../operations/account-deletion.md) for bounds and limitations.
 
-## Device cleanup in progress
+## Current-device cleanup
 
-Owner resource cleanup now retains asynchronous closes after provider disposal
-and attempts all owned closes before reporting a failure. Accepted or malformed
-owner/environment handoffs prevent profile snapshot and trusted-device writeback;
-uncertain handoffs preserve the current draft/preferences. Bob and staging
-preferences remain usable. The immutable handoff rejects future schemas, foreign
-ownership, extra credential fields and invalid request IDs.
+Strict five-field owner/environment handoffs survive restart and retain the original
+request ID. Uncertain requests preserve drafts and preferences until the original
+server request establishes acceptance. Accepted cleanup first closes tracked writers
+and resources, including construction and closes that outlive signed-in feature
+scopes. A stuck close reaches a 20-second deadline without permitting erasure; the
+same retained handles remain awaitable on retry. Current-owner errors remain visible,
+while cancelled receipt streams observe their disposed provider futures safely.
 
-The three resource and eight preference failures were reproduced before their
-implementation. Thirteen focused cases now pass, along with all 722 VM tests and
-clean Flutter analysis. The live Dart app hot reloaded without runtime errors.
-Persistent handoffs now survive adapter recreation, preserve the original request,
-reject acceptance regression/foreign or future records, and discover validated
-current-environment markers independently of Auth. Native cleanup waits for
-registered resource closes, validates both databases' schema/scope and owned
-paths, removes only the captured owner's outbox/receipts/profile/trust preferences,
-and retains cleanupRequired on close/schema/ownership failure. Five handoff and
-five native cases failed before implementation and now pass. The fresh complete
-VM suite is 732/732 with clean analysis and no live runtime error. Web erasure,
-resource provider migration, startup recovery and actual Chrome deletion
-contracts remain in Task 3. Physical native-device erasure is not claimed.
+Native cleanup validates both SQLite schema-1 scope rows and every known private
+path before deleting the exact owner's outbox, receipt files, profile snapshot and
+trust preference. Foreign/future stores and failed closes retain `cleanupRequired`.
+Linux tests use actual file-backed SQLite and receipt bytes; physical Android/iOS
+cleanup is not claimed.
+
+Web connections hold shared browser locks for their owner/environment. Cleanup
+requires the corresponding exclusive lock after owned closes, probes only the two
+exact database names, and validates exported SQLite in an isolated memory VFS before
+any deletion. Official Drift deletion is followed by physical absence checks. The
+OPFS directory verification matches the pinned Drift 2.35.1 worker layout; the
+adapter imports only public package APIs. No origin-wide storage clear runs.
+
+After successful cleanup, the financial stores, snapshot, trust preference and
+request handoff are gone. A boolean under a hashed owner/environment key remains to
+prevent old tabs and later restarts from recreating that UID's local state. It stores
+no plain UID, request ID, credential, profile or financial value. Bob and other
+environments remain independent. Root startup attempts accepted cleanup without an
+Auth service, preserves uncertain handoffs, and exposes explicit retry through a
+root-lived controller. Settings confirmation and progress presentation follow in
+Tasks 4–5.
+
+Tests first reproduced premature handle completion, disposed resource loss,
+swallowed close failures, completed-owner reopening, missing recovery and missing
+startup activation. Actual OPFS testing exposed deletion succeeding while another
+tab still held a connection; explicit shared/exclusive browser locks now prevent
+that operation. Six resource-provider cases, seven recovery/startup cases and the
+stuck-close deadline case pass. The full Flutter gate is 747/747 with clean analysis,
+format and diff checks. Actual Chrome runs pass ten contracts on `sharedIndexedDb`
+and ten on `opfsLocks`, including held handles, exact owner removal, Bob/staging
+preservation, uncertain requests, foreign/future databases, a blocked second tab,
+late writes and reopening after completion. The existing outbox browser probe also
+passed reload durability, shared dispatch fencing and unchanged payload checks with
+the new connection lock protocol. Live Flutter hot reload succeeded with no runtime
+errors. No production data or real account was used.
 
 ## Remaining M7a gates
 
-Flutter reauthentication and local cleanup, Settings UI, actual browser journey
+Flutter reauthentication and request control, Settings UI, actual browser journey
 and final whole-plan review remain pending. Cloud completion requires a successfully
 finished job. Physical
 devices, deployed providers/App Check, backup/retention behavior and production

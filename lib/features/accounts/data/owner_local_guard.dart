@@ -39,6 +39,10 @@ final class OwnerLocalGuard {
   Future<void> ensureAccessible(OwnerUid owner, String environment) async {
     final key = deletionHandoffKey(owner, environment);
     if (_blocked.contains(key) ||
+        await SharedPreferencesAsync().getBool(
+              'deleted-${outboxDatabaseName(owner, environment)}',
+            ) ==
+            true ||
         (await handoff(owner, environment))?.accepted == true ||
         _blocked.contains(key)) {
       throw const OwnerLocalCleanupFailure(
@@ -73,6 +77,12 @@ final class OwnerLocalGuard {
   Future<void> quiesce(OwnerUid owner, String environment) async {
     final key = deletionHandoffKey(owner, environment);
     _blocked.add(key);
+    // This hash-only fence survives successful marker removal and tab restarts.
+    // It contains no UID, request, credentials, profile or financial values.
+    await SharedPreferencesAsync().setBool(
+      'deleted-${outboxDatabaseName(owner, environment)}',
+      true,
+    );
     final pending = _writing[key]?.toList() ?? const <Future<void>>[];
     await Future.wait(
       pending.map(

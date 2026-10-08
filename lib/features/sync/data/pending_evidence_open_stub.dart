@@ -6,5 +6,6 @@ Future<PendingEvidenceStore> openPlatformEvidence({
   required OwnerUid owner,
   required String environmentKey,
   required bool trustedDevice,
+  Future<void> Function()? beforeMutation,
 }) async =>
     throw const PendingEvidenceFailure(PendingEvidenceFailureCode.unavailable);

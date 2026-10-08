@@ -1,4 +1,5 @@
 import '../../../core/identifiers/entity_ids.dart';
+import '../../accounts/data/owner_local_guard.dart';
 import '../domain/sync_capability.dart';
 import 'local_outbox_failure.dart';
 import 'outbox_open_result.dart';
@@ -17,11 +18,21 @@ Future<OpenedOutbox> openOutbox({
   required bool trustedDevice,
 }) async {
   try {
-    return await platform.openPlatformOutbox(
+    final guard = OwnerLocalGuard.shared;
+    await guard.ensureAccessible(owner, environmentKey);
+    final opened = await platform.openPlatformOutbox(
       owner: owner,
       environmentKey: environmentKey,
       trustedDevice: trustedDevice,
+      beforeMutation: () => guard.ensureAccessible(owner, environmentKey),
     );
+    try {
+      await guard.ensureAccessible(owner, environmentKey);
+      return opened;
+    } catch (_) {
+      await opened.store?.close();
+      rethrow;
+    }
   } on LocalOutboxFailure catch (error) {
     return OpenedOutbox(SyncCapability(error.availability));
   } catch (_) {

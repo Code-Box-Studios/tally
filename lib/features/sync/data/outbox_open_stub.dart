@@ -6,4 +6,5 @@ Future<OpenedOutbox> openPlatformOutbox({
   required OwnerUid owner,
   required String environmentKey,
   required bool trustedDevice,
+  Future<void> Function()? beforeMutation,
 }) async => const OpenedOutbox(SyncCapability(SyncAvailability.unavailable));

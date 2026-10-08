@@ -52,11 +52,19 @@ final class _OutboxCursor implements PageCursor {
 
 /// One local owner scope, with every financial transition committed atomically.
 final class DriftOutboxStore implements OutboxStore {
-  DriftOutboxStore._(this.database, this.owner, this.environmentKey);
+  DriftOutboxStore._(
+    this.database,
+    this.owner,
+    this.environmentKey,
+    this.beforeMutation,
+    this.afterClose,
+  );
   final OutboxDatabase database;
   @override
   final OwnerUid owner;
   final String environmentKey;
+  final Future<void> Function()? beforeMutation;
+  final Future<void> Function()? afterClose;
   bool _closed = false;
   Future<void>? _closing;
   String get _scopeKey => outboxDatabaseName(owner, environmentKey);
@@ -65,9 +73,17 @@ final class DriftOutboxStore implements OutboxStore {
     OutboxDatabase database, {
     required OwnerUid owner,
     required String environmentKey,
+    Future<void> Function()? beforeMutation,
+    Future<void> Function()? afterClose,
   }) async {
     outboxDatabaseName(owner, environmentKey);
-    final store = DriftOutboxStore._(database, owner, environmentKey);
+    final store = DriftOutboxStore._(
+      database,
+      owner,
+      environmentKey,
+      beforeMutation,
+      afterClose,
+    );
     try {
       await database.transaction(() async {
         // Acquire SQLite's writer before reading ownership or lease state.
@@ -133,14 +149,19 @@ final class DriftOutboxStore implements OutboxStore {
     }
   }
 
-  Future<T> _atomic<T>(Future<T> Function() operation) => _read(
-    () => database.transaction(() async {
+  Future<T> _atomic<T>(
+    Future<T> Function() operation, {
+    bool releasing = false,
+  }) => _read(() async {
+    if (!releasing) await beforeMutation?.call();
+    _check();
+    return database.transaction(() async {
       await database.customStatement(
         'UPDATE outbox_scopes SET id = id WHERE id = 1',
       );
       return operation();
-    }),
-  );
+    });
+  });
 
   Selectable<StoredCommand> _row(CommandId id) => database.select(
     database.commandRows,
@@ -716,7 +737,7 @@ final class DriftOutboxStore implements OutboxStore {
         ),
       );
     }
-  });
+  }, releasing: true);
   @override
   Future<bool> cancelUnsent(CommandId id, DateTime now) => _atomic(() async {
     final entry = await _get(id);
@@ -750,5 +771,6 @@ final class DriftOutboxStore implements OutboxStore {
   Future<void> close() => _closing ??= (() async {
     _closed = true;
     await database.close();
+    await afterClose?.call();
   })();
 }

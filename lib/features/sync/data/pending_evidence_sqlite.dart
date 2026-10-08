@@ -24,13 +24,17 @@ class SqlitePendingEvidenceStore implements PendingEvidenceStore {
     this.database,
     this.files,
     this.owner,
-    this.environmentKey,
-  );
+    this.environmentKey, {
+    this.beforeMutation,
+    this.afterClose,
+  });
   final PendingEvidenceDatabase database;
   final PendingEvidenceFiles files;
   @override
   final OwnerUid owner;
   final String environmentKey;
+  final Future<void> Function()? beforeMutation;
+  final Future<void> Function()? afterClose;
   bool _closed = false;
   Future<void>? _closing;
   @override
@@ -141,6 +145,8 @@ class SqlitePendingEvidenceStore implements PendingEvidenceStore {
   Future<T> _write<T>(Future<T> Function() work) async {
     _check();
     try {
+      await beforeMutation?.call();
+      _check();
       return await database.transaction(() async {
         await database.customStatement(
           'UPDATE evidence_scopes SET id = id WHERE id = 1',
@@ -264,7 +270,11 @@ class SqlitePendingEvidenceStore implements PendingEvidenceStore {
   @override
   Future<void> close() => _closing ??= (() async {
     _closed = true;
-    await files.close();
-    await database.close();
+    try {
+      await files.close();
+    } finally {
+      await database.close();
+      await afterClose?.call();
+    }
   })();
 }

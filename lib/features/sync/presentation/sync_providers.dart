@@ -56,8 +56,11 @@ final class SyncRuntime {
   bool get isDisposed => _disposed;
   Future<void> dispose() => _closing ??= (() async {
     _disposed = true;
-    await engine?.dispose();
-    await store?.close();
+    try {
+      await engine?.dispose();
+    } finally {
+      await store?.close();
+    }
   })();
 }
 
@@ -188,31 +191,36 @@ final syncRuntimeProvider = FutureProvider<SyncRuntime>(
         environment = ref.watch(syncEnvironmentProvider),
         factory = ref.watch(syncRuntimeFactoryProvider);
     SyncRuntime? current;
-    void Function()? unregisterCleanup;
     var disposed = false;
-    ref.onDispose(() {
-      disposed = true;
-      unregisterCleanup?.call();
-      unawaited(current?.dispose());
-    });
-    final trusted = await ref.watch(trustedDeviceChoiceProvider.future);
-    if (!ref.mounted) throw _changedOwner;
-    final runtime = await factory(
+    final constructed = Completer<void>();
+    final resource = ref.read(privateSessionCleanupProvider).registerResource(
       owner,
-      environment,
-      trusted,
-      raw,
-      () => ref.mounted && !disposed,
+      () async {
+        disposed = true;
+        await constructed.future;
+        await current?.dispose();
+      },
     );
-    if (!ref.mounted || disposed) {
-      await runtime.dispose();
-      throw _changedOwner;
+    ref.onDispose(() => unawaited(resource.close()));
+    try {
+      final trusted = await ref.watch(trustedDeviceChoiceProvider.future);
+      if (!ref.mounted || disposed) throw _changedOwner;
+      current = await factory(
+        owner,
+        environment,
+        trusted,
+        raw,
+        () => ref.mounted && !disposed,
+      );
+      if (!ref.mounted || disposed) throw _changedOwner;
+      return current;
+    } catch (_) {
+      disposed = true;
+      rethrow;
+    } finally {
+      constructed.complete();
+      if (disposed) await resource.close();
     }
-    current = runtime;
-    unregisterCleanup = ref
-        .read(privateSessionCleanupProvider)
-        .register(owner, runtime.dispose);
-    return runtime;
   },
   dependencies: [
     ownerUidProvider,

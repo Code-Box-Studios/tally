@@ -113,6 +113,44 @@ must establish acceptance before discarding drafts and must report a blocked loc
 database or failed file removal with a retry action. Do not sign out or clear a
 replacement owner.
 
+## Current-device cleanup and retry
+
+The device handoff contains only schema version, owner UID, environment, original
+request ID and uncertain/accepted/cleanupRequired phase. Never clear pending local
+actions for an uncertain result. Establish acceptance through the original server
+request before writing accepted and starting device cleanup.
+
+Root startup discovers only validated current-environment handoffs. It can finish
+accepted cleanup without Auth and retains uncertain handoffs for server confirmation.
+Its recovery service does not sign out a replacement owner. Concurrent cleanup for
+the same owner/environment shares one purge; other owners remain independent.
+
+Cleanup drains preference writers and awaits owned database, attachment and
+notification resources, including construction or closes after scope disposal.
+Writer/resource waits have a 20-second deadline. A timeout does not permit erasure
+or abandon the retained close. The accepted marker remains available for retry.
+Internal release of a matching dispatch lease can finish after the write fence;
+new financial/evidence mutations and new store opens cannot cross that fence.
+
+Native cleanup validates exact known paths, schema-1 SQLite ownership and receipt
+entries before unlinking. Future schemas, foreign scopes, links or unknown entries
+require recovery and retain their bytes. Physical device behavior still needs QA.
+
+Web persistent connections hold shared Web Locks for the exact owner/environment;
+purge requires the exclusive lock without stealing another tab's connection. Close
+other Tally windows before retrying a blocked purge. Use public Drift probe, export
+and delete APIs for the two exact derived names. Validate exported SQLite in RAM,
+then verify physical absence. Drift 2.35.1 can swallow OPFS removal errors; verifying
+its pinned `drift_db/<exact database name>` path is therefore part of the adapter.
+Upgrade Drift/its worker only with both IndexedDB and OPFS browser contracts passing.
+
+Successful device cleanup removes the request handoff and financial stores,
+receipts, snapshot and trust preference. A boolean under a hashed owner/environment
+key remains to prevent completed-owner reopening after tab or app restart. It holds
+no plain UID, request ID, credential or financial value. Clearing application data
+removes that local metadata; the permanent server UID fence remains authoritative.
+Manual exports and another device's unsent data remain that device's responsibility.
+
 ## Release evidence still required
 
 The emulator suite proves application ownership, retry and schema behavior. Staging

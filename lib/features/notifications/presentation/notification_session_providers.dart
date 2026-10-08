@@ -43,17 +43,17 @@ final notificationSessionProvider = Provider.autoDispose<NotificationSession>(
       local: LocalNotificationAdapter(gateway ?? NoLocalAlertGateway(), store),
       installationId: store.getOrCreate,
     );
-    final remove = ref
-        .read(privateSessionCleanupProvider)
-        .register(repo.owner, session.close);
-    ref.onDispose(() {
-      remove();
-      unawaited(
-        session.close().whenComplete(() async {
+    final resource = ref.read(privateSessionCleanupProvider).registerResource(
+      repo.owner,
+      () async {
+        try {
+          await session.close();
+        } finally {
           await gateway?.dispose();
-        }),
-      );
-    });
+        }
+      },
+    );
+    ref.onDispose(() => unawaited(resource.close()));
     unawaited(session.start());
     return session;
   },

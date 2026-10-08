@@ -23,34 +23,53 @@ final pendingEvidenceStoreProvider = FutureProvider<PendingEvidenceStore>((
   final owner = ref.watch(ownerUidProvider),
       environment = ref.watch(syncEnvironmentProvider),
       factory = ref.watch(pendingEvidenceFactoryProvider);
-  final trusted = await ref.watch(trustedDeviceChoiceProvider.future);
-  if (!ref.mounted) {
-    throw const PendingEvidenceFailure(PendingEvidenceFailureCode.ownership);
-  }
-  final store = await factory(
-    owner: owner,
-    environmentKey: environment,
-    trustedDevice: trusted,
+  PendingEvidenceStore? current;
+  var disposed = false;
+  final constructed = Completer<void>();
+  final resource = ref.read(privateSessionCleanupProvider).registerResource(
+    owner,
+    () async {
+      disposed = true;
+      await constructed.future;
+      await current?.close();
+    },
   );
-  if (!ref.mounted) {
-    await store.close();
-    throw const PendingEvidenceFailure(PendingEvidenceFailureCode.ownership);
+  ref.onDispose(() => unawaited(resource.close()));
+  try {
+    final trusted = await ref.watch(trustedDeviceChoiceProvider.future);
+    if (!ref.mounted || disposed) {
+      throw const PendingEvidenceFailure(PendingEvidenceFailureCode.ownership);
+    }
+    current = await factory(
+      owner: owner,
+      environmentKey: environment,
+      trustedDevice: trusted,
+    );
+    if (!ref.mounted || disposed) {
+      throw const PendingEvidenceFailure(PendingEvidenceFailureCode.ownership);
+    }
+    return current;
+  } catch (_) {
+    disposed = true;
+    rethrow;
+  } finally {
+    constructed.complete();
+    if (disposed) await resource.close();
   }
-  final remove = ref
-      .read(privateSessionCleanupProvider)
-      .register(owner, store.close);
-  ref.onDispose(() {
-    remove();
-    unawaited(store.close());
-  });
-  return store;
 }, dependencies: [ownerUidProvider, trustedDeviceChoiceProvider]);
 final pendingEvidenceProvider = StreamProvider<List<PendingEvidence>>((
   ref,
 ) async* {
-  final store = await ref.watch(pendingEvidenceStoreProvider.future);
-  if (!ref.mounted) return;
-  yield* store.watch();
+  try {
+    final store = await ref.watch(pendingEvidenceStoreProvider.future);
+    if (!ref.mounted) return;
+    yield* store.watch();
+  } catch (_) {
+    // A cancelled async generator still awaits its source future. Riverpod
+    // completes that future with a disposal error during owner teardown.
+    // Observe it without publishing into the disposed owner stream.
+    if (ref.mounted) rethrow;
+  }
 }, dependencies: [pendingEvidenceStoreProvider]);
 final pendingEvidenceCoordinatorProvider =
     FutureProvider<PendingEvidenceCoordinator>(
@@ -87,13 +106,10 @@ final pendingEvidenceCoordinatorProvider =
             return payment is String ? PaymentId(payment) : null;
           },
         );
-        final remove = ref
+        final resource = ref
             .read(privateSessionCleanupProvider)
-            .register(owner, coordinator.dispose);
-        ref.onDispose(() {
-          remove();
-          unawaited(coordinator.dispose());
-        });
+            .registerResource(owner, coordinator.dispose);
+        ref.onDispose(() => unawaited(resource.close()));
         return coordinator;
       },
       dependencies: [

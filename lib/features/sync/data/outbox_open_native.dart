@@ -15,6 +15,7 @@ Future<OpenedOutbox> openPlatformOutbox({
   required OwnerUid owner,
   required String environmentKey,
   required bool trustedDevice,
+  Future<void> Function()? beforeMutation,
 }) async {
   final name = outboxDatabaseName(owner, environmentKey);
   final support = await getApplicationSupportDirectory();
@@ -29,6 +30,7 @@ Future<OpenedOutbox> openPlatformOutbox({
     database,
     owner: owner,
     environmentKey: environmentKey,
+    beforeMutation: beforeMutation,
   );
   return OpenedOutbox(
     const SyncCapability(SyncAvailability.durable),

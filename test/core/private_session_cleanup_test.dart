@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/core/session/private_session_cleanup.dart';
 
@@ -76,5 +77,43 @@ void main() {
     );
     await lateHandle.close();
     expect(called, ['alice', 'late']);
+  });
+
+  test('a stuck owner close times out without permitting purge and can finish on retry', () {
+    fakeAsync((clock) {
+      final cleanup = PrivateSessionCleanup(),
+          gate = Completer<void>(),
+          owner = OwnerUid('stuck-alice');
+      cleanup.registerResource(owner, () => gate.future);
+      Object? failure;
+      var purged = false;
+      unawaited(
+        cleanup
+            .quiesceForDeletion(owner)
+            .then<void>(
+              (_) {
+                purged = true;
+              },
+              onError: (Object error, StackTrace _) {
+                failure = error;
+              },
+            ),
+      );
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 20));
+      clock.flushMicrotasks();
+      expect(failure, isA<TimeoutException>());
+      expect(purged, isFalse);
+      expect(cleanup.isQuiescing(owner), isTrue);
+      gate.complete();
+      clock.flushMicrotasks();
+      unawaited(
+        cleanup.quiesceForDeletion(owner).then<void>((_) {
+          purged = true;
+        }),
+      );
+      clock.flushMicrotasks();
+      expect(purged, isTrue);
+    });
   });
 }

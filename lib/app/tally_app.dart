@@ -10,6 +10,7 @@ import '../features/auth/domain/user_profile.dart';
 import '../features/auth/presentation/auth_providers.dart';
 import '../features/dashboard/presentation/dashboard_providers.dart';
 import '../core/money/currency_code.dart';
+import '../features/accounts/presentation/deletion_recovery_startup.dart';
 
 class TallyApp extends StatelessWidget {
   const TallyApp({super.key});
@@ -37,13 +38,15 @@ class TallyApp extends StatelessWidget {
           }
         });
       }
-      return MaterialApp.router(
-        title: 'Tally — Know what’s due.',
-        debugShowCheckedModeBanner: false,
-        theme: TallyTheme.light(),
-        darkTheme: TallyTheme.dark(),
-        themeMode: ref.watch(themeModeProvider),
-        routerConfig: ref.watch(appRouterProvider),
+      return DeletionRecoveryStartup(
+        child: MaterialApp.router(
+          title: 'Tally — Know what’s due.',
+          debugShowCheckedModeBanner: false,
+          theme: TallyTheme.light(),
+          darkTheme: TallyTheme.dark(),
+          themeMode: ref.watch(themeModeProvider),
+          routerConfig: ref.watch(appRouterProvider),
+        ),
       );
     },
   );

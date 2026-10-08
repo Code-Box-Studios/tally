@@ -55,7 +55,9 @@ final class PrivateSessionCleanup {
 
   Future<void> quiesceForDeletion(OwnerUid owner) async {
     _deleting.add(owner);
-    await prepareSignOut(owner);
+    // Expiry leaves retained closes running and prevents erasure. A later retry
+    // still awaits those same handles instead of forgetting unfinished work.
+    await prepareSignOut(owner).timeout(const Duration(seconds: 20));
   }
 
   Future<void> prepareSignOut(OwnerUid owner) async {

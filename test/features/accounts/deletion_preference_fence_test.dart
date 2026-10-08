@@ -6,6 +6,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:tally/core/identifiers/entity_ids.dart';
 import 'package:tally/features/auth/data/profile_snapshot_store.dart';
+import 'package:tally/features/accounts/data/owner_local_guard.dart';
 import 'package:tally/features/sync/data/outbox_location.dart';
 import 'package:tally/features/sync/data/trusted_device_store.dart';
 
@@ -110,5 +111,19 @@ void main() {
     await trusted.write(owner, environment, true);
     expect((await snapshots.read(owner, environment))!.uid, owner);
     expect(await trusted.read(owner, environment), isTrue);
+  });
+
+  test('a fresh guard cannot reopen a completed owner after the handoff is removed', () async {
+    final owner = OwnerUid('completed-local'),
+        values = SharedPreferencesAsync();
+    await values.setString(markerKey(owner), jsonEncode(marker(owner)));
+    await OwnerLocalGuard().quiesce(owner, environment);
+    await values.remove(markerKey(owner));
+    await expectLater(
+      OwnerLocalGuard().ensureAccessible(owner, environment),
+      throwsA(anything),
+    );
+    await OwnerLocalGuard().ensureAccessible(OwnerUid('bob'), environment);
+    await OwnerLocalGuard().ensureAccessible(owner, 'staging-private');
   });
 }
