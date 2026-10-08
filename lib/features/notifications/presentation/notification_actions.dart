@@ -1,3 +1,7 @@
+import '../../sync/presentation/submission_feedback.dart';
+import '../../sync/data/local_outbox_failure.dart';
+import '../../../shared/domain/financial_failure.dart';
+
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,7 +28,7 @@ class NotificationActions extends AsyncNotifier<void> {
     ref.watch(notificationRepositoryProvider);
   }
 
-  Future<int?> _run(
+  Future<CommandSubmission<int>?> _run(
     String name,
     Object payload,
     Future<int> Function(CommandId) operation,
@@ -42,28 +46,53 @@ class NotificationActions extends AsyncNotifier<void> {
       if (!ref.mounted) return null;
       _attempts.remove(key);
       state = const AsyncData(null);
-      return result;
+      return AcceptedSubmission(result);
+    } on QueuedCommand catch (queued) {
+      if (!ref.mounted ||
+          queued.owner != ref.read(notificationRepositoryProvider).owner) {
+        return null;
+      }
+      state = const AsyncData(null);
+      return QueuedSubmission(queued.owner, queued.commandId);
     } catch (error, stack) {
-      if (ref.mounted) state = AsyncError(financialFailure(error), stack);
+      if (!ref.mounted) return null;
+      final failure = error is LocalOutboxFailure
+          ? error
+          : financialFailure(error);
+      if (failure is FinancialFailure &&
+          const {
+            FinancialFailureCode.conflict,
+            FinancialFailureCode.invalid,
+            FinancialFailureCode.overpayment,
+            FinancialFailureCode.recovery,
+          }.contains(failure.code)) {
+        _attempts.remove(key);
+      }
+      state = AsyncError(failure, stack);
       return null;
     }
   }
 
-  Future<int?> savePreferences(NotificationPreferences preferences) => _run(
+  Future<CommandSubmission<int>?> savePreferences(
+    NotificationPreferences preferences,
+  ) => _run(
     'preferences',
     {'revision': preferences.revision, ...preferences.toPolicyMap()},
     (id) => ref
         .read(notificationRepositoryProvider)
         .updatePreferences(id, preferences),
   );
-  Future<int?> markRead(ReminderEntry entry) => _run(
+  Future<int?> markRead(ReminderEntry entry) async => (await _run(
     'read',
     {'id': entry.id, 'revision': entry.revision},
     (id) => ref
         .read(notificationRepositoryProvider)
         .markRead(id, entry.id, entry.revision),
-  );
-  Future<int?> setPolicy(Obligation parent, ReminderPolicy policy) => _run(
+  ))?.acceptedValue;
+  Future<CommandSubmission<int>?> setPolicy(
+    Obligation parent,
+    ReminderPolicy policy,
+  ) => _run(
     'policy',
     {'id': parent.id.value, 'revision': parent.revision, ...policy.toPayload()},
     (id) => ref

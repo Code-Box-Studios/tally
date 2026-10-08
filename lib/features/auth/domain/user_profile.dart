@@ -36,6 +36,7 @@ final class UserProfile {
     required this.theme,
     required this.onboardingComplete,
     required this.revision,
+    this.isFromCache = false,
   }) {
     if (!TimezoneCatalog.contains(timezone) ||
         revision < 1 ||
@@ -55,6 +56,7 @@ final class UserProfile {
   final ProfileTheme theme;
   final bool onboardingComplete;
   final int revision;
+  final bool isFromCache;
   ProfilePreferences get preferences => ProfilePreferences(
     currency: defaultCurrency,
     timezone: timezone,

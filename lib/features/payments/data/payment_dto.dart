@@ -35,7 +35,9 @@ abstract final class PaymentDto {
     }
     final instance = d.nullableText('obligationInstanceId', max: 128);
     if (instance !=
-        (allocations.length == 1 ? allocations.single.instanceId.value : null)) {
+        (allocations.length == 1
+            ? allocations.single.instanceId.value
+            : null)) {
       throw DocumentReader.invalid();
     }
     final type = d.enumeration('entryType', PaymentEntryType.values);

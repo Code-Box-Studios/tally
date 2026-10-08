@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/firebase/firebase_providers.dart';
+import '../../core/config/environment.dart';
+import '../../core/config/environment_providers.dart';
+import '../../features/sync/presentation/sync_providers.dart';
+import 'owner_gateways.dart';
+export 'owner_gateways.dart';
 import '../../core/identifiers/entity_ids.dart';
 import '../../features/auth/presentation/auth_providers.dart';
 import '../../features/obligations/data/firestore_obligations_repository.dart';
@@ -10,32 +14,32 @@ import '../../features/obligations/domain/obligations_repository.dart';
 import '../../features/payments/data/firestore_payments_repository.dart';
 import '../../features/payments/domain/payment_entry.dart';
 import '../../features/payments/domain/payments_repository.dart';
-import '../data/firebase_owner_gateways.dart';
+
 import '../data/firestore_catalog_repository.dart';
 import '../data/owner_command_gateway.dart';
-import '../data/owner_document_gateway.dart';
+
 import '../domain/catalog.dart';
 import '../domain/catalog_repository.dart';
 import '../domain/data_page.dart';
 
-typedef OwnerDocumentsFactory = OwnerDocumentGateway Function(OwnerUid owner);
-typedef OwnerCommandsFactory = OwnerCommandGateway Function(OwnerUid owner);
-final ownerDocumentsFactoryProvider = Provider<OwnerDocumentsFactory>((ref) {
-  final firestore = ref.watch(firebaseClientsProvider).firestore;
-  return (owner) => FirebaseOwnerDocuments(firestore, owner);
-});
-final ownerCommandsFactoryProvider = Provider<OwnerCommandsFactory>((ref) {
-  final functions = ref.watch(firebaseClientsProvider).functions;
-  return (owner) => FirebaseOwnerCommands(functions, owner);
-});
-final ownerDocumentGatewayProvider = Provider<OwnerDocumentGateway>(
-  (ref) =>
-      ref.watch(ownerDocumentsFactoryProvider)(ref.watch(ownerUidProvider)),
-  dependencies: [ownerUidProvider],
-);
 final ownerCommandGatewayProvider = Provider<OwnerCommandGateway>(
-  (ref) => ref.watch(ownerCommandsFactoryProvider)(ref.watch(ownerUidProvider)),
-  dependencies: [ownerUidProvider],
+  (ref) {
+    final raw = ref.watch(rawOwnerCommandGatewayProvider);
+    if (ref.watch(environmentProvider).mode == AppEnvironment.preview) {
+      return raw;
+    }
+    final owner = ref.watch(ownerUidProvider);
+    return DeferredOwnerCommands(
+      owner,
+      () => ref.read(syncRuntimeProvider.future),
+      () => ref.mounted,
+    );
+  },
+  dependencies: [
+    ownerUidProvider,
+    rawOwnerCommandGatewayProvider,
+    syncRuntimeProvider,
+  ],
 );
 final obligationsRepositoryProvider = Provider<ObligationsRepository>(
   (ref) => FirestoreObligationsRepository(

@@ -19,10 +19,10 @@ import '../domain/attachments_repository.dart';
 final attachmentStorageFactoryProvider =
     Provider<AttachmentStorageGateway Function(OwnerUid)>((ref) {
       final clients = ref.watch(firebaseClientsProvider);
-      final commands = ref.watch(ownerCommandGatewayProvider);
+      final commands = ref.watch(rawOwnerCommandGatewayProvider);
       return (owner) =>
           FirebaseAttachmentStorage(commands, clients.auth, owner);
-    }, dependencies: [ownerCommandGatewayProvider]);
+    }, dependencies: [rawOwnerCommandGatewayProvider]);
 final attachmentPickerFactoryProvider =
     Provider<AttachmentPicker Function(OwnerUid)>((ref) {
       final auth = ref.watch(firebaseClientsProvider).auth;
@@ -55,7 +55,7 @@ final attachmentsRepositoryProvider =
             storage = ref.watch(attachmentStorageFactoryProvider)(owner);
         final repo = FirebaseAttachmentsRepository(
           ref.watch(ownerDocumentGatewayProvider),
-          ref.watch(ownerCommandGatewayProvider),
+          ref.watch(rawOwnerCommandGatewayProvider),
           storage,
         );
         final remove = ref
@@ -71,7 +71,7 @@ final attachmentsRepositoryProvider =
         ownerUidProvider,
         attachmentStorageFactoryProvider,
         ownerDocumentGatewayProvider,
-        ownerCommandGatewayProvider,
+        rawOwnerCommandGatewayProvider,
         privateSessionCleanupProvider,
       ],
     );

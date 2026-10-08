@@ -1,3 +1,6 @@
+import '../../sync/domain/command_submission.dart';
+import '../../sync/data/local_outbox_failure.dart';
+import '../../../shared/data/owner_command_gateway.dart';
 import '../../../core/identifiers/entity_ids.dart';
 import '../../../shared/data/document_reader.dart';
 import '../../../shared/data/financial_failure_mapper.dart';
@@ -29,7 +32,16 @@ final class _InboxCursor implements PageCursor {
 
 final class FirestoreNotificationRepository extends FinancialRepositoryBase
     implements NotificationRepository {
-  FirestoreNotificationRepository(super.documents, super.commands);
+  FirestoreNotificationRepository(
+    super.documents,
+    super.commands, {
+    OwnerCommandGateway? rawCommands,
+  }) : rawCommands = rawCommands ?? commands {
+    if (this.rawCommands.owner != owner) {
+      throw ArgumentError('Private command owners must match.');
+    }
+  }
+  final OwnerCommandGateway rawCommands;
   @override
   Stream<DataPage<ReminderEntry>> watchUpcoming(
     NotificationUpcomingQuery query,
@@ -76,7 +88,7 @@ final class FirestoreNotificationRepository extends FinancialRepositoryBase
     String installationId,
   ) async {
     try {
-      final result = await commands.call(name, id, payload);
+      final result = await rawCommands.call(name, id, payload);
       final device = NotificationDeviceDto.fromMap(
         DocumentReader(result).object('device').data,
         owner,
@@ -129,7 +141,7 @@ final class FirestoreNotificationRepository extends FinancialRepositoryBase
     final cursor = after as _DeviceCursor?;
     try {
       final r = DocumentReader(
-        await commands.call('listNotificationDevices', commandId, {
+        await rawCommands.call('listNotificationDevices', commandId, {
           'limit': query.limit,
           'after': cursor?.after,
         }),
@@ -250,9 +262,11 @@ final class FirestoreNotificationRepository extends FinancialRepositoryBase
     String revision,
   ) async {
     try {
-      final result = await commands.call(name, id, payload);
+      final gateway = name == 'markReminderRead' ? rawCommands : commands;
+      final result = await gateway.call(name, id, payload);
       return DocumentReader(result).integer(revision, min: 1);
     } catch (error) {
+      if (error is QueuedCommand || error is LocalOutboxFailure) rethrow;
       throw financialFailure(error);
     }
   }

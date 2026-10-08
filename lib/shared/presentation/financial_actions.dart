@@ -9,6 +9,9 @@ import '../../features/obligations/domain/obligation_commands.dart';
 import '../../features/obligations/domain/installment_commands.dart';
 import '../../features/payments/domain/payment_commands.dart';
 import '../data/financial_failure_mapper.dart';
+import '../domain/financial_failure.dart';
+import '../../features/sync/domain/command_submission.dart';
+import '../../features/sync/data/local_outbox_failure.dart';
 import '../domain/catalog.dart';
 import 'financial_providers.dart';
 import '../../features/recurring/domain/recurring_commands.dart';
@@ -33,7 +36,7 @@ class FinancialActions extends AsyncNotifier<void> {
     _owner = ref.watch(ownerUidProvider);
   }
 
-  Future<T?> _run<T>(
+  Future<CommandSubmission<T>?> _run<T>(
     String name,
     Map<String, Object?> payload,
     Future<T> Function(CommandId) operation,
@@ -47,67 +50,95 @@ class FinancialActions extends AsyncNotifier<void> {
       if (!ref.mounted) return null;
       _attempts.remove(fingerprint);
       state = const AsyncData(null);
-      return result;
+      return AcceptedSubmission(result);
+    } on QueuedCommand catch (queued) {
+      if (!ref.mounted || queued.owner != _owner) return null;
+      state = const AsyncData(null);
+      return QueuedSubmission(_owner, queued.commandId);
     } catch (error, stack) {
-      if (ref.mounted) state = AsyncError(financialFailure(error), stack);
+      if (!ref.mounted) return null;
+      final failure = error is LocalOutboxFailure
+          ? error
+          : financialFailure(error);
+      if (failure is FinancialFailure &&
+          const {
+            FinancialFailureCode.conflict,
+            FinancialFailureCode.invalid,
+            FinancialFailureCode.overpayment,
+            FinancialFailureCode.recovery,
+          }.contains(failure.code)) {
+        _attempts.remove(fingerprint);
+      }
+      state = AsyncError(failure, stack);
       return null;
     }
   }
 
-  Future<InstallmentResult?> createInstallment(InstallmentDraft draft) => _run(
+  Future<CommandSubmission<InstallmentResult>?> createInstallment(
+    InstallmentDraft draft,
+  ) => _run(
     'createInstallment',
     draft.toPayload(),
     (id) =>
         ref.read(obligationsRepositoryProvider).createInstallment(draft, id),
   );
-  Future<RecurringResult?> createRecurring(RecurringDraft draft) => _run(
+  Future<CommandSubmission<RecurringResult>?> createRecurring(
+    RecurringDraft draft,
+  ) => _run(
     'createRecurring',
     draft.toPayload(),
     (id) => ref.read(recurringRepositoryProvider).create(draft, id),
   );
-  Future<RecurringResult?> editRecurring(RecurringEdit change) => _run(
+  Future<CommandSubmission<RecurringResult>?> editRecurring(
+    RecurringEdit change,
+  ) => _run(
     'editRecurring',
     change.toPayload(),
     (id) => ref.read(recurringRepositoryProvider).edit(change, id),
   );
-  Future<RecurringResult?> changeRecurringLifecycle(LifecycleChange change) =>
-      _run(
-        'changeRecurringLifecycle',
-        change.toPayload(),
-        (id) =>
-            ref.read(recurringRepositoryProvider).changeLifecycle(change, id),
-      );
-  Future<PeriodResult?> setRecurringAmount(InstanceAmountEdit change) => _run(
+  Future<CommandSubmission<RecurringResult>?> changeRecurringLifecycle(
+    LifecycleChange change,
+  ) => _run(
+    'changeRecurringLifecycle',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).changeLifecycle(change, id),
+  );
+  Future<CommandSubmission<PeriodResult>?> setRecurringAmount(
+    InstanceAmountEdit change,
+  ) => _run(
     'setRecurringAmount',
     change.toPayload(),
     (id) => ref.read(recurringRepositoryProvider).setAmount(change, id),
   );
-  Future<PeriodResult?> editRecurringInstance(RecurringInstanceEdit change) =>
-      _run(
-        'editRecurringInstance',
-        change.toPayload(),
-        (id) => ref.read(recurringRepositoryProvider).editPeriod(change, id),
-      );
-  Future<PeriodResult?> skipRecurringInstance(InstanceSkip change) => _run(
+  Future<CommandSubmission<PeriodResult>?> editRecurringInstance(
+    RecurringInstanceEdit change,
+  ) => _run(
+    'editRecurringInstance',
+    change.toPayload(),
+    (id) => ref.read(recurringRepositoryProvider).editPeriod(change, id),
+  );
+  Future<CommandSubmission<PeriodResult>?> skipRecurringInstance(
+    InstanceSkip change,
+  ) => _run(
     'skipRecurringInstance',
     change.toPayload(),
     (id) => ref.read(recurringRepositoryProvider).skip(change, id),
   );
-  Future<DeductionConfirmationResult?> confirmDeduction(
+  Future<CommandSubmission<DeductionConfirmationResult>?> confirmDeduction(
     DeductionConfirmation change,
   ) => _run(
     'confirmDeduction',
     change.toPayload(),
     (id) => ref.read(recurringRepositoryProvider).confirm(change, id),
   );
-  Future<DeductionFailureResult?> reportDeductionFailure(
+  Future<CommandSubmission<DeductionFailureResult>?> reportDeductionFailure(
     DeductionFailure change,
   ) => _run(
     'reportDeductionFailure',
     change.toPayload(),
     (id) => ref.read(recurringRepositoryProvider).reportFailure(change, id),
   );
-  Future<InstallmentResult?> editInstallment(
+  Future<CommandSubmission<InstallmentResult>?> editInstallment(
     ObligationId obligationId,
     int revision,
     InstallmentDraft draft,
@@ -122,7 +153,7 @@ class FinancialActions extends AsyncNotifier<void> {
         .read(obligationsRepositoryProvider)
         .editInstallment(obligationId, revision, draft, id),
   );
-  Future<InstallmentResult?> cancelInstallment(
+  Future<CommandSubmission<InstallmentResult>?> cancelInstallment(
     ObligationId obligationId,
     int revision,
     String reason,
@@ -137,19 +168,21 @@ class FinancialActions extends AsyncNotifier<void> {
         .read(obligationsRepositoryProvider)
         .cancelInstallment(obligationId, revision, reason, id),
   );
-  Future<PaymentResult?> recordInstallmentPayment(
+  Future<CommandSubmission<PaymentResult>?> recordInstallmentPayment(
     InstallmentPaymentDraft draft,
   ) => _run(
     'recordInstallmentPayment',
     draft.toPayload(),
     (id) => ref.read(paymentsRepositoryProvider).recordInstallment(draft, id),
   );
-  Future<ObligationResult?> createObligation(ObligationDraft draft) => _run(
+  Future<CommandSubmission<ObligationResult>?> createObligation(
+    ObligationDraft draft,
+  ) => _run(
     'createObligation',
     draft.toPayload(),
     (id) => ref.read(obligationsRepositoryProvider).create(draft, id),
   );
-  Future<ObligationResult?> editObligation(
+  Future<CommandSubmission<ObligationResult>?> editObligation(
     ObligationId obligationId,
     int revision,
     ObligationDraft draft,
@@ -164,7 +197,7 @@ class FinancialActions extends AsyncNotifier<void> {
         .read(obligationsRepositoryProvider)
         .edit(obligationId, revision, draft, id),
   );
-  Future<ObligationResult?> cancelObligation(
+  Future<CommandSubmission<ObligationResult>?> cancelObligation(
     ObligationId obligationId,
     int revision,
     String reason,
@@ -179,18 +212,20 @@ class FinancialActions extends AsyncNotifier<void> {
         .read(obligationsRepositoryProvider)
         .cancel(obligationId, revision, reason, id),
   );
-  Future<PaymentResult?> recordPayment(PaymentDraft draft) => _run(
-    'recordPayment',
-    draft.toPayload(),
-    (id) => ref.read(paymentsRepositoryProvider).record(draft, id),
-  );
-  Future<CorrectionResult?> correctPayment(PaymentCorrection correction) =>
+  Future<CommandSubmission<PaymentResult>?> recordPayment(PaymentDraft draft) =>
       _run(
-        'correctPayment',
-        correction.toPayload(),
-        (id) => ref.read(paymentsRepositoryProvider).correct(correction, id),
+        'recordPayment',
+        draft.toPayload(),
+        (id) => ref.read(paymentsRepositoryProvider).record(draft, id),
       );
-  Future<CatalogResult<ContactId>?> saveContact(
+  Future<CommandSubmission<CorrectionResult>?> correctPayment(
+    PaymentCorrection correction,
+  ) => _run(
+    'correctPayment',
+    correction.toPayload(),
+    (id) => ref.read(paymentsRepositoryProvider).correct(correction, id),
+  );
+  Future<CommandSubmission<CatalogResult<ContactId>>?> saveContact(
     ContactDraft draft, {
     ContactId? id,
     int? revision,
@@ -201,7 +236,7 @@ class FinancialActions extends AsyncNotifier<void> {
         .read(catalogRepositoryProvider)
         .saveContact(draft, command, id: id, expectedRevision: revision),
   );
-  Future<CatalogResult<SourceId>?> saveSource(
+  Future<CommandSubmission<CatalogResult<SourceId>>?> saveSource(
     SourceDraft draft, {
     SourceId? id,
     int? revision,
@@ -212,7 +247,7 @@ class FinancialActions extends AsyncNotifier<void> {
         .read(catalogRepositoryProvider)
         .saveSource(draft, command, id: id, expectedRevision: revision),
   );
-  Future<CatalogResult<CategoryId>?> saveCategory(
+  Future<CommandSubmission<CatalogResult<CategoryId>>?> saveCategory(
     CategoryDraft draft, {
     CategoryId? id,
     int? revision,

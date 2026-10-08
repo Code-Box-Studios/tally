@@ -1,3 +1,5 @@
+import '../../sync/presentation/submission_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -218,10 +220,15 @@ class _RecurringEditorState extends ConsumerState<RecurringEditor> {
           );
     if (!mounted || ref.read(ownerUidProvider) != _owner) return;
     if (saved != null) {
+      if (handleQueuedSubmission(context, saved, navigate: true)) return;
+      final confirmed = saved.acceptedValue!;
       if (widget.onSaved != null) {
-        widget.onSaved!(saved);
+        widget.onSaved!(confirmed);
       } else {
-        context.go('/obligations/${saved.obligationId.value}');
+        context.go(
+          '/obligations/${confirmed.obligationId.value}',
+          extra: _base == null,
+        );
       }
       return;
     }

@@ -1,3 +1,7 @@
+import 'package:tally/features/sync/presentation/sync_providers.dart';
+
+import '../../support/online_commands.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -53,6 +57,7 @@ void main() {
           ownerDocumentsFactoryProvider.overrideWithValue(
             (owner) => owner.value == 'alice' ? alice : bob,
           ),
+          syncRuntimeFactoryProvider.overrideWithValue(onlineOnlyTestRuntime),
           ownerCommandsFactoryProvider.overrideWithValue(
             (owner) => owner.value == 'alice' ? aliceCommands : bobCommands,
           ),

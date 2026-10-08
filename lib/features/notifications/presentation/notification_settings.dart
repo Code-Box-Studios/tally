@@ -1,5 +1,8 @@
+import '../../sync/presentation/submission_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/page_body.dart';
 import '../../../shared/widgets/error_panel.dart';
@@ -83,7 +86,7 @@ class _NotificationSettingsFormState
   late TextEditingController _offsets, _time, _quietStart, _quietEnd;
   late bool _enabled, _push, _local;
   late Set<ReminderKind> _kinds;
-  bool _dirty = false, _conflict = false, _saved = false;
+  bool _dirty = false, _conflict = false, _saved = false, _queued = false;
   String? _validation;
   @override
   void initState() {
@@ -97,6 +100,7 @@ class _NotificationSettingsFormState
   }
 
   void _load(NotificationPreferences p) {
+    _queued = false;
     _base = p;
     _enabled = widget.obligation?.reminderPolicy?.enabled ?? p.enabled;
     _push = p.pushEnabled;
@@ -188,16 +192,32 @@ class _NotificationSettingsFormState
         ref.read(notificationRepositoryProvider).owner != _base.owner) {
       return;
     }
+    if (result is QueuedSubmission<int>) {
+      setState(() {
+        _pending = null;
+        _dirty = false;
+        _queued = true;
+        _saved = false;
+      });
+      handleQueuedSubmission(
+        context,
+        result,
+        closeDialog: widget.obligation != null,
+      );
+      return;
+    }
+    final confirmed = result?.acceptedValue;
     setState(() {
-      if (result != null) {
+      if (confirmed != null) {
         _base = NotificationPreferences.fromPolicyMap(
           _base.owner,
           _pending!.toPolicyMap(),
-          revision: result,
+          revision: confirmed,
         );
         _pending = null;
         _dirty = false;
         _saved = true;
+        _queued = false;
       } else {
         final error = ref.read(notificationActionsProvider).error;
         final uncertain =
@@ -212,7 +232,7 @@ class _NotificationSettingsFormState
             error.code == FinancialFailureCode.conflict;
       }
     });
-    if (result != null) widget.onSaved?.call();
+    if (confirmed != null) widget.onSaved?.call();
   }
 
   void _changed() {
@@ -226,7 +246,11 @@ class _NotificationSettingsFormState
         changedOwner =
             ref.watch(notificationRepositoryProvider).owner != _base.owner;
     final editable =
-        _pending == null && !_conflict && !action.isLoading && !changedOwner;
+        _pending == null &&
+        !_conflict &&
+        !_queued &&
+        !action.isLoading &&
+        !changedOwner;
     return Form(
       key: _form,
       child: SingleChildScrollView(
@@ -388,6 +412,15 @@ class _NotificationSettingsFormState
               ),
             if (changedOwner)
               const Text('Account changed. Reopen reminder settings.'),
+            if (_queued)
+              const Text(
+                'Waiting to sync. Your confirmed reminder settings stay in effect until this save is accepted.',
+              ),
+            if (_queued && widget.obligation == null)
+              TextButton(
+                onPressed: () => context.go('/settings/sync'),
+                child: const Text('View saved action in Sync'),
+              ),
             if (_saved)
               const Padding(
                 padding: EdgeInsets.only(top: 12),
@@ -404,7 +437,8 @@ class _NotificationSettingsFormState
               alignment: Alignment.centerLeft,
               child: FilledButton(
                 key: const Key('reminder-save'),
-                onPressed: action.isLoading || _conflict || changedOwner
+                onPressed:
+                    action.isLoading || _conflict || _queued || changedOwner
                     ? null
                     : _save,
                 child: Text(

@@ -1,3 +1,7 @@
+import 'package:tally/features/sync/presentation/sync_providers.dart';
+
+import '../../support/online_commands.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,6 +117,7 @@ void main() {
         userProfileProvider.overrideWithValue(profile('alice')),
         financialClockProvider.overrideWithValue(DateTime.utc(2026, 10, 4, 4)),
         ownerDocumentsFactoryProvider.overrideWithValue((_) => docs),
+        syncRuntimeFactoryProvider.overrideWithValue(onlineOnlyTestRuntime),
         ownerCommandsFactoryProvider.overrideWithValue(UpcomingCommands.new),
       ],
     );

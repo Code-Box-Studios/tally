@@ -1,3 +1,7 @@
+import 'package:tally/features/sync/presentation/sync_providers.dart';
+
+import '../../support/online_commands.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -172,6 +176,7 @@ Future<void> host(
         ownerUidProvider.overrideWithValue(docs.owner),
         userProfileProvider.overrideWithValue(profile('alice')),
         ownerDocumentsFactoryProvider.overrideWithValue((_) => docs),
+        syncRuntimeFactoryProvider.overrideWithValue(onlineOnlyTestRuntime),
         ownerCommandsFactoryProvider.overrideWithValue((_) => commands),
       ],
       child: MaterialApp(

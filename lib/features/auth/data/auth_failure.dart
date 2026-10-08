@@ -1,10 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/errors/app_failure.dart';
 
 AppFailure authFailure(Object error) {
   if (error is AppFailure) return error;
-  final code = error is FirebaseException ? error.code : '';
+  // The callable SDK reports a failed HTTP fetch as `internal`. It is an
+  // availability failure, while explicit authorization/schema failures stay final.
+  final code = error is FirebaseFunctionsException && error.code == 'internal'
+      ? 'unavailable'
+      : error is FirebaseException
+      ? error.code
+      : '';
   final message = switch (code) {
     'invalid-email' => 'auth.email',
     'weak-password' => 'auth.password',

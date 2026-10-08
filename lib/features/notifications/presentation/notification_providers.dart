@@ -11,8 +11,13 @@ final notificationRepositoryProvider = Provider<NotificationRepository>(
   (ref) => FirestoreNotificationRepository(
     ref.watch(ownerDocumentGatewayProvider),
     ref.watch(ownerCommandGatewayProvider),
+    rawCommands: ref.watch(rawOwnerCommandGatewayProvider),
   ),
-  dependencies: [ownerDocumentGatewayProvider, ownerCommandGatewayProvider],
+  dependencies: [
+    ownerDocumentGatewayProvider,
+    ownerCommandGatewayProvider,
+    rawOwnerCommandGatewayProvider,
+  ],
 );
 final notificationPreferencesProvider =
     StreamProvider.autoDispose<NotificationPreferences>(

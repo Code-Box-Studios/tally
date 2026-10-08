@@ -30,9 +30,12 @@ final projectedDashboardRepositoryProvider =
     Provider<ProjectedDashboardRepository>(
       (ref) => FirestoreDashboardRepository(
         ref.watch(ownerDocumentGatewayProvider),
-        ref.watch(ownerCommandGatewayProvider),
+        ref.watch(rawOwnerCommandGatewayProvider),
       ),
-      dependencies: [ownerDocumentGatewayProvider, ownerCommandGatewayProvider],
+      dependencies: [
+        ownerDocumentGatewayProvider,
+        rawOwnerCommandGatewayProvider,
+      ],
     );
 final projectedDashboardProvider = StreamProvider.autoDispose
     .family<DataRecord<ProjectedDashboardSummary?>, CurrencyCode>(

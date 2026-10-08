@@ -1,3 +1,7 @@
+import 'package:tally/features/sync/presentation/sync_providers.dart';
+
+import '../support/online_commands.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +55,7 @@ void main() {
             ownerUidProvider.overrideWithValue(docs.owner),
             userProfileProvider.overrideWithValue(profile('alice')),
             ownerDocumentsFactoryProvider.overrideWithValue((_) => docs),
+            syncRuntimeFactoryProvider.overrideWithValue(onlineOnlyTestRuntime),
             ownerCommandsFactoryProvider.overrideWithValue((_) => commands),
           ],
           child: const TallyApp(),

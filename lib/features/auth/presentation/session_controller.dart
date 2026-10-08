@@ -6,13 +6,14 @@ import '../domain/session_state.dart';
 import '../domain/user_profile.dart';
 
 final class SessionController {
-  SessionController(this.auth, this.profiles) {
+  SessionController(this.auth, this.profiles, {this.reportFailure}) {
     _authSubscription = auth.watchIdentity().listen((identity) {
       unawaited(_identityChanged(identity));
     }, onError: (Object error) => _fail(error));
   }
   final AuthRepository auth;
   final ProfileRepository profiles;
+  final void Function(String messageKey)? reportFailure;
   final _changes = StreamController<SessionState>.broadcast(sync: true);
   late final StreamSubscription<AuthIdentity?> _authSubscription;
   StreamSubscription<UserProfile>? _profileSubscription;
@@ -38,18 +39,17 @@ final class SessionController {
     _changes.add(state);
   }
 
-  void _fail(Object error) => _emit(
-    SessionState(
-      SessionStage.failure,
-      failure: error is AppFailure
-          ? error
-          : AppFailure(
-              AppFailureCode.unavailable,
-              messageKey: 'auth.unavailable',
-              retryable: true,
-            ),
-    ),
-  );
+  void _fail(Object error) {
+    final failure = error is AppFailure
+        ? error
+        : AppFailure(
+            AppFailureCode.unavailable,
+            messageKey: 'auth.unavailable',
+            retryable: true,
+          );
+    reportFailure?.call(failure.messageKey);
+    _emit(SessionState(SessionStage.failure, failure: failure));
+  }
 
   Future<void> _identityChanged(
     AuthIdentity? identity, {

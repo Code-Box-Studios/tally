@@ -32,6 +32,9 @@ import '../features/notifications/presentation/reminders_screen.dart';
 import '../features/notifications/presentation/notification_settings.dart';
 import '../features/notifications/presentation/notification_session_providers.dart';
 import '../features/notifications/domain/notification_platform.dart';
+import '../features/sync/presentation/sync_screen.dart';
+import '../features/sync/presentation/sync_session_host.dart';
+import '../features/sync/presentation/pending_obligation_detail.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   SessionRouteGate? gate;
@@ -120,6 +123,7 @@ GoRouter createAppRouter({
                   builder: (_, state) => _entityRoute(
                     () => ObligationDetailScreen(
                       id: ObligationId(state.pathParameters['id']!),
+                      waitingForRecord: state.extra == true,
                       initialPeriod: state.uri.queryParameters['period'] == null
                           ? null
                           : InstanceId(state.uri.queryParameters['period']!),
@@ -181,6 +185,22 @@ GoRouter createAppRouter({
               path: '/settings',
               builder: (_, _) => const SettingsScreen(),
               routes: [
+                GoRoute(
+                  path: 'sync',
+                  builder: (_, _) => const _FinancialRoute(child: SyncScreen()),
+                  routes: [
+                    GoRoute(
+                      path: ':commandId',
+                      builder: (_, state) => _entityRoute(
+                        () => PendingObligationDetail(
+                          commandId: CommandId(
+                            state.pathParameters['commandId']!,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 GoRoute(
                   path: 'reminders',
                   builder: (_, _) => const _FinancialRoute(
@@ -268,7 +288,9 @@ class _PrivateWorkspace extends ConsumerWidget {
         userProfileProvider.overrideWithValue(profile),
       ],
       child: NotificationSessionHost(
-        child: ResponsiveShell(navigationShell: navigationShell),
+        child: SyncSessionHost(
+          child: ResponsiveShell(navigationShell: navigationShell),
+        ),
       ),
     );
   }

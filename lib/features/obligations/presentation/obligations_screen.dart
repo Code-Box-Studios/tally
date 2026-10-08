@@ -20,6 +20,7 @@ import '../domain/obligation.dart';
 import '../domain/obligation_instance.dart';
 import 'add_action_sheet.dart';
 import 'obligation_row.dart';
+import '../../sync/presentation/pending_actions.dart';
 
 class ObligationsScreen extends ConsumerStatefulWidget {
   const ObligationsScreen({
@@ -137,6 +138,7 @@ class _ObligationsScreenState extends ConsumerState<ObligationsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (!preview) ...[const PendingActions(), const SizedBox(height: 20)],
           Wrap(
             spacing: 8,
             runSpacing: 8,

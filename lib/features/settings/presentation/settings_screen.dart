@@ -53,6 +53,13 @@ class SettingsScreen extends ConsumerWidget {
                       'Your obligations and payments stay private to this account.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (profile.isFromCache)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Cached profile settings · reconnect to verify.',
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -74,6 +81,17 @@ class SettingsScreen extends ConsumerWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             const CatalogManager(kind: CatalogEditorKind.source),
+            const SizedBox(height: 24),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.sync),
+                title: const Text('Sync and saved actions'),
+                subtitle: const Text(
+                  'Offline saving, pending changes and sync history.',
+                ),
+                onTap: () => context.go('/settings/sync'),
+              ),
+            ),
             const SizedBox(height: 24),
             Card(
               child: ListTile(

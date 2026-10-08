@@ -1,3 +1,5 @@
+import '../../sync/presentation/submission_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -195,7 +197,8 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
           );
     if (!mounted) return;
     if (result != null) {
-      Navigator.pop(context, result);
+      if (handleQueuedSubmission(context, result, closeDialog: true)) return;
+      Navigator.pop(context, result.acceptedValue);
       return;
     }
     final error = ref.read(financialActionsProvider).error;

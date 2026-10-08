@@ -157,7 +157,10 @@ final class EnvironmentConfig {
         throw _invalidEnvironment();
       }
       options!.validate(id);
-      if(webPushKey?.isNotEmpty==true&&!RegExp(r'^[A-Za-z0-9_-]{87}$').hasMatch(webPushKey!))throw _invalidEnvironment();
+      if (webPushKey?.isNotEmpty == true &&
+          !RegExp(r'^[A-Za-z0-9_-]{87}$').hasMatch(webPushKey!)) {
+        throw _invalidEnvironment();
+      }
       return;
     }
     final id = projectId;

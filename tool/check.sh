@@ -12,3 +12,4 @@ npm run check:functions
 npm run test:emulators
 flutter build web --target lib/main_preview.dart --output=build/web-preview
 flutter build web --target lib/main_dev.dart --output=build/web-emulator
+node tool/prepare_web_offline.mjs build/web-emulator

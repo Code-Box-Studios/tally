@@ -10,9 +10,9 @@ import '../domain/obligation_instance.dart';
 final dueRepositoryProvider = Provider<DueRepository>(
   (ref) => FirestoreDueRepository(
     ref.watch(ownerDocumentGatewayProvider),
-    ref.watch(ownerCommandGatewayProvider),
+    ref.watch(rawOwnerCommandGatewayProvider),
   ),
-  dependencies: [ownerDocumentGatewayProvider, ownerCommandGatewayProvider],
+  dependencies: [ownerDocumentGatewayProvider, rawOwnerCommandGatewayProvider],
 );
 final duePageProvider = StreamProvider.autoDispose
     .family<DataPage<ObligationInstance>, DueQuery>(

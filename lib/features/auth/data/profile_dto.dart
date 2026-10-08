@@ -7,6 +7,7 @@ abstract final class ProfileDto {
   static UserProfile fromMap(
     Map<String, Object?> map, {
     required OwnerUid owner,
+    bool isFromCache = false,
   }) {
     try {
       if (map['userId'] != owner.value ||
@@ -25,6 +26,7 @@ abstract final class ProfileDto {
         theme: ProfileTheme.values.byName(map['themeMode'] as String),
         onboardingComplete: map['onboardingComplete'] as bool,
         revision: map['revision'] as int,
+        isFromCache: isFromCache,
       );
     } catch (_) {
       throw AppFailure(

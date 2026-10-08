@@ -31,9 +31,14 @@ final class FirebaseProfileRepository implements ProfileRepository {
   @override
   Stream<UserProfile> watchProfile(OwnerUid owner) => firestore
       .doc('users/${owner.value}')
-      .snapshots()
+      .snapshots(includeMetadataChanges: true)
+      .where((doc) => doc.exists || !doc.metadata.isFromCache)
       .map((doc) {
-        return ProfileDto.fromMap(doc.data() ?? {}, owner: owner);
+        return ProfileDto.fromMap(
+          doc.data() ?? {},
+          owner: owner,
+          isFromCache: doc.metadata.isFromCache,
+        );
       })
       .handleError((Object error) => throw authFailure(error));
 

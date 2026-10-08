@@ -81,10 +81,10 @@ No single file owns storage, dispatch, financial validation and UI together.
 
 **Consumes:** Task3 submit/queue signals; Task1 submissions; Task2 capability/store streams. **Produces:** `syncEngineProvider`, `outboxStoreProvider`, `rawOwnerCommandGatewayProvider`, UID-scoped pending streams, action methods returning `Future<CommandSubmission<T>?>`, and a Settings Sync route. Repository accepted DTO methods remain unchanged.
 
-- [ ] Write tests: accepted navigates to canonical detail; queued closes with Waiting to sync and displays separate pending history; quota/unsafe storage retains draft with no false saved state; owner switch clears rows/workers; cached/uncached truth, duplicate Save, rejection review and accepted-before-stream states preserve identity. Queue a payment against a new pending finite draft; assert no canonical balance mutation.
-- [ ] Observe RED, then integrate raw/durable providers without cycles. Keep pending amounts out of dashboard/calendar/reminders, use friendly labels, provide trusted web device choice and safe unavailable-storage recovery. Updating a rejected draft produces a new ID while retaining the original.
-- [ ] Verify all widths/themes/200% text and keyboard actions; exact currency separation; attachment/notification network endpoints are never queued. Actual localhost browser disables network, saves a payment, reloads, restores connectivity and sees one canonical payment plus correct remaining amount.
-- [ ] Named whole gate includes full existing suites and actual browser offline/reload/account-switch scenarios. Commit `feat: show pending payments and sync recovery` after GREEN.
+- [x] Write tests: accepted navigates to canonical detail; queued closes with Waiting to sync and displays separate pending history; quota/unsafe storage retains draft with no false saved state; owner switch clears rows/workers; cached/uncached truth, duplicate Save, rejection review and accepted-before-stream states preserve identity. Queue a payment against a new pending finite draft; assert no canonical balance mutation.
+- [x] Observe RED, then integrate raw/durable providers without cycles. Keep pending amounts out of dashboard/calendar/reminders, use friendly labels, provide trusted web device choice and safe unavailable-storage recovery. Updating a rejected draft produces a new ID while retaining the original.
+- [x] Verify all widths/themes/200% text and keyboard actions; exact currency separation; attachment/notification network endpoints are never queued. Actual localhost browser disables network, saves a payment, reloads, restores connectivity and sees one canonical payment plus correct remaining amount.
+- [x] Named whole gate includes full existing suites and actual browser offline/reload/account-switch scenarios. Commit `feat: show pending payments and sync recovery` after GREEN.
 
 ### Task 5: Pending receipts independent of financial saving
 

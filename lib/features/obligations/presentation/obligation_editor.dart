@@ -1,3 +1,5 @@
+import '../../sync/presentation/submission_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,12 +28,14 @@ class ObligationEditor extends ConsumerStatefulWidget {
     this.initial,
     this.direction = ObligationDirection.owedByMe,
     this.onSaved,
+    this.onQueued,
     this.onInstallmentSaved,
     this.initialInstances = const [],
   });
   final Obligation? initial;
   final ObligationDirection direction;
   final ValueChanged<ObligationResult>? onSaved;
+  final ValueChanged<CommandId>? onQueued;
   final ValueChanged<InstallmentResult>? onInstallmentSaved;
   final List<ObligationInstance> initialInstances;
   @override
@@ -153,10 +157,19 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
               installment,
             );
       if (!mounted || saved == null) return;
+      if (handleQueuedSubmission(
+        context,
+        saved,
+        navigate: true,
+        onQueued: widget.onQueued,
+      )) {
+        return;
+      }
+      final confirmed = saved.acceptedValue!;
       if (widget.onInstallmentSaved != null) {
-        widget.onInstallmentSaved!(saved);
+        widget.onInstallmentSaved!(confirmed);
       } else {
-        context.go('/obligations/${saved.id.value}');
+        context.go('/obligations/${confirmed.id.value}', extra: _base == null);
       }
       return;
     }
@@ -164,10 +177,19 @@ class _ObligationEditorState extends ConsumerState<ObligationEditor> {
         ? await actions.createObligation(draft)
         : await actions.editObligation(_base.id, _base.revision, draft);
     if (!mounted || saved == null) return;
+    if (handleQueuedSubmission(
+      context,
+      saved,
+      navigate: true,
+      onQueued: widget.onQueued,
+    )) {
+      return;
+    }
+    final confirmed = saved.acceptedValue!;
     if (widget.onSaved != null) {
-      widget.onSaved!(saved);
+      widget.onSaved!(confirmed);
     } else {
-      context.go('/obligations/${saved.id.value}');
+      context.go('/obligations/${confirmed.id.value}', extra: _base == null);
     }
   }
 

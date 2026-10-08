@@ -21,6 +21,7 @@ import 'recurring_editor.dart';
 import 'recurring_period_editor.dart';
 import 'recurring_period_row.dart';
 import 'recurring_providers.dart';
+import '../../sync/presentation/pending_actions.dart';
 
 String recurringLifecycleLabel(ObligationLifecycle state) => switch (state) {
   ObligationLifecycle.active => 'Active',
@@ -83,6 +84,7 @@ class RecurringDetail extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          PendingActions(resourceKey: 'obligation:${parent.id.value}'),
           if (initialPeriod case final id?) ...[
             Text(
               'Selected billing period',

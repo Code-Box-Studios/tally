@@ -52,6 +52,22 @@ Pin compatible Drift/SQLite package and worker/WASM versions in the lockfile and
 asset manifest. Verify release downloads and their SHA-256 values, serve WASM
 with `application/wasm`, and build the owned worker from the pinned package when
 required. Native and web SQLite tests must exercise the real adapter.
+
+Offline browser reopening also needs the public application shell. Build a
+versioned owned worker that caches only exact public static assets and pinned
+public Firebase SDK modules. It must never cache financial, authentication,
+attachment, callable or notification responses. Preserve the existing FCM
+worker scope and OAuth-compatible headers. A new shell waits for old clients
+to close before activation; QA must verify the controller matches the compiled
+manifest version rather than accidentally checking an older cached application.
+
+Keep a small owner/environment-scoped profile preference snapshot on native and
+on explicitly trusted web devices. Only a protected bootstrap connectivity
+failure may use it, with visible cached provenance. Never fall back after an
+explicit authentication, ownership or profile/schema rejection. Missing
+canonical financial data remains unavailable or updating; it must not become
+fabricated zero totals. Browser retention and an initial online load are still
+required, and clearing device data removes unsent changes and snapshots.
 The maintained documentation supports [native background databases](https://drift.simonbinder.eu/platforms/vm/),
 [web storage detection and worker deployment](https://drift.simonbinder.eu/platforms/web/)
 and the [storage implementation enum](https://pub.dev/documentation/drift/latest/wasm/WasmStorageImplementation.html).

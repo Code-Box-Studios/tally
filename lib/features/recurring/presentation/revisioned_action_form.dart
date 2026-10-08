@@ -1,3 +1,5 @@
+import '../../sync/presentation/submission_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,7 +26,11 @@ class RevisionedActionForm<P> extends ConsumerStatefulWidget {
   final Key saveKey;
   final List<Widget> fields;
   final P Function() payload;
-  final Future<Object?> Function(FinancialActions actions, P payload) submit;
+  final Future<CommandSubmission<Object?>?> Function(
+    FinancialActions actions,
+    P payload,
+  )
+  submit;
   @override
   ConsumerState<RevisionedActionForm<P>> createState() =>
       _RevisionedActionFormState<P>();
@@ -57,7 +63,8 @@ class _RevisionedActionFormState<P>
     );
     if (!mounted || ref.read(ownerUidProvider) != widget.owner) return;
     if (result != null) {
-      Navigator.pop(context, result);
+      if (handleQueuedSubmission(context, result, closeDialog: true)) return;
+      Navigator.pop(context, result.acceptedValue);
       return;
     }
     final error = ref.read(financialActionsProvider).error;

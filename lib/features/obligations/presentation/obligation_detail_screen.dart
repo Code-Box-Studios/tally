@@ -1,3 +1,5 @@
+import '../../sync/presentation/submission_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,6 +28,7 @@ import '../../payments/presentation/payment_correction_editor.dart';
 import '../../payments/presentation/payment_allocations.dart';
 import '../domain/obligation.dart';
 import 'obligation_editor.dart';
+import '../../sync/presentation/pending_payment_rows.dart';
 import 'installment_periods_panel.dart';
 import '../../recurring/presentation/recurring_detail.dart';
 import '../../recurring/presentation/recurring_editor.dart';
@@ -36,10 +39,12 @@ class ObligationDetailScreen extends ConsumerWidget {
     required this.id,
     this.editing = false,
     this.initialPeriod,
+    this.waitingForRecord = false,
   });
   final ObligationId id;
   final bool editing;
   final InstanceId? initialPeriod;
+  final bool waitingForRecord;
   @override
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(obligationProvider(id))
@@ -60,6 +65,13 @@ class ObligationDetailScreen extends ConsumerWidget {
         data: (record) {
           final parent = record.value;
           if (parent == null) {
+            if (waitingForRecord) {
+              return const EmptyState(
+                icon: Icons.cloud_done_outlined,
+                title: 'Saved · updating records',
+                description: 'The server confirmed your save. Your obligation will appear when its records refresh.',
+              );
+            }
             return const EmptyState(
               icon: Icons.search_off,
               title: 'Obligation unavailable',
@@ -251,6 +263,7 @@ class ObligationDetailScreen extends ConsumerWidget {
                   'Payment history',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
+                PendingPaymentRows(resourceKey: 'obligation:${id.value}'),
                 const SizedBox(height: 8),
                 const Text(
                   'Payments remain traceable. Corrections add a reversal and optional replacement.',
@@ -400,7 +413,10 @@ class _CancelDialogState extends ConsumerState<_CancelDialog> {
             widget.parent.revision,
             _reason.text.trim(),
           );
-    if (mounted && result != null) Navigator.pop(context);
+    if (mounted && result != null) {
+      if (handleQueuedSubmission(context, result, closeDialog: true)) return;
+      Navigator.pop(context);
+    }
   }
 
   @override

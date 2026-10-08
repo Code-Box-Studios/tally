@@ -1,3 +1,7 @@
+import 'package:tally/features/sync/presentation/sync_providers.dart';
+
+import '../../support/online_commands.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -187,6 +191,7 @@ Future<void> hostFiles(
           ),
           userProfileProvider.overrideWithValue(profile('alice')),
           ownerDocumentsFactoryProvider.overrideWithValue((_) => docs),
+          syncRuntimeFactoryProvider.overrideWithValue(onlineOnlyTestRuntime),
           ownerCommandsFactoryProvider.overrideWithValue((_) => commands!),
         ],
       ],

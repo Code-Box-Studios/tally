@@ -9,9 +9,9 @@ import '../domain/activity_repository.dart';
 final activityRepositoryProvider = Provider<ActivityRepository>(
   (ref) => FirestoreActivityRepository(
     ref.watch(ownerDocumentGatewayProvider),
-    ref.watch(ownerCommandGatewayProvider),
+    ref.watch(rawOwnerCommandGatewayProvider),
   ),
-  dependencies: [ownerDocumentGatewayProvider, ownerCommandGatewayProvider],
+  dependencies: [ownerDocumentGatewayProvider, rawOwnerCommandGatewayProvider],
 );
 final activityPageProvider =
     StreamProvider.autoDispose<DataPage<ActivityEntry>>(

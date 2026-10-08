@@ -1,3 +1,6 @@
+import '../../features/sync/presentation/submission_feedback.dart';
+import '../../features/sync/domain/command_identity.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,11 +18,13 @@ final class CatalogEditorResult {
     this.contactId,
     this.sourceId,
     this.categoryId,
+    this.waitingToSync = false,
   });
   final String name;
   final ContactId? contactId;
   final SourceId? sourceId;
   final CategoryId? categoryId;
+  final bool waitingToSync;
 }
 
 class CatalogEditor extends ConsumerStatefulWidget {
@@ -123,7 +128,23 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
           revision: widget.contact?.revision,
         );
         if (saved != null) {
-          result = CatalogEditorResult(_name.text.trim(), contactId: saved.id);
+          final queued = saved is QueuedSubmission<Object?>;
+          final item =
+              saved.acceptedValue?.id ??
+              ContactId(
+                widget.contact?.id.value ??
+                    predictedCommandId(
+                      (saved as QueuedSubmission<Object?>).owner,
+                      (saved as QueuedSubmission<Object?>).commandId,
+                      'contact',
+                    ),
+              );
+          result = CatalogEditorResult(
+            '${_name.text.trim()}${queued ? ' · Waiting to sync' : ''}',
+            contactId: item,
+            waitingToSync: queued,
+          );
+          if (mounted) handleQueuedSubmission(context, saved);
         }
       case CatalogEditorKind.source:
         final saved = await actions.saveSource(
@@ -139,7 +160,23 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
           revision: widget.source?.revision,
         );
         if (saved != null) {
-          result = CatalogEditorResult(_name.text.trim(), sourceId: saved.id);
+          final queued = saved is QueuedSubmission<Object?>;
+          final item =
+              saved.acceptedValue?.id ??
+              SourceId(
+                widget.source?.id.value ??
+                    predictedCommandId(
+                      (saved as QueuedSubmission<Object?>).owner,
+                      (saved as QueuedSubmission<Object?>).commandId,
+                      'source',
+                    ),
+              );
+          result = CatalogEditorResult(
+            '${_name.text.trim()}${queued ? ' · Waiting to sync' : ''}',
+            sourceId: item,
+            waitingToSync: queued,
+          );
+          if (mounted) handleQueuedSubmission(context, saved);
         }
       case CatalogEditorKind.category:
         final saved = await actions.saveCategory(
@@ -148,7 +185,23 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
           revision: widget.category?.revision,
         );
         if (saved != null) {
-          result = CatalogEditorResult(_name.text.trim(), categoryId: saved.id);
+          final queued = saved is QueuedSubmission<Object?>;
+          final item =
+              saved.acceptedValue?.id ??
+              CategoryId(
+                widget.category?.id.value ??
+                    predictedCommandId(
+                      (saved as QueuedSubmission<Object?>).owner,
+                      (saved as QueuedSubmission<Object?>).commandId,
+                      'category',
+                    ),
+              );
+          result = CatalogEditorResult(
+            '${_name.text.trim()}${queued ? ' · Waiting to sync' : ''}',
+            categoryId: item,
+            waitingToSync: queued,
+          );
+          if (mounted) handleQueuedSubmission(context, saved);
         }
     }
     if (mounted && result != null) Navigator.pop(context, result);

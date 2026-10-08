@@ -1,3 +1,7 @@
+import 'package:tally/features/sync/presentation/sync_providers.dart';
+
+import 'online_commands.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +64,7 @@ Future<void> recurringHost(
           ),
         ),
         ownerDocumentsFactoryProvider.overrideWithValue((_) => docs),
+        syncRuntimeFactoryProvider.overrideWithValue(onlineOnlyTestRuntime),
         ownerCommandsFactoryProvider.overrideWithValue((_) => commands),
       ],
       child: MaterialApp(

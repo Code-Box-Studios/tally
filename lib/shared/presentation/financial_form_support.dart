@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/dates/local_date.dart';
+import '../../features/sync/data/local_outbox_failure.dart';
 import '../../core/dates/timezone_catalog.dart';
 import '../../core/money/currency_code.dart';
 import '../../core/money/money.dart';
@@ -42,7 +43,9 @@ String? dateValidation(String? text, {bool optional = false}) {
 
 String? requiredText(String? text) =>
     (text ?? '').trim().isEmpty ? 'Enter a name or description.' : null;
-String financialMessage(Object error) => error is FinancialFailure
+String financialMessage(Object error) => error is LocalOutboxFailure
+    ? error.message
+    : error is FinancialFailure
     ? error.message
     : 'Could not confirm this action. Please retry.';
 
