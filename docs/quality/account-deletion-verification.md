@@ -90,7 +90,7 @@ no plain UID, request ID, credential, profile or financial value. Bob and other
 environments remain independent. Root startup attempts accepted cleanup without an
 Auth service, preserves uncertain handoffs, and exposes explicit retry through a
 root-lived controller. Settings confirmation and progress presentation follow in
-Tasks 4–5.
+Task 5.
 
 Tests first reproduced premature handle completion, disposed resource loss,
 swallowed close failures, completed-owner reopening, missing recovery and missing
@@ -106,9 +106,49 @@ passed reload durability, shared dispatch fencing and unchanged payload checks w
 the new connection lock protocol. Live Flutter hot reload succeeded with no runtime
 errors. No production data or real account was used.
 
+## Flutter request and recent authentication
+
+The network-only deletion repository bypasses the financial outbox. Every call
+checks the captured UID before sending the exact protected envelope. Responses
+must have exactly the three owned fields and known status/step values, with
+consistent completion. A valid original-owner response is retained when Auth
+changes while the request is in flight; it authorizes cleanup only for that
+original owner's environment. Malformed responses remain uncertain.
+
+The separate FlutterFire adapter offers linked password and Google providers.
+Password uses `reauthenticateWithCredential`; web Google uses the original user's
+`reauthenticateWithPopup`. Native Google shares ordinary sign-in's single official
+initialization future and obtains a fresh credential. The captured UID is checked
+around each provider await and forced token refresh. Neither client-side Auth
+deletion nor a sign-in fallback runs. Tests use SDK fakes rather than real Google
+accounts; configured-provider and physical-device checks remain release gates.
+
+A retained root provider family owns the original UID, environment and request ID.
+It survives profile-scope disposal and persists uncertainty before mutation. A lost
+response queries protected status or replays that same request ID. Acceptance is
+persisted before local erasure; a storage failure preserves recovery instead of
+claiming the device was cleared. Local completion retains the server's actual
+pending/leased/recovery status, without claiming cloud completion. Replacement
+owners cannot view the original controller state or be signed out by its cleanup.
+Ephemeral password input is consumed before the request and never appears in
+state, handoffs or logs; Dart memory zeroization is not claimed.
+
+Application auth mutations now share a per-FirebaseAuth queue. A behavioral test
+first reproduced Alice's pending sign-out erasing Bob's later sign-in; invocation
+ordering and an owner check inside the queued sign-out prevent that race. External
+SDK and cross-tab identity changes remain subject to UID checks; Firebase does not
+provide a client UID compare-and-swap sign-out contract.
+
+Additional tests first reproduced pre-dispatch mutation after root disposal and
+an initial state observer losing its next event. Disposal now stops new requests
+while an already-dispatched valid acceptance can still finish safely. State
+observation subscribes before delivering the initial snapshot. The complete fresh
+Flutter gate passes 802/802 with clean analysis, formatting and diff checks. Live
+Flutter hot reload succeeds with no runtime errors.
+
 ## Remaining M7a gates
 
-Flutter reauthentication and request control, Settings UI, actual browser journey
+Settings UI, actual browser journey
 and final whole-plan review remain pending. Cloud completion requires a successfully
 finished job. Physical
 devices, deployed providers/App Check, backup/retention behavior and production

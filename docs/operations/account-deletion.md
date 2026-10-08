@@ -158,3 +158,29 @@ must validate deployed App Check, recent email/Google authentication, real Stora
 preconditions and retention, scheduler permissions, leased worker recovery under
 latency, backup policy, native current-device cleanup and operational access.
 Production rollout remains separate from emulator implementation.
+
+## Client request handoff
+
+The root controller is keyed by immutable UID/environment and uses a raw protected
+repository, never the offline financial queue. It persists one uncertain request
+ID before submission. A retry reads authenticated status or replays that same ID.
+An expired or disabled session can prevent acceptance verification after response
+loss; preserve the uncertain handoff and drafts rather than granting anonymous
+status or assuming erasure was authorized.
+
+After a strictly owned response, persist acceptance before current-device cleanup.
+If persistence or cleanup fails, report recovery and retain the original request;
+retry local cleanup without creating another server job. Local success is distinct
+from the returned pending/leased/needsRecovery cloud status. Never describe pending
+cloud work as completed account deletion.
+
+Email and Google reauthentication check the captured UID around each await and
+force token refresh afterward. Refresh alone does not establish recent `auth_time`.
+Passwords and provider credentials stay outside persisted state and logs. Native
+Google uses the same single initialization future as ordinary sign-in.
+
+All application FirebaseAuth mutations share an invocation-order queue. The final
+sign-out rechecks the captured UID inside that queue and cannot erase a later app
+sign-in. Firebase offers no UID compare-and-swap sign-out primitive; external SDK
+or cross-tab identity changes are not claimed to be serialized by this process.
+Another owner never receives the original owner's progress state or cleanup.

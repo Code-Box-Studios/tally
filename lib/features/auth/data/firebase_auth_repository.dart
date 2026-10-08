@@ -1,15 +1,19 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/identifiers/entity_ids.dart';
 import '../domain/auth_repository.dart';
 import 'auth_failure.dart';
+import 'auth_mutation_gate.dart';
+import 'native_google_authentication.dart';
 
 final class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository(this.auth);
+  FirebaseAuthRepository(
+    this.auth, {
+    this.nativeGoogle = const OfficialNativeGoogleAuthentication(),
+  });
   final FirebaseAuth auth;
-  static Future<void>? _nativeGoogleInitialization;
+  final NativeGoogleAuthentication nativeGoogle;
 
   @override
   Stream<AuthIdentity?> watchIdentity() => auth.authStateChanges().map(
@@ -24,7 +28,7 @@ final class FirebaseAuthRepository implements AuthRepository {
 
   Future<void> _guard(Future<void> Function() operation) async {
     try {
-      await operation();
+      await authMutationGate(auth).run(operation);
     } catch (error) {
       throw authFailure(error);
     }
@@ -51,18 +55,8 @@ final class FirebaseAuthRepository implements AuthRepository {
     if (kIsWeb) {
       await auth.signInWithPopup(provider);
     } else {
-      const clientId = String.fromEnvironment('TALLY_GOOGLE_IOS_CLIENT_ID');
-      const serverClientId = String.fromEnvironment(
-        'TALLY_GOOGLE_WEB_CLIENT_ID',
-      );
-      await (_nativeGoogleInitialization ??= GoogleSignIn.instance.initialize(
-        clientId: clientId.isEmpty ? null : clientId,
-        serverClientId: serverClientId.isEmpty ? null : serverClientId,
-      ));
-      final account = await GoogleSignIn.instance.authenticate();
-      final credential = GoogleAuthProvider.credential(
-        idToken: account.authentication.idToken,
-      );
+      await nativeGoogle.initialize();
+      final credential = await nativeGoogle.credential();
       await auth.signInWithCredential(credential);
     }
   });
