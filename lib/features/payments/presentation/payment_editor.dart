@@ -1,4 +1,7 @@
 import '../../sync/presentation/submission_feedback.dart';
+import '../../sync/presentation/pending_receipt_picker.dart';
+import '../../sync/presentation/pending_evidence_providers.dart';
+import '../../attachments/domain/attachment.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +45,8 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
   String _sourceName = 'No source selected';
   PaymentMethod _method = PaymentMethod.cash;
   bool _submitted = false;
+  bool _savingReceipt = false;
+  AttachmentFileInput? _receipt;
   ({PaymentTerms terms, List<PaymentAllocation> allocations, bool spread})?
   _pending;
   InstanceId? _selected;
@@ -178,6 +183,7 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
   }
 
   Future<void> _submitPending() async {
+    if (_savingReceipt) return;
     final pending = _pending!;
     final actions = ref.read(financialActionsProvider.notifier);
     final result = pending.spread
@@ -197,6 +203,18 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
           );
     if (!mounted) return;
     if (result != null) {
+      setState(() => _savingReceipt = true);
+      final receiptError = await keepSubmittedReceipt(
+        ref,
+        result,
+        _receipt,
+        paymentId: result.acceptedValue?.paymentId,
+      );
+      if (!mounted) return;
+      if (receiptError != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(receiptError)));
+      }
       if (handleQueuedSubmission(context, result, closeDialog: true)) return;
       Navigator.pop(context, result.acceptedValue);
       return;
@@ -448,6 +466,7 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
                       counterText: '',
                     ),
                   ),
+                  PendingReceiptPicker(onChanged: (file) => _receipt = file),
                 ],
               ),
             ),
@@ -466,6 +485,7 @@ class _PaymentEditorState extends ConsumerState<PaymentEditor> {
             key: const Key('payment-save'),
             onPressed:
                 action.isLoading ||
+                    _savingReceipt ||
                     (_pending == null && _installments && preview == null)
                 ? null
                 : _save,

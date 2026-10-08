@@ -50,7 +50,7 @@ class FinancialActions extends AsyncNotifier<void> {
       if (!ref.mounted) return null;
       _attempts.remove(fingerprint);
       state = const AsyncData(null);
-      return AcceptedSubmission(result);
+      return AcceptedSubmission(result, owner: _owner, commandId: id);
     } on QueuedCommand catch (queued) {
       if (!ref.mounted || queued.owner != _owner) return null;
       state = const AsyncData(null);

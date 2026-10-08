@@ -5,8 +5,10 @@ sealed class CommandSubmission<T> {
 }
 
 final class AcceptedSubmission<T> extends CommandSubmission<T> {
-  const AcceptedSubmission(this.value);
+  const AcceptedSubmission(this.value, {this.owner, this.commandId});
   final T value;
+  final OwnerUid? owner;
+  final CommandId? commandId;
 }
 
 /// A queued action has no invented canonical record, revision or balance.

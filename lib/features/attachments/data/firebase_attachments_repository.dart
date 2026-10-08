@@ -137,8 +137,9 @@ final class FirebaseAttachmentsRepository extends FinancialRepositoryBase
   @override
   Stream<AttachmentUploadProgress> upload(
     AttachmentReservation reservation,
-    AttachmentFileInput file,
-  ) async* {
+    AttachmentFileInput file, {
+    CommandId? commandId,
+  }) async* {
     _check();
     if (reservation.owner != owner) {
       throw ArgumentError('The file belongs to another owner.');
@@ -154,9 +155,10 @@ final class FirebaseAttachmentsRepository extends FinancialRepositoryBase
     ]);
     final attempt = _uploads.putIfAbsent(
       reservation.id,
-      () => _UploadAttempt(newCommandId(), fingerprint),
+      () => _UploadAttempt(commandId ?? newCommandId(), fingerprint),
     );
-    if (attempt.fingerprint != fingerprint) {
+    if (attempt.fingerprint != fingerprint ||
+        commandId != null && attempt.command != commandId) {
       throw ArgumentError('Retry the originally selected file.');
     }
     yield AttachmentUploadProgress(

@@ -62,6 +62,11 @@ void main() {
     final actions = scope.read(financialActionsProvider.notifier);
     final accepted = await actions.createObligation(draft());
     expect(accepted, isA<AcceptedSubmission<Object?>>());
+    expect(
+      (accepted as AcceptedSubmission<Object?>).commandId,
+      commands.ids.first,
+    );
+    expect((accepted as AcceptedSubmission<Object?>).owner, commands.owner);
     commands.queued = true;
     final queued = await actions.createObligation(draft());
     expect(queued, isA<QueuedSubmission<Object?>>());

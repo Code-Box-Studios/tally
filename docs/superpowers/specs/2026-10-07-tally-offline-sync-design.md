@@ -189,7 +189,13 @@ requires reselection after reload.
 After a payment is accepted, a separate evidence coordinator uses its canonical
 payment ID and the existing private attachment services. Persist stable reservation
 and upload command IDs before transport so native restart can reconcile those
-steps. An attachment failure never replays a new financial payment or changes its
+steps. A saved receipt attempt keeps its IDs through retry, reselection and restart.
+Explicitly removing its local copy and selecting the file again starts a new
+evidence attempt, so an expired or removed reservation cannot trap the same file.
+Evidence metadata version2 persists that attempt identity; version1 retains its
+original file and retry IDs. Only fresh server publication metadata may remove
+the pending private copy; cache-only terminal states wait for confirmation.
+An attachment failure never replays a new financial payment or changes its
 amount. Verify the copied bytes before upload, stop on owner disposal, retain
 actionable evidence failures, and remove private local files only after successful
 publication or explicit cancellation. M7 protected account deletion removes the

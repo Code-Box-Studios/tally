@@ -199,6 +199,29 @@ void main() {
       throwsA(isA<FinancialFailure>()),
     );
   });
+  test('an explicit upload identity survives repository disposal after a lost response', () async {
+    final commands = FileCommands(owner)..loseUpload = true;
+    final id = CommandId('persisted-receipt-upload');
+    final first = FirebaseAttachmentsRepository(
+      FileDocuments(owner),
+      commands,
+      FileStorage(owner),
+    );
+    await expectLater(
+      first.upload(reservation(owner), selected(), commandId: id).toList(),
+      throwsA(isA<FinancialFailure>()),
+    );
+    await first.dispose();
+    final next = FirebaseAttachmentsRepository(
+      FileDocuments(owner),
+      commands,
+      FileStorage(owner),
+    );
+    await next.upload(reservation(owner), selected(), commandId: id).toList();
+    expect(commands.calls.map((call) => call.$2), [id, id]);
+    expect(commands.calls.first.$3, commands.calls.last.$3);
+    await next.dispose();
+  });
   test('upload retries reconcile the same frozen command and bytes after a lost response', () async {
     final commands = FileCommands(owner)..loseUpload = true,
         repo = FirebaseAttachmentsRepository(

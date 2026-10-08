@@ -16,11 +16,23 @@ function browser(script) {
   if (result.status !== 0) throw Error(result.stderr || result.stdout);
   return result.stdout.trim();
 }
+function openOwnedPage() {
+  const opened=spawnSync('npx',['-y','chrome-devtools-axi','newpage',origin],{encoding:'utf8',env});
+  if(opened.status!==0&&!String(opened.stderr||opened.stdout).includes('No page is currently selected'))throw Error(opened.stderr||opened.stdout);
+  // The bridge can create a tab but lose its selection after the prior selected
+  // client closes. Select only the newly owned compiled-QA origin explicitly.
+  const listed=spawnSync('npx',['-y','chrome-devtools-axi','pages'],{encoding:'utf8',env});
+  if(listed.status!==0)throw Error(listed.stderr||listed.stdout);
+  const ids=[...listed.stdout.matchAll(/^\s*(\d+),http:\/\/localhost:7364\/[^,]*,/gm)].map(match=>Number(match[1]));
+  if(!ids.length)throw Error('No owned compiled-QA tab was created.');
+  const selected=spawnSync('npx',['-y','chrome-devtools-axi','selectpage',String(Math.max(...ids))],{encoding:'utf8',env});
+  if(selected.status!==0)throw Error(selected.stderr||selected.stdout);
+}
 const helpers = `
 await page.eval(() => {
  document.querySelector('[aria-label="Enable accessibility"]')?.click();
  const label=e=>(e.getAttribute('aria-label')||e.textContent||'').replace(/\\s+/g,' ').trim();
- window.__qaAction=text=>[...document.querySelectorAll('[role="button"],[role="menuitem"],[role="tab"],[role="switch"],button')].find(e=>label(e)===text||label(e).startsWith(text+' Tab '));
+ window.__qaAction=text=>[...document.querySelectorAll('[role="button"],[role="menuitem"],[role="tab"],[role="switch"],[role="checkbox"],button')].find(e=>label(e)===text||label(e).startsWith(text+' Tab '));
  window.__qaText=()=>[...document.querySelectorAll('[aria-label],flt-semantics')].map(label).join(' ');
  window.__qaWait=async text=>{for(let i=0;i<150;i++){document.querySelector('[aria-label="Enable accessibility"]')?.click();if(window.__qaText().includes(text))return;await new Promise(r=>setTimeout(r,200));}throw Error('Missing content: '+text);};
  window.__qaClick=text=>{const e=window.__qaAction(text);if(!e)throw Error('Missing action: '+text);e.click();};
@@ -38,6 +50,8 @@ async function offline(value) {
 
 const mode = process.argv[2];
 if (mode === '--setup') {
+  const compiledVersion=readFileSync('build/web-emulator/index.html','utf8').match(/<meta name="tally-shell-version" content="([a-f0-9]{64})"/)?.[1];
+  if(!compiledVersion)throw Error('Compiled offline shell version is missing.');
   // Closing owned compiled-QA clients allows a waiting app-shell revision to
   // activate. No user browser tab or other localhost application is closed.
   const listed=spawnSync('npx',['-y','chrome-devtools-axi','pages'],{encoding:'utf8',env});
@@ -46,16 +60,17 @@ if (mode === '--setup') {
     const match=line.match(/^\s*(\d+),(http:\/\/localhost:7364\/[^,]*),/);
     if(match) {const closed=spawnSync('npx',['-y','chrome-devtools-axi','closepage',match[1]],{encoding:'utf8',env});if(closed.status!==0)throw Error(closed.stderr||closed.stdout);}
   }
-  const opened=spawnSync('npx',['-y','chrome-devtools-axi','newpage',origin],{encoding:'utf8',env});
-  if(opened.status!==0)throw Error(opened.stderr||opened.stdout);
+  openOwnedPage();
+  await offline(false);
   for(let attempt=0;attempt<3;attempt++) {
     const status=JSON.parse(browser(`await page.wait(1200);console.log(JSON.stringify(await page.eval(async()=>({expected:document.querySelector('meta[name=\"tally-shell-version\"]')?.content,actual:navigator.serviceWorker.controller?new URL(navigator.serviceWorker.controller.scriptURL).searchParams.get('v'):null,waiting:!!(await navigator.serviceWorker.getRegistration())?.waiting}))));`));
-    if(status.expected&&status.actual===status.expected)break;
+    if(status.expected===compiledVersion&&status.actual===compiledVersion)break;
     if(attempt===2)throw Error('Compiled QA client still uses an older app shell.');
     browser('await page.wait(1500);');
     const tabs=spawnSync('npx',['-y','chrome-devtools-axi','pages'],{encoding:'utf8',env});
     for(const line of tabs.stdout.split('\n')) {const match=line.match(/^\s*(\d+),(http:\/\/localhost:7364\/[^,]*),/);if(match)spawnSync('npx',['-y','chrome-devtools-axi','closepage',match[1]],{encoding:'utf8',env});}
-    const reopen=spawnSync('npx',['-y','chrome-devtools-axi','newpage',origin],{encoding:'utf8',env});if(reopen.status!==0)throw Error(reopen.stderr||reopen.stdout);
+    openOwnedPage();
+    await offline(false);
   }
   const fixture = JSON.parse(browser(`
 await page.open(${JSON.stringify(origin)}); await page.wait(1200);
@@ -109,7 +124,8 @@ if(await page.eval(()=>window.__qaText().includes('PHP 700.00')))throw Error('Pe
   console.log(JSON.stringify({offlineSaved:true,canonicalPayments:0}));
 } else if (mode === '--reload-offline') {
   await offline(true);
-  browser(`await page.open(${JSON.stringify(origin)}); await page.wait(2000); ${helpers}
+  browser(`await page.eval(()=>{window.__qaColdReloadMarker=true;location.reload();}); await page.wait(2000); ${helpers}
+if(await page.eval(()=>Boolean(window.__qaColdReloadMarker)||performance.getEntriesByType('navigation')[0]?.type!=='reload'))throw Error('Offline test did not perform a full document reload');
 if(!await page.eval(async()=>{try{await fetch('/tally-offline-network-probe-'+crypto.randomUUID(),{cache:'no-store'});return false;}catch(_){return true;}}))throw Error('Reload allowed an actual uncached network request');
 await page.eval(()=>{location.hash='/home';});await page.eval(()=>window.__qaWait('Your money, at a glance.'));
 if(await page.eval(()=>/PHP 0\\.00|₱0\\.00/.test(window.__qaText())))throw Error('An uncached offline overview fabricated zero financial totals.');
@@ -126,6 +142,37 @@ if(!await page.eval(()=>window.__qaText().includes('PHP')))throw Error('Reload l
   for (let i = 0; i < 60; i++) {payments = await db.collection('users/'+fixture.uid+'/payments').get();parent = (await db.doc('users/'+fixture.uid+'/obligations/'+fixture.obligationId).get()).data();if(payments.size === 1 && parent.remainingMinor === 70000)break;await new Promise(r=>setTimeout(r,200));}
   if(payments.size !== 1 || payments.docs[0].data().amountMinor !== 30000 || parent.remainingMinor !== 70000)throw Error('Reconnection did not produce exactly one valid payment and correct balance.');
   console.log(JSON.stringify({oneCanonicalPayment:true,remainingMinor:70000}));
+} else if (mode === '--receipt-check') {
+  const fixture=JSON.parse(readFileSync(fixturePath,'utf8'));
+  browser(`${helpers}
+await page.eval(()=>{location.hash='/settings/sync';});await page.eval(()=>window.__qaWait('Saved actions'));
+await page.eval(()=>window.__qaClick('Waiting to sync'));await page.eval(()=>window.__qaWait('No changes waiting on this device'));
+await page.eval(()=>window.__qaClick('History'));await page.eval(()=>window.__qaWait('Confirmed'));
+await page.eval(()=>{const card=[...document.querySelectorAll('[role="button"]')].find(e=>{const label=e.getAttribute('aria-label')||e.textContent||'';return label.includes('Payment')&&label.includes('Confirmed');});if(!card)throw Error('Confirmed local payment history is missing');card.click();});
+await page.eval(()=>window.__qaWait('Choose receipt'));
+`);
+  await offline(true);
+  browser(`${helpers}
+// The automation bridge cancels OS chooser dialogs. Supply a real synthetic
+// browser File through the official plugin's input/change boundary, keeping its
+// owner checks, hashing, Blob cleanup, SQLite storage and SDK transport real.
+await page.eval(()=>{window.__qaOriginalFileClick=HTMLInputElement.prototype.click;HTMLInputElement.prototype.click=function(){if(this.type==='file'){window.__qaReceiptInput=this;return;}return window.__qaOriginalFileClick.call(this);};window.__qaAction('Choose receipt').id='qa-choose-receipt';});
+await page.click('#qa-choose-receipt');
+await page.eval(async()=>{try{for(let i=0;i<50&&!window.__qaReceiptInput;i++)await new Promise(r=>setTimeout(r,100));const input=window.__qaReceiptInput;if(!input||!input.isConnected)throw Error('Official file-selector input is missing');const data=new DataTransfer();data.items.add(new File([new Uint8Array([1,2,3])],'offline-receipt-failure.png',{type:'image/png'}));input.files=data.files;input.dispatchEvent(new Event('change',{bubbles:true}));}finally{HTMLInputElement.prototype.click=window.__qaOriginalFileClick;delete window.__qaOriginalFileClick;delete window.__qaReceiptInput;}});
+await page.eval(()=>window.__qaWait('Receipt needs review'));
+`);
+  const payments=await db.collection('users/'+fixture.uid+'/payments').get();
+  const parent=(await db.doc('users/'+fixture.uid+'/obligations/'+fixture.obligationId).get()).data();
+  const receipts=await db.collection('users/'+fixture.uid+'/attachments').get();
+  if(payments.size!==1||parent.remainingMinor!==70000||receipts.size!==0)throw Error('An offline receipt failure changed the payment or published an unconfirmed receipt.');
+  browser(`await page.eval(()=>{window.__qaColdReloadMarker=true;location.reload();});await page.wait(2000);${helpers}
+if(await page.eval(()=>Boolean(window.__qaColdReloadMarker)||performance.getEntriesByType('navigation')[0]?.type!=='reload'))throw Error('Receipt test did not perform a full document reload');
+await page.eval(()=>{location.hash='/settings/sync';});
+await page.eval(()=>window.__qaWait('offline-receipt-failure.png'));await page.eval(()=>window.__qaWait('file is unavailable on this device'));
+if(await page.eval(()=>window.__qaText().includes('Receipt is published')))throw Error('Browser reload fabricated receipt publication.');
+`);
+  await offline(false);
+  console.log(JSON.stringify({receiptUploadUnconfirmed:true,oneCanonicalPayment:true,remainingMinor:70000,webReloadRequiresReselection:true}));
 } else if (mode === '--owner-switch') {
   const fixture=JSON.parse(readFileSync(fixturePath,'utf8'));
   browser(`${helpers} await page.eval(()=>{location.hash='/obligations/${fixture.obligationId}';});await page.eval(()=>window.__qaWait('Record payment'));`);
@@ -143,7 +190,7 @@ await page.click('input[aria-label=\"Email\"]');await page.wait(300);await page.
 await page.click('input[aria-label=\"Password\"]');await page.wait(300);await page.type(await page.eval(()=>window.__qaBob.password));
 await page.eval(()=>window.__qaClick('Create account'));await page.eval(()=>window.__qaWait('Start using Tally'));await page.eval(()=>window.__qaClick('Start using Tally'));await page.eval(()=>window.__qaWait('Home'));
 await page.eval(()=>{location.hash='/settings/sync';});await page.eval(()=>window.__qaWait('No changes waiting on this device'));
-if(await page.eval(()=>window.__qaText().includes('Offline sync verification')))throw Error('Previous owner record visible.');
+if(await page.eval(()=>window.__qaText().includes('Offline sync verification')||window.__qaText().includes('offline-receipt-failure.png')))throw Error('Previous owner record or receipt visible.');
 `);
   await new Promise(r=>setTimeout(r,1200));
   const after=await db.collection('users/'+fixture.uid+'/payments').get();if(after.size!==1)throw Error('Another owner dispatched the previous owner’s pending payment.');

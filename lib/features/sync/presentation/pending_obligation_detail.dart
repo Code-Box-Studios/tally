@@ -22,6 +22,9 @@ import '../domain/outbox_entry.dart';
 import 'pending_actions.dart';
 import 'pending_actions_controller.dart';
 import 'pending_payment_rows.dart';
+import 'pending_receipt_picker.dart';
+import 'pending_evidence_providers.dart';
+import '../../attachments/domain/attachment.dart';
 import 'submission_feedback.dart';
 import 'sync_providers.dart';
 
@@ -168,6 +171,12 @@ class PendingObligationDetail extends ConsumerWidget {
                 FinancialActionError(error: action.error),
                 const SizedBox(height: 24),
                 PendingPaymentRows(resourceKey: entry.command.resourceKey),
+                if ({
+                  CommandName.recordPayment,
+                  CommandName.recordInstallmentPayment,
+                  CommandName.confirmDeduction,
+                }.contains(entry.command.name))
+                  PendingReceiptPanel(commandId: commandId),
               ],
             );
           },
@@ -189,6 +198,8 @@ class _PendingFinitePaymentState extends ConsumerState<_PendingFinitePayment> {
   late final TextEditingController _date;
   PaymentDraft? _pending;
   Object? _validation;
+  bool _savingReceipt = false;
+  AttachmentFileInput? _receipt;
   CurrencyCode get currency =>
       CurrencyCode.parse(widget.parent.payload['currency'] as String);
   @override
@@ -208,6 +219,7 @@ class _PendingFinitePaymentState extends ConsumerState<_PendingFinitePayment> {
   }
 
   Future<void> _save() async {
+    if (_savingReceipt) return;
     if (ref.read(ownerUidProvider) != widget.parent.owner) return;
     if (_pending == null) {
       if (!_form.currentState!.validate()) return;
@@ -245,6 +257,18 @@ class _PendingFinitePaymentState extends ConsumerState<_PendingFinitePayment> {
         .recordPayment(_pending!);
     if (!mounted) return;
     if (result != null) {
+      setState(() => _savingReceipt = true);
+      final receiptError = await keepSubmittedReceipt(
+        ref,
+        result,
+        _receipt,
+        paymentId: result.acceptedValue?.paymentId,
+      );
+      if (!mounted) return;
+      if (receiptError != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(receiptError)));
+      }
       if (handleQueuedSubmission(context, result, closeDialog: true)) return;
       Navigator.pop(context, result.acceptedValue);
       return;
@@ -309,9 +333,10 @@ class _PendingFinitePaymentState extends ConsumerState<_PendingFinitePayment> {
             decoration: const InputDecoration(labelText: 'Notes'),
           ),
           FinancialActionError(error: _validation ?? action.error),
+          PendingReceiptPicker(onChanged: (file) => _receipt = file),
           FilledButton(
             key: const Key('pending-payment-save'),
-            onPressed: action.isLoading ? null : _save,
+            onPressed: action.isLoading || _savingReceipt ? null : _save,
             child: Text(
               action.isLoading
                   ? 'Saving…'

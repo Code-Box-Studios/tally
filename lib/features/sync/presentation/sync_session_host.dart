@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/sync_engine.dart';
 import 'sync_online_events.dart';
 import 'sync_providers.dart';
+import 'pending_evidence_providers.dart';
 
 final syncOnlineEventsProvider = Provider<Stream<void>>(
   (_) => syncOnlineEvents(),
@@ -34,6 +35,20 @@ class _SyncSessionHostState extends ConsumerState<SyncSessionHost>
     if (!mounted) return;
     final engine = ref.read(syncEngineProvider);
     if (engine != null) unawaited(engine.flush().catchError((Object _) {}));
+    _wakeReceipts();
+  }
+
+  void _wakeReceipts() {
+    if (!mounted ||
+        (ref.read(pendingEvidenceProvider).asData?.value.isEmpty ?? true)) {
+      return;
+    }
+    unawaited(
+      ref
+          .read(pendingEvidenceCoordinatorProvider.future)
+          .then((coordinator) => coordinator.reconcile())
+          .catchError((Object _) {}),
+    );
   }
 
   @override
@@ -50,6 +65,10 @@ class _SyncSessionHostState extends ConsumerState<SyncSessionHost>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(pendingEvidenceProvider, (_, next) {
+      if (next.asData?.value.isNotEmpty == true) _wakeReceipts();
+    });
+    ref.listen(pendingActionsProvider, (_, _) => _wakeReceipts());
     final engine = ref.watch(syncEngineProvider);
     if (engine != null && !identical(engine, _started)) {
       _started = engine;

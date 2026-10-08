@@ -11,6 +11,7 @@ import '../domain/outbox_entry.dart';
 import '../domain/sync_capability.dart';
 import 'pending_actions.dart';
 import 'sync_providers.dart';
+import 'pending_receipt_picker.dart';
 
 String syncCapabilityMessage(
   SyncCapability capability,
@@ -168,6 +169,7 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          const PendingReceipts(),
           if (_history && runtime.value?.store != null)
             const _SyncHistory()
           else

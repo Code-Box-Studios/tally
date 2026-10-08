@@ -92,10 +92,10 @@ No single file owns storage, dispatch, financial validation and UI together.
 
 **Consumes:** Task3 accepted result identity, Task2 local transaction/store and existing M6a AttachmentPicker/AttachmentsRepository. **Produces:** `PendingEvidenceStore` with owner-bound persist/read/remove/close, `PendingEvidenceCoordinator` that reserves/uploads only after accepted payment, stable persisted reservation/upload IDs and metadata, and truthful native-durable/web-reselection capabilities.
 
-- [ ] Write RED: native receipt survives close/reopen with checksum; unsafe/copy/quota failure leaves payment queued/accepted intact;10-file/100 MiB caps; edited/missing bytes fail visibly; owner switch cannot upload; lost reserve/upload response retries identical evidence IDs; server rejection preserves local file; explicit cancellation removes only its file; web reload requires reselection without pretending publication.
-- [ ] Implement atomic private file writes/rename and separate evidence metadata; preserve canonical payment history and existing attachment ownership/token/generation fences. No financial command is rewritten or repeated because a file failed.
-- [ ] Verify native IO contract honestly as IO evidence; actual browser receipt failure after accepted/offline payment keeps one payment and original balance. Physical device restart/export remains M7.
-- [ ] Named whole existing suites plus receipt scenarios must pass. Commit `feat: preserve pending receipts without changing payments` after GREEN.
+- [x] Write RED: native receipt survives close/reopen with checksum; unsafe/copy/quota failure leaves payment queued/accepted intact;10-file/100 MiB caps; edited/missing bytes fail visibly; owner switch cannot upload; lost reserve/upload response retries identical evidence IDs; server rejection preserves local file; explicit cancellation removes only its file; web reload requires reselection without pretending publication.
+- [x] Implement atomic private file writes/rename and separate evidence metadata; preserve canonical payment history and existing attachment ownership/token/generation fences. No financial command is rewritten or repeated because a file failed.
+- [x] Verify native IO contract honestly as IO evidence; actual browser receipt failure after accepted/offline payment keeps one payment and original balance. Physical device restart/export remains M7.
+- [x] Named whole existing suites plus receipt scenarios must pass. Commit `feat: preserve pending receipts without changing payments` after GREEN.
 
 ### Task 6: End-to-end evidence and whole-plan handoff
 

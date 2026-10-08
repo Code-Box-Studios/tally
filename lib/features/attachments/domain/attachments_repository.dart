@@ -15,8 +15,9 @@ abstract interface class AttachmentsRepository {
   );
   Stream<AttachmentUploadProgress> upload(
     AttachmentReservation reservation,
-    AttachmentFileInput file,
-  );
+    AttachmentFileInput file, {
+    CommandId? commandId,
+  });
   Future<AttachmentBytes> download(AttachmentId id);
   Future<int> remove(
     CommandId command,

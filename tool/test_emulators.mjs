@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {emulatorSuitePlan} from './emulator_suite_plan.mjs';
 
 const firebase=fileURLToPath(new URL('../node_modules/firebase-tools/lib/bin/firebase.js',import.meta.url));
 const nodePath=process.execPath;
@@ -13,5 +14,6 @@ async function run(mode,command) {
 }
 // Actual Firestore triggers and deterministic financial race tests each need
 // their own fresh demo data. Production never honors manual emulator mode.
-await run('automatic','node --test firebase/prompt-tests/*.test.mjs');
-await run('manual','node --test --test-concurrency=1 firebase/rules-tests/*.test.mjs firebase/emulator-tests/*.test.mjs');
+for(const suite of emulatorSuitePlan(fileURLToPath(new URL('../',import.meta.url)))) {
+  await run(suite.mode,`node --test --test-concurrency=1 ${suite.files.join(' ')}`);
+}

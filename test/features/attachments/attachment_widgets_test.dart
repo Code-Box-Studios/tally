@@ -100,8 +100,9 @@ class WidgetFiles implements AttachmentsRepository {
   @override
   Stream<AttachmentUploadProgress> upload(
     AttachmentReservation reservation,
-    AttachmentFileInput file,
-  ) async* {
+    AttachmentFileInput file, {
+    CommandId? commandId,
+  }) async* {
     yield AttachmentUploadProgress(
       id: reservation.id,
       state: AttachmentUploadState.uploading,
