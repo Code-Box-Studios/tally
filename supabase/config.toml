@@ -416,6 +416,8 @@ enabled = true
 
 [functions.tally-api]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.tally-worker]
 verify_jwt = false
+import_map = "./functions/deno.json"
