@@ -6,7 +6,17 @@
   },
   "scripts": {
     "check:functions": "npm --prefix functions run check",
-    "test:emulators": "npm --prefix functions run build && node tool/test_emulators.mjs"
+    "test:emulators": "npm --prefix functions run build && node tool/test_emulators.mjs",
+    "start": "npm --prefix apps/tally start",
+    "start:local": "python3 tool/run_expo_local.py",
+    "web": "npm --prefix apps/tally run web",
+    "android": "npm --prefix apps/tally run android",
+    "ios": "npm --prefix apps/tally run ios",
+    "test": "npm --prefix apps/tally test",
+    "typecheck": "npm --prefix apps/tally run typecheck",
+    "lint": "npm --prefix apps/tally run lint",
+    "build:web": "node tool/build_expo_web.mjs",
+    "install:app": "npm --prefix apps/tally ci"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.2",

@@ -1,4 +1,4 @@
-name: Tally foundation
+name: Tally validation
 on:
   push:
   pull_request:
@@ -9,7 +9,24 @@ concurrency:
   group: tally-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  foundation:
+  expo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.23.3'
+          cache: npm
+          cache-dependency-path: apps/tally/package-lock.json
+      - run: npm --prefix apps/tally ci
+      - run: tool/check_expo.sh
+      - run: npx expo export --platform all
+        working-directory: apps/tally
+      - run: node tool/prepare_expo_web.mjs
+  supabase:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -19,35 +36,29 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22.23.3'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            functions/package-lock.json
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with:
-          flutter-version: '3.47.6'
-          channel: stable
-          cache: true
-      - run: flutter pub get --enforce-lockfile
-      - run: npm ci && npm --prefix functions ci
-      - run: tool/check.sh
-      - run: flutter build apk --debug --target lib/main_preview.dart
-  ios-build:
-    runs-on: macos-15
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with:
-          flutter-version: '3.47.6'
-          channel: stable
-          cache: true
-      - run: flutter pub get --enforce-lockfile
-      - run: flutter test
-      - run: flutter build ios --debug --no-codesign --target lib/main_preview.dart
+      - run: npm install --no-save --package-lock=false supabase@2.120.0 deno@2.9.6
+      - run: |
+          echo "TALLY_SUPABASE_CLI=$PWD/node_modules/.bin/supabase" >> "$GITHUB_ENV"
+      - run: python3 tool/start_supabase_local.py
+      - run: npx supabase test db
+      - run: npx supabase db advisors --local --type security --level warn --fail-on error
+      - run: npx deno check --config supabase/functions/deno.json supabase/functions/tally-api/index.ts supabase/functions/tally-worker/index.ts
+      - run: npx deno test --config supabase/functions/deno.json --allow-read=firebase/fixtures supabase/tests/functions
+      - run: |
+          npx supabase functions serve tally-api --no-verify-jwt > "$RUNNER_TEMP/tally-edge.log" 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request, urllib.error
+          for attempt in range(30):
+              try:
+                  request=urllib.request.Request('http://127.0.0.1:56321/functions/v1/tally-api',method='OPTIONS')
+                  if urllib.request.urlopen(request,timeout=5).status==204: break
+              except (urllib.error.URLError, TimeoutError): time.sleep(1)
+          else: raise RuntimeError('Local Edge worker did not start.')
+          PY
+      - run: python3 tool/test_supabase_financial.py
+      - run: python3 tool/test_supabase_recurring.py
+      - run: python3 tool/test_supabase_devices.py
+      - run: python3 tool/test_supabase_files.py
+      - run: python3 tool/test_supabase_recurring_after_payment.py
+      - if: always()
+        run: npx supabase stop --no-backup
