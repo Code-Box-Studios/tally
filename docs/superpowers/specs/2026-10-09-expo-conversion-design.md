@@ -25,3 +25,22 @@ Root development commands launch Expo; Flutter sources remain preserved as migra
 ## Acceptance
 
 The Expo app runs on web and exports successfully; iOS/Android use one managed source tree. All existing product sections have working forms and backend-backed reads/actions. Automated tests cover exact money, currency separation, date semantics, owner isolation, immutable retry payloads, offline restart/replay, and payment corrections. One final independent review checks ownership and feature parity.
+
+## Execution decisions and verification
+
+- Execute the approved full conversion inline on main without further approval questions, as explicitly requested. Cost if wrong: reversible frontend migration work.
+- Expo lives in apps/tally so generated native projects cannot overwrite preserved Flutter native files or prior work. Root commands make Expo primary. Cost if wrong: one additional app directory.
+- Reuse the current secure Supabase backend and its command contracts. The connected hosted project belongs to another app and remains untouched. Cost: hosted launch still needs dedicated project access.
+- Native Expo push uses Expo's FCM/APNs relay, selected by strict Expo token format, while existing FCM devices keep their transport. The existing unique push-token constraint covers both. Cost if wrong: additional provider and EAS credentials; ticket receipts must be checked.
+- Keep the primary Expo app in apps/tally and make CI/root npm commands validate it; preserved Flutter remains reference. Cost if wrong: legacy CI must be run separately when changing that reference.
+- Local native alerts consume canonical server reminder plans, preserving timezone/quiet-hour rules instead of reproducing the schedule engine. Cost if wrong: fresh local alert plans require a successful sync.
+- Use patched decode-uri-component 0.5.0 with a version-checked query-string import bridge, and UUID 11.1.1. Remaining braces/node-forge/sprintf-js build/test-tool advisories have no published fix. Cost if wrong: bridge needs review at Router upgrades; tooling remains unsuitable for untrusted inputs.
+- React Native Directory's metadata service returned an unexpected response on repeated doctor runs. Verified all 20 project checks with that external lookup disabled for this run; full CI keeps the lookup. Cost if wrong: upstream package metadata must be rechecked when that service recovers.
+- Signed native builds, physical-device notification delivery, and hosted OAuth/deployment remain externally blocked by dedicated project/signing/provider credentials; exported native bundles and local backend/browser tests are verified instead. Cost if wrong: platform provisioning and delivery issues remain undiscovered until device acceptance testing.
+- The previous Supabase migration internals are outside the fresh frontend/notification review; retain that architecture with SQL/Deno/real HTTP regression evidence. Cost if wrong: an unreviewed backend defect could remain despite passing regression tests.
+- Keep the pinned generated timezone artifact without exhaustive review; tests check civil dates/recurrence behavior. Cost if wrong: a rare timezone transition could require regenerating data.
+- Offline creation of dependent records waits for parent acknowledgement; the UI lists saved actions and does not invent temporary financial references. Cost if wrong: creating a contact and its loan needs a reconnect between the two actions.
+
+The final independent review identified one critical payment-retry issue and four important issues covering shared browser trust, completed command retention, notification registration cleanup, and catalog edit identity. Each was reproduced by a failing regression test and fixed. No minor findings were deferred. The final Expo suite passes 57 unit/repository/storage/web-semantic tests and 10 native component tests; TypeScript and lint pass. Web, iOS, and Android JavaScript exports pass. These exports do not constitute signed native binaries. Backend gates passed 87 Deno tests, 26 SQL tests, and the isolated real Auth/financial/recurring/device/private-file suites.
+
+Full browser journeys pass at mobile 390x844 and desktop 1366x900, including real offline persistence, reload, one-time reconnect, payments/corrections, recurring payment, and protected deletion. Two real browser tabs verify that trust revocation updates the older tab and prevents it from repopulating cleared owner data. Browser radio choices expose checked state through cross-platform ARIA props.

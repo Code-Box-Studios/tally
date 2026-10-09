@@ -28,6 +28,12 @@ export class CommandQueue {
   }
   async enqueue(name: string, payload: Data) {
     this.check();
+    if (
+      (await this.list()).filter(
+        (c) => !["synced", "discarded"].includes(c.status),
+      ).length >= 1000
+    )
+      throw new Error("Sync or review saved actions before adding more.");
     const item: SavedCommand = {
       id: this.uuid(),
       owner: this.owner,
@@ -41,7 +47,10 @@ export class CommandQueue {
       error: null,
       result: null,
     };
-    await this.store.atomic(item.id, () => item);
+    await this.store.atomic(item.id, () => {
+      this.check();
+      return item;
+    });
     this.check();
     return item;
   }

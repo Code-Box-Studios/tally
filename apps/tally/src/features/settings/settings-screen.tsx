@@ -128,6 +128,7 @@ export function SettingsScreen() {
             {catalog && (
               <Card>
                 <CatalogForm
+                  key={catalog.kind + ":" + (catalog.row?.id ?? "new")}
                   kind={catalog.kind}
                   existing={catalog.row}
                   onDone={() => setCatalog(null)}

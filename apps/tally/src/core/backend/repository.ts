@@ -25,6 +25,7 @@ export interface Records {
 }
 export class TallyRepository {
   readonly prefix: string;
+  private transientTransfers = new Map<string, string>();
   constructor(
     readonly client: SupabaseClient,
     readonly owner: string,
@@ -38,6 +39,30 @@ export class TallyRepository {
   check() {
     if (!this.active())
       throw new ApiError("unauthenticated", "Your sign-in changed.");
+  }
+  async transferIntent(
+    key: string,
+    value?: string | null,
+  ): Promise<string | null> {
+    this.check();
+    if (!key.startsWith(this.prefix + "upload:"))
+      throw new Error("Invalid transfer owner.");
+    if (await this.trusted()) {
+      this.check();
+      if (value === undefined) {
+        const saved = await this.store.get(key);
+        this.check();
+        return saved;
+      }
+      if (value === null) await this.store.remove(key);
+      else await this.store.set(key, value);
+    } else {
+      if (value === undefined) return this.transientTransfers.get(key) ?? null;
+      if (value === null) this.transientTransfers.delete(key);
+      else this.transientTransfers.set(key, value);
+    }
+    this.check();
+    return value ?? null;
   }
   async invoke(name: string, input: Data): Promise<Data> {
     this.check();

@@ -4,7 +4,6 @@ import { File } from "expo-file-system";
 import { Platform } from "react-native";
 import type { TallyRepository } from "../../core/backend/repository";
 import { object, text, type Row } from "../../core/domain/records";
-import { privateStore } from "../../core/storage";
 import { saveFile } from "./files";
 const mimes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const limit = 10 * 1024 * 1024;
@@ -74,7 +73,7 @@ export async function addAttachment(
           checksum,
         ]),
       ));
-    const raw = await privateStore.get(transferKey),
+    const raw = await repo.transferIntent(transferKey),
       transfer = raw
         ? object(JSON.parse(raw))
         : {
@@ -84,7 +83,7 @@ export async function addAttachment(
             revision: null,
           };
     repo.check();
-    await privateStore.set(transferKey, JSON.stringify(transfer));
+    await repo.transferIntent(transferKey, JSON.stringify(transfer));
     repo.check();
     if (!transfer.attachmentId) {
       const reserved = await repo.command(
@@ -110,7 +109,7 @@ export async function addAttachment(
         );
       transfer.attachmentId = reserved.attachmentId;
       transfer.revision = reserved.revision;
-      await privateStore.set(transferKey, JSON.stringify(transfer));
+      await repo.transferIntent(transferKey, JSON.stringify(transfer));
       repo.check();
     }
     const uploaded = await repo.command(
@@ -127,7 +126,7 @@ export async function addAttachment(
       throw new Error(
         "File upload could not be verified. Reselect the same file to retry.",
       );
-    await privateStore.remove(transferKey);
+    await repo.transferIntent(transferKey, null);
   } finally {
     bytes.fill(0);
   }

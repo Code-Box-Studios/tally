@@ -53,6 +53,17 @@ export async function enableNotifications(
     token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
   }
   repo.check();
+  // Keep ownership and installation identity before dispatch. A server commit
+  // with a lost response must still be discoverable during logout cleanup.
+  await privateStore.set(
+    repo.prefix + "notification-device",
+    JSON.stringify({
+      userId: repo.owner,
+      installationId,
+      revision: manifest?.revision ?? 0,
+    }),
+  );
+  repo.check();
   const response = await repo.command(
     "registerNotificationDevice",
     {

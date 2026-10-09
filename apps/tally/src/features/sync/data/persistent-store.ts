@@ -7,8 +7,6 @@ export class PersistentCommandStore implements CommandStore {
   ) {}
   async all() {
     const keys = await this.store.keys(this.prefix);
-    if (keys.length > 1000)
-      throw new Error("Saved actions need cleanup before adding more.");
     const rows = await Promise.all(
       keys.map(async (key) => {
         const value = await this.store.get(key);
@@ -25,7 +23,20 @@ export class PersistentCommandStore implements CommandStore {
         return row;
       }),
     );
-    return rows.filter((row): row is SavedCommand => row !== null);
+    const saved = rows.filter((row): row is SavedCommand => row !== null);
+    // The canonical financial history remains on the server. Only finished
+    // device command receipts expire; unresolved actions are never removed.
+    const finished = saved
+      .filter((c) => ["synced", "discarded"].includes(c.status))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const expired = new Set(finished.slice(200).map((c) => c.id));
+    for (const id of expired)
+      await this.store.atomic(this.prefix + id, (value) => {
+        if (!value) return null;
+        const current = JSON.parse(value) as SavedCommand;
+        return ["synced", "discarded"].includes(current.status) ? null : value;
+      });
+    return saved.filter((c) => !expired.has(c.id));
   }
   async atomic(
     id: string,

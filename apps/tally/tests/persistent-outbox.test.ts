@@ -71,3 +71,74 @@ it("leases a shared browser payment once across two queues", async () => {
   expect(calls).toBe(1);
   expect((await b.list())[0].status).toBe("synced");
 });
+
+it("prunes completed device history after 1000 actions while preserving unresolved payments", async () => {
+  const prefix = "retention:";
+  for (let i = 0; i < 1000; i++) {
+    await privateStore.set(
+      prefix + "old-" + i,
+      JSON.stringify({
+        id: "old-" + i,
+        owner: "owner",
+        environment: "env",
+        schema: 1,
+        name: "recordPayment",
+        payload: {},
+        status: i === 0 ? "review" : "synced",
+        createdAt: new Date(i).toISOString(),
+        leaseUntil: 0,
+        error: null,
+        result: null,
+      }),
+    );
+  }
+  const queue = new CommandQueue(
+    new PersistentCommandStore(privateStore, prefix),
+    "owner",
+    "env",
+    () => true,
+    async () => receipt,
+  );
+  const current = await queue.enqueue("recordPayment", {
+    obligationId: "o1",
+    obligationInstanceId: "i1",
+  });
+  await queue.flush();
+  const saved = await queue.list();
+  expect(saved.find((c) => c.id === current.id)?.status).toBe("synced");
+  expect(saved.find((c) => c.id === "old-0")?.status).toBe("review");
+  expect(saved.length).toBeLessThanOrEqual(1000);
+});
+
+it("rejects capacity before saving a new action and keeps existing pending actions recoverable", async () => {
+  const prefix = "pending-capacity:";
+  for (let i = 0; i < 1000; i++)
+    await privateStore.set(
+      prefix + "pending-" + i,
+      JSON.stringify({
+        id: "pending-" + i,
+        owner: "owner",
+        environment: "env",
+        schema: 1,
+        name: "recordPayment",
+        payload: {},
+        status: "pending",
+        createdAt: new Date(i).toISOString(),
+        leaseUntil: 0,
+        error: null,
+        result: null,
+      }),
+    );
+  const queue = new CommandQueue(
+    new PersistentCommandStore(privateStore, prefix),
+    "owner",
+    "env",
+    () => true,
+    async () => receipt,
+  );
+  await expect(queue.enqueue("recordPayment", {})).rejects.toThrow(
+    /Sync or review/,
+  );
+  expect((await queue.list()).length).toBe(1000);
+  expect((await privateStore.keys(prefix)).length).toBe(1000);
+});

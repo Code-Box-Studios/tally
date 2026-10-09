@@ -124,3 +124,21 @@ it("serializes repeated flushes", async () => {
   await Promise.all([q.flush(), q.flush(), q.flush()]);
   expect(calls).toBe(1);
 });
+it("does not save an old owner's action if ownership changes during the capacity read", async () => {
+  let active = true;
+  const store = new MemoryStore(),
+    all = store.all.bind(store);
+  store.all = async () => {
+    active = false;
+    return all();
+  };
+  const queue = new CommandQueue(
+    store,
+    owner,
+    "local",
+    () => active,
+    async () => ({}),
+  );
+  await expect(queue.enqueue("recordPayment", {})).rejects.toThrow();
+  expect(await all()).toEqual([]);
+});

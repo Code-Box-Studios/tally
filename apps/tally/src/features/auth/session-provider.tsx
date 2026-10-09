@@ -147,6 +147,26 @@ export function SessionProvider({ children }: PropsWithChildren) {
       prefix = `${config.namespace}:${uid}:`;
     const active = () => owner.current === uid && generation.current === epoch;
     let timer: ReturnType<typeof setInterval> | undefined;
+    const observeTrust = async () => {
+      const saved = await privateStore.get(prefix + "trust");
+      const current = saved === null ? Platform.OS !== "web" : saved === "true";
+      if (!active()) return false;
+      if (current === trustRef.current) return true;
+      trustRef.current = current;
+      generation.current++;
+      queryClient.clear();
+      setTrusted(current);
+      setRepo(null);
+      setQueue(null);
+      setTrustVersion((v) => v + 1);
+      return false;
+    };
+    const onTrustSignal = (event: StorageEvent) => {
+      if (event.key === config.namespace + ":trust-change")
+        void observeTrust().catch(() => {});
+    };
+    if (Platform.OS === "web" && typeof window !== "undefined")
+      window.addEventListener("storage", onTrustSignal);
     (async () => {
       try {
         const savedTrust = await privateStore.get(prefix + "trust");
@@ -155,17 +175,23 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (!active()) return;
         trustRef.current = trust;
         setTrusted(trust);
+        const storage = trust
+          ? (privateStore.guard?.(prefix + "trust") ?? privateStore)
+          : privateStore;
         const repository = new TallyRepository(
           backend(),
           uid,
-          privateStore,
-          async () => trustRef.current,
+          storage,
+          async () =>
+            Platform.OS === "web"
+              ? (await privateStore.get(prefix + "trust")) === "true"
+              : trustRef.current,
           active,
           config.namespace,
         );
         const commands = new CommandQueue(
           trust
-            ? new PersistentCommandStore(privateStore, prefix + "command:")
+            ? new PersistentCommandStore(storage, prefix + "command:")
             : new MemoryStore(),
           uid,
           config.namespace,
@@ -228,11 +254,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
         await load();
         if (active()) {
           timer = setInterval(() => {
-            void load();
-            void commands
-              .flush()
-              .then(() => {
-                if (active()) return commands.list().then(setPending);
+            void observeTrust()
+              .then(async (unchanged) => {
+                if (!unchanged) return;
+                await load();
+                await commands.flush();
+                if (active()) setPending(await commands.list());
               })
               .catch(() => {});
           }, 15000);
@@ -249,6 +276,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
     })();
     return () => {
       if (timer) clearInterval(timer);
+      if (Platform.OS === "web" && typeof window !== "undefined")
+        window.removeEventListener("storage", onTrustSignal);
     };
   }, [sessionOwner, trustVersion]);
   const refresh = useCallback(async () => {
@@ -280,13 +309,43 @@ export function SessionProvider({ children }: PropsWithChildren) {
       !navigator.onLine
     )
       throw new Error("Trust this device in Settings before saving offline.");
+    const uncertain = (await queue.list()).find(
+      (c) =>
+        c.status === "review" &&
+        ![
+          "aborted",
+          "invalid-argument",
+          "failed-precondition",
+          "already-exists",
+        ].includes(c.rejectionCode ?? ""),
+    );
+    if (uncertain)
+      throw Object.assign(
+        new Error(
+          "Resolve the uncertain action in Settings > Saved actions before saving another action.",
+        ),
+        { actionSaved: true },
+      );
     const item = await queue.enqueue(name, payload);
     await flush();
     const current = (await queue.list()).find((c) => c.id === item.id)!;
-    if (current.status === "review")
-      throw new Error(
-        current.error ?? "This action needs review in Saved actions.",
+    if (current.status === "review") {
+      const uncertain = ![
+        "aborted",
+        "invalid-argument",
+        "failed-precondition",
+        "already-exists",
+      ].includes(current.rejectionCode ?? "");
+      throw Object.assign(
+        new Error(
+          (current.error ?? "This action needs review.") +
+            (uncertain
+              ? " Open Settings > Saved actions to retry this saved action. Close this form before recording another action."
+              : ""),
+        ),
+        { actionSaved: uncertain },
       );
+    }
     return current;
   }
   async function setTrust(enabled: boolean) {
@@ -301,10 +360,24 @@ export function SessionProvider({ children }: PropsWithChildren) {
         "Sync or review saved actions before removing device trust.",
       );
     if (!enabled) await clearNotifications(repo);
-    await privateStore.set(repo.prefix + "trust", String(enabled));
-    if (!enabled)
-      for (const key of await privateStore.keys(repo.prefix))
-        if (key !== repo.prefix + "trust") await privateStore.remove(key);
+    if (!enabled && privateStore.revokeTrust)
+      await privateStore.revokeTrust(repo.prefix);
+    else {
+      await privateStore.set(repo.prefix + "trust", String(enabled));
+      if (!enabled)
+        for (const key of await privateStore.keys(repo.prefix))
+          if (key !== repo.prefix + "trust") await privateStore.remove(key);
+    }
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          runtimeConfig().namespace + ":trust-change",
+          Crypto.randomUUID(),
+        );
+      } catch {
+        /* Transactional guards and polling still enforce the preference. */
+      }
+    }
     trustRef.current = enabled;
     setTrusted(enabled);
     generation.current++;

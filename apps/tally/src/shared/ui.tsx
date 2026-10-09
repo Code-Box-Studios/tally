@@ -163,6 +163,7 @@ export function Choices({
               key={v}
               accessibilityRole="radio"
               accessibilityState={{ checked: value === v }}
+              aria-checked={value === v}
               accessibilityLabel={title}
               onPress={() => onChange(v)}
               style={{
@@ -304,6 +305,7 @@ export function Form({
   onCancel?: () => void;
 }>) {
   const [busy, setBusy] = useState(false),
+    [blocked, setBlocked] = useState(false),
     [error, setError] = useState("");
   return (
     <View testID="tally-form" style={{ gap: 16, maxWidth: 680 }}>
@@ -311,13 +313,17 @@ export function Form({
       {!!error && <Failure error={new Error(error)} />}
       <Row>
         <Button
-          disabled={busy}
+          disabled={busy || blocked}
           title={busy ? "Saving…" : saveLabel}
           onPress={() => {
             setBusy(true);
             setError("");
             void onSave()
-              .catch((e) => setError((e as Error).message))
+              .catch((e) => {
+                setError((e as Error).message);
+                if ((e as Error & { actionSaved?: boolean }).actionSaved)
+                  setBlocked(true);
+              })
               .finally(() => setBusy(false));
           }}
         />
