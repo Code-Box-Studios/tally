@@ -23,7 +23,7 @@ const light = {
   greenBg: "#eef4e9",
   blue: "#4b6c91",
   blueBg: "#edf2f8",
-  amber: "#92713b",
+  amber: "#856334",
   amberBg: "#f8f3e6",
   redBg: "#faf0ec",
 };
