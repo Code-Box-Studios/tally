@@ -1,7 +1,6 @@
 import React from "react";
 import { Slot, Redirect } from "expo-router";
 import { useSession } from "../../features/auth/session-provider";
-import { AuthScreen } from "../../features/auth/auth-screen";
 import { OnboardingScreen } from "../../features/auth/onboarding-screen";
 import { NotificationSession } from "../../features/reminders/notification-session";
 import { Shell } from "../../shared/shell";
@@ -16,7 +15,7 @@ export default function Workspace() {
         <Loading fullScreen />
       </Page>
     );
-  if (!session) return <AuthScreen />;
+  if (!session) return <Redirect href="/sign-in" />;
   if (!profile)
     return (
       <Page>

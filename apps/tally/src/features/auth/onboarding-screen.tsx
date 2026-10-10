@@ -3,7 +3,8 @@ import { Pressable, View, useWindowDimensions } from "react-native";
 import * as Crypto from "expo-crypto";
 import { useSession } from "./session-provider";
 import { currencies } from "../../core/domain/money";
-import { Card, Field, Form, Page, Txt } from "../../shared/ui";
+import { Card, Form, Page, Txt } from "../../shared/ui";
+import { TimezoneField } from "../../shared/timezone-field";
 import { Brand, BrandMark } from "../../shared/brand";
 import { Icon } from "../../shared/icons";
 import { useTheme } from "../../shared/theme";
@@ -195,14 +196,7 @@ export function OnboardingScreen() {
                 Each obligation can still use its own currency.
               </Txt>
             </View>
-            <Field
-              label="Timezone"
-              value={timezone}
-              onChangeText={setTimezone}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={{ fontSize: 16, minHeight: 52 }}
-            />
+            <TimezoneField value={timezone} onChange={setTimezone} />
             <View
               style={{
                 flexDirection: "row",

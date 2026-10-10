@@ -27,7 +27,7 @@ export function RecoveryScreen() {
             if (revoked.error) throw revoked.error;
             setPassword("");
             setConfirmation("");
-            router.replace("/");
+            router.replace("/sign-in");
           }}
         >
           <Field

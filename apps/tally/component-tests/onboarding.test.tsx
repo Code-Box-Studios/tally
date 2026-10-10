@@ -31,9 +31,13 @@ beforeEach(() => {
 it("saves the selected currency and timezone before opening the workspace", async () => {
   await render(<OnboardingScreen />);
   await fireEvent.press(screen.getByRole("radio", { name: /USD/ }));
+  await fireEvent.press(screen.getByRole("button", { name: /^Timezone:/ }));
   await fireEvent.changeText(
-    screen.getByLabelText("Timezone"),
-    "America/New_York",
+    screen.getByLabelText("Search timezone"),
+    "New York",
+  );
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "America/New York" }),
   );
   await fireEvent.press(
     screen.getByRole("button", { name: "Open my workspace" }),
@@ -55,15 +59,15 @@ it("saves the selected currency and timezone before opening the workspace", asyn
   );
 });
 
-it("explains an invalid timezone without sending profile changes", async () => {
+it("prevents selecting an unknown timezone and preserves the current choice", async () => {
   await render(<OnboardingScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: /^Timezone:/ }));
   await fireEvent.changeText(
-    screen.getByLabelText("Timezone"),
+    screen.getByLabelText("Search timezone"),
     "Unknown/Place",
   );
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Open my workspace" }),
-  );
-  expect(await screen.findByText(/valid timezone/i)).toBeTruthy();
+  expect(screen.getByText(/No matching options/)).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Close picker" }));
+  expect(screen.getByText("Asia/Manila")).toBeTruthy();
   expect(mockUpdate).not.toHaveBeenCalled();
 });

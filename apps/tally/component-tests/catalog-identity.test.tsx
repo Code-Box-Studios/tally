@@ -33,6 +33,7 @@ jest.mock("../src/shared/queries", () => ({
   }),
 }));
 jest.mock("../src/shared/theme", () => ({
+  useAppearance: () => ({ mode: "light", setMode: () => {}, saveBusy: false, beginSave: () => true, finishSave: () => {} }),
   useTheme: () => ({
     surface: "#fff",
     ink: "#111",

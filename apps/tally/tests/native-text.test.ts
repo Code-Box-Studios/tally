@@ -6,7 +6,8 @@ function files(path: string): string[] {
   return readdirSync(path, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory()
       ? files(join(path, e.name))
-      : e.name.endsWith(".tsx")
+      // Web-only DOM components do not participate in native rendering.
+      : e.name.endsWith(".tsx") && !e.name.endsWith(".web.tsx")
         ? [join(path, e.name)]
         : [],
   );

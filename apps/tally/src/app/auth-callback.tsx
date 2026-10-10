@@ -37,7 +37,7 @@ export default function Callback() {
       return;
     }
     if (session) {
-      router.replace("/");
+      router.replace("/home");
       return;
     }
     let live = true;
@@ -93,7 +93,7 @@ export default function Callback() {
             </View>
             <Button
               title="Back to sign in"
-              onPress={() => router.replace("/")}
+              onPress={() => router.replace("/sign-in")}
             />
           </Card>
         </View>

@@ -11,9 +11,10 @@ import { useTheme } from "./theme";
 import { Txt, Button } from "./ui";
 import { Brand } from "./brand";
 import { Icon, type IconName } from "./icons";
+import { AppearanceControl } from "./appearance-control";
 import { useSession } from "../features/auth/session-provider";
 const destinations = [
-  ["/", "Home", "home"],
+  ["/home", "Home", "home"],
   ["/obligations", "Obligations", "obligations"],
   ["/people", "People", "people"],
   ["/calendar", "Calendar", "calendar"],
@@ -43,8 +44,8 @@ export function Shell({ children }: PropsWithChildren) {
           .toUpperCase();
   const selectedTitle =
     destinations.find(([url]) =>
-      url === "/" ? path === "/" : path.startsWith(url),
-    )?.[1] ?? "Your workspace";
+      url === "/home" ? path === "/home" : path.startsWith(url),
+    )?.[1] ?? (path === "/add" ? "Add obligation" : "Your workspace");
   const waiting = pending.filter(
     (item) => !["synced", "discarded"].includes(item.status),
   ).length;
@@ -53,7 +54,7 @@ export function Shell({ children }: PropsWithChildren) {
     router.push(url as Href);
   }
   function navItem(url: string, title: string, icon: IconName, mobile = false) {
-    const selected = url === "/" ? path === "/" : path.startsWith(url);
+    const selected = url === "/home" ? path === "/home" : path.startsWith(url);
     return (
       <Pressable
         key={url}
@@ -147,14 +148,13 @@ export function Shell({ children }: PropsWithChildren) {
               Know what’s due.
             </Txt>
           </View>
-          <Button title="+ Add obligation" onPress={() => navigate("/add")} />
           <Txt
             muted
             style={{
               fontSize: 9,
               letterSpacing: 1.5,
               fontWeight: "600",
-              marginTop: 36,
+              marginTop: 10,
               marginLeft: 12,
               marginBottom: 12,
             }}
@@ -296,11 +296,28 @@ export function Shell({ children }: PropsWithChildren) {
                 backgroundColor: theme.surface,
               }}
             >
-              <Icon name="globe" color={theme.muted} size={14} />
+              <Txt
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: theme.primary,
+                }}
+              >
+                {
+                  new Intl.NumberFormat("en-PH", {
+                    style: "currency",
+                    currency: profile?.defaultCurrency ?? "PHP",
+                    currencyDisplay: "narrowSymbol",
+                  })
+                    .formatToParts(0)
+                    .find((part) => part.type === "currency")?.value
+                }
+              </Txt>
               <Txt style={{ fontSize: 11, fontWeight: "600" }}>
                 {profile?.defaultCurrency}
               </Txt>
             </View>
+            <AppearanceControl />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Reminders"
@@ -340,28 +357,45 @@ export function Shell({ children }: PropsWithChildren) {
         )}
         {children}
       </View>
+      {path !== "/add" && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add obligation"
+          onPress={() => navigate("/add")}
+          style={{
+            position: "absolute",
+            right: wide ? 32 : 20,
+            bottom: wide ? 28 : 86,
+            minWidth: wide ? 176 : 50,
+            height: wide ? 54 : 50,
+            paddingHorizontal: wide ? 20 : 0,
+            borderRadius: wide ? 28 : 17,
+            flexDirection: "row",
+            gap: 9,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.primary,
+            borderWidth: 1,
+            borderColor: theme.border,
+            boxShadow: "0 6px 20px #00000024",
+          }}
+        >
+          <Icon name="plus" color={theme.background} size={25} />
+          {wide && (
+            <Text
+              style={{
+                fontFamily: "DM Sans",
+                fontWeight: "600",
+                color: theme.background,
+              }}
+            >
+              Add obligation
+            </Text>
+          )}
+        </Pressable>
+      )}
       {!wide && (
         <>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add obligation"
-            onPress={() => navigate("/add")}
-            style={{
-              position: "absolute",
-              right: 20,
-              bottom: 86,
-              width: 50,
-              height: 50,
-              borderRadius: 17,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: theme.primary,
-              borderWidth: 1,
-              borderColor: theme.border,
-            }}
-          >
-            <Icon name="plus" color={theme.background} size={25} />
-          </Pressable>
           <View
             style={{
               flexDirection: "row",

@@ -2,6 +2,8 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useState,
+  useRef,
   type PropsWithChildren,
 } from "react";
 import { useColorScheme } from "react-native";
@@ -49,16 +51,51 @@ const dark = {
 };
 type Theme = typeof light;
 const Context = createContext<Theme>(light);
+export type AppearanceMode = "light" | "dark" | "system";
+const AppearanceContext = createContext({
+  mode: "system" as AppearanceMode,
+  setMode: (_mode: AppearanceMode) => {},
+  saveBusy: false,
+  beginSave: (): boolean => true,
+  finishSave: () => {},
+});
 export function ThemeProvider({ children }: PropsWithChildren) {
   const { profile } = useSession(),
     system = useColorScheme();
-  const mode =
-    profile?.themeMode === "system" ? system : (profile?.themeMode ?? system);
-  const theme = mode === "dark" ? dark : light;
+  const [signedOutMode, setSignedOutMode] = useState<AppearanceMode>("system");
+  const [saveBusy, setSaveBusy] = useState(false);
+  const saving = useRef(false);
+  function beginSave() {
+    if (saving.current) return false;
+    saving.current = true;
+    setSaveBusy(true);
+    return true;
+  }
+  function finishSave() {
+    saving.current = false;
+    setSaveBusy(false);
+  }
+  const mode = profile?.themeMode ?? signedOutMode;
+  const theme = (mode === "system" ? system : mode) === "dark" ? dark : light;
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(theme.background).catch(() => {});
   }, [theme.background]);
-  return <Context.Provider value={theme}>{children}</Context.Provider>;
+  return (
+    <AppearanceContext.Provider
+      value={{
+        mode,
+        setMode: setSignedOutMode,
+        saveBusy,
+        beginSave,
+        finishSave,
+      }}
+    >
+      <Context.Provider value={theme}>{children}</Context.Provider>
+    </AppearanceContext.Provider>
+  );
+}
+export function useAppearance() {
+  return useContext(AppearanceContext);
 }
 export function useTheme() {
   return useContext(Context);

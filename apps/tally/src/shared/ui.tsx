@@ -292,11 +292,13 @@ export function Form({
   saveLabel = "Save",
   onCancel,
   fullWidth = false,
+  disabled = false,
 }: PropsWithChildren<{
   onSave: () => Promise<void>;
   saveLabel?: string;
   onCancel?: () => void;
   fullWidth?: boolean;
+  disabled?: boolean;
 }>) {
   const [busy, setBusy] = useState(false),
     [blocked, setBlocked] = useState(false),
@@ -316,7 +318,7 @@ export function Form({
         ]}
       >
         <Button
-          disabled={busy || blocked}
+          disabled={disabled || busy || blocked}
           title={busy ? "Saving…" : saveLabel}
           onPress={() => {
             setBusy(true);

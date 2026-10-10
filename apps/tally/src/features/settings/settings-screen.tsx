@@ -8,12 +8,14 @@ import { currencies } from "../../core/domain/money";
 import { recordTitle, label, type Row } from "../../core/domain/records";
 import { CatalogForm } from "../people/catalog-form";
 import { PreferencesForm } from "../reminders/preferences-form";
+import { TimezoneField } from "../../shared/timezone-field";
+import { AppearanceControl } from "../../shared/appearance-control";
+import { useAppearance } from "../../shared/theme";
 import {
   Page,
   Heading,
   Card,
   Choices,
-  Field,
   Form,
   Txt,
   Button,
@@ -21,12 +23,12 @@ import {
   Failure,
 } from "../../shared/ui";
 export function SettingsScreen() {
+  const { saveBusy, beginSave, finishSave } = useAppearance();
   const { profile, repo, setProfile, signOut } = useSession(),
     sources = useRecords("paymentSources"),
     categories = useRecords("categories"),
     [code, setCode] = useState(profile!.defaultCurrency),
     [zone, setZone] = useState(profile!.timezone),
-    [theme, setTheme] = useState(profile!.themeMode),
     [tab, setTab] = useState("preferences"),
     [catalog, setCatalog] = useState<{
       kind: "source" | "category";
@@ -53,20 +55,29 @@ export function SettingsScreen() {
             <Card>
               <Form
                 saveLabel="Save preferences"
+                disabled={saveBusy}
                 onSave={async () => {
                   new Intl.DateTimeFormat("en", { timeZone: zone });
-                  setProfile(
-                    await repo!.updateProfile(
-                      profile!,
-                      {
-                        defaultCurrency: code,
-                        timezone: zone,
-                        themeMode: theme,
-                        onboardingComplete: true,
-                      },
-                      Crypto.randomUUID(),
-                    ),
-                  );
+                  if (!beginSave())
+                    throw new Error(
+                      "Wait for your current preference change to finish.",
+                    );
+                  try {
+                    setProfile(
+                      await repo!.updateProfile(
+                        profile!,
+                        {
+                          defaultCurrency: code,
+                          timezone: zone,
+                          themeMode: profile!.themeMode,
+                          onboardingComplete: true,
+                        },
+                        Crypto.randomUUID(),
+                      ),
+                    );
+                  } finally {
+                    finishSave();
+                  }
                 }}
               >
                 <Choices
@@ -75,17 +86,8 @@ export function SettingsScreen() {
                   options={currencies}
                   onChange={setCode}
                 />
-                <Field label="Timezone" value={zone} onChangeText={setZone} />
-                <Choices
-                  label="Appearance"
-                  value={theme}
-                  options={[
-                    { value: "light", label: "Light" },
-                    { value: "dark", label: "Dark" },
-                    { value: "system", label: "System" },
-                  ]}
-                  onChange={(v) => setTheme(v as typeof theme)}
-                />
+                <TimezoneField value={zone} onChange={setZone} />
+                <AppearanceControl inline />
                 <Txt muted>
                   Each obligation keeps its own currency. No exchange-rate
                   conversion is assumed.

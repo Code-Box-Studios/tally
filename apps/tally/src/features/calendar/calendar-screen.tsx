@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Pressable } from "react-native";
+import { View, Pressable, useWindowDimensions } from "react-native";
 import { useRecords } from "../../shared/queries";
 import { useSession } from "../auth/session-provider";
 import { text, recordTitle, amount, label } from "../../core/domain/records";
@@ -14,7 +14,6 @@ import {
   Choices,
   Field,
   Button,
-  Row,
   Txt,
   Loading,
   Failure,
@@ -39,6 +38,7 @@ export function CalendarScreen() {
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
   const t = useTheme();
+  const compact = useWindowDimensions().width < 600;
   let filterError: string | null = null;
   let min = 0,
     max = Infinity;
@@ -109,18 +109,39 @@ export function CalendarScreen() {
       />
       <View style={{ gap: 18 }}>
         {filterError && <Failure error={new Error(filterError)} />}
-        <Row>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 12,
+            alignItems: "flex-end",
+          }}
+        >
+          {compact && (
+            <View style={{ width: "100%" }}>
+              <Field
+                label="Month (YYYY-MM)"
+                value={month}
+                onChangeText={(v) => {
+                  setMonth(v);
+                  setDay("");
+                }}
+              />
+            </View>
+          )}
           <Button secondary title="Previous month" onPress={() => shift(-1)} />
-          <Field
-            label="Month (YYYY-MM)"
-            value={month}
-            onChangeText={(v) => {
-              setMonth(v);
-              setDay("");
-            }}
-          />
+          {!compact && (
+            <Field
+              label="Month (YYYY-MM)"
+              value={month}
+              onChangeText={(v) => {
+                setMonth(v);
+                setDay("");
+              }}
+            />
+          )}
           <Button secondary title="Next month" onPress={() => shift(1)} />
-        </Row>
+        </View>
         <Card>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => (

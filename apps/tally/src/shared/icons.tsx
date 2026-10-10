@@ -2,6 +2,12 @@ import React from "react";
 import Svg, { Path } from "react-native-svg";
 
 const paths = {
+  sun: "M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8ZM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5",
+  moon: "M21 13a9 9 0 0 1-10-10A9 9 0 1 0 21 13Z",
+  monitor:
+    "M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM8 21h8M12 17v4",
+  search: "M10 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm5 12 6 6",
+  close: "m6 6 12 12M6 18 18 6",
   tally: "M7 5v14M12 5v14M17 5v14M4 16l16-8",
   home: "m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z",
   obligations:

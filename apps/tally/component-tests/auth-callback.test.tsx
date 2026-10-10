@@ -49,7 +49,7 @@ it("replaces a failed Google callback with a safe error and a way back to sign-i
   await fireEvent.press(
     screen.getByRole("button", { name: "Back to sign in" }),
   );
-  expect(mockReplace).toHaveBeenCalledWith("/");
+  expect(mockReplace).toHaveBeenCalledWith("/sign-in");
 });
 
 it("shows session restoration failures instead of waiting indefinitely", async () => {
