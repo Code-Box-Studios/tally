@@ -186,6 +186,25 @@ export function DashboardScreen() {
         <DueRow key={row.id} row={row} obligations={obligations} />
       ));
   }
+  function activeNote(code: string, section: "iOwe" | "owedToMe") {
+    const ids = new Set(
+      obligations
+        .filter(
+          (row) =>
+            row.data.currency === code &&
+            row.data.section === section &&
+            (amount(row.data, "remainingMinor") ?? 0) > 0 &&
+            row.data.archived !== true &&
+            row.data.lifecycle !== "cancelled",
+        )
+        .map((row) => row.id),
+    );
+    if (section === "iOwe")
+      for (const row of outstanding)
+        if (row.data.section === "monthlyDues" && row.data.currency === code)
+          ids.add(text(row.data, "obligationId"));
+    return `${ids.size} active ${ids.size === 1 ? "obligation" : "obligations"}`;
+  }
   return (
     <Page maxWidth={1440} padding={width >= 1000 ? 40 : 20}>
       <View style={{ gap: 24 }}>
@@ -232,7 +251,7 @@ export function DashboardScreen() {
                 tone="green"
                 icon="arrowDown"
                 href="/obligations"
-                note={`${obligations.filter((row) => row.data.currency === code && row.data.section === "iOwe" && (amount(row.data, "remainingMinor") ?? 0) > 0 && row.data.archived !== true && row.data.lifecycle !== "cancelled").length} active obligations`}
+                note={activeNote(code, "iOwe")}
                 style={{
                   flex: 1,
                   flexBasis: threeMetrics ? 0 : "45%",
@@ -246,7 +265,7 @@ export function DashboardScreen() {
                 tone="blue"
                 icon="arrowUp"
                 href="/obligations"
-                note={`${obligations.filter((row) => row.data.currency === code && row.data.section === "owedToMe" && (amount(row.data, "remainingMinor") ?? 0) > 0 && row.data.archived !== true && row.data.lifecycle !== "cancelled").length} active obligations`}
+                note={activeNote(code, "owedToMe")}
                 style={{
                   flex: 1,
                   flexBasis: threeMetrics ? 0 : "45%",
