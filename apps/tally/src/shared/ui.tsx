@@ -299,10 +299,12 @@ export function Form({
   onSave,
   saveLabel = "Save",
   onCancel,
+  fullWidth = false,
 }: PropsWithChildren<{
   onSave: () => Promise<void>;
   saveLabel?: string;
   onCancel?: () => void;
+  fullWidth?: boolean;
 }>) {
   const [busy, setBusy] = useState(false),
     [blocked, setBlocked] = useState(false),
@@ -311,7 +313,16 @@ export function Form({
     <View testID="tally-form" style={{ gap: 16, maxWidth: 680 }}>
       {children}
       {!!error && <Failure error={new Error(error)} />}
-      <Row>
+      <View
+        style={[
+          { gap: 12 },
+          !fullWidth && {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            alignItems: "center",
+          },
+        ]}
+      >
         <Button
           disabled={busy || blocked}
           title={busy ? "Saving…" : saveLabel}
@@ -328,14 +339,25 @@ export function Form({
           }}
         />
         {onCancel && <Button secondary title="Cancel" onPress={onCancel} />}
-      </Row>
+      </View>
     </View>
   );
 }
-export function Page({ children }: PropsWithChildren) {
+export function Page({
+  children,
+  centered = false,
+}: PropsWithChildren<{ centered?: boolean }>) {
+  const theme = useTheme();
   return (
     <ScrollView
-      contentContainerStyle={{ padding: 24, gap: 18, paddingBottom: 56 }}
+      style={{ flex: 1, backgroundColor: theme.background }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        padding: 24,
+        gap: 18,
+        paddingBottom: centered ? 32 : 56,
+        ...(centered ? { flexGrow: 1, justifyContent: "center" } : {}),
+      }}
     >
       <View style={{ width: "100%", maxWidth: 1200, alignSelf: "center" }}>
         {children}

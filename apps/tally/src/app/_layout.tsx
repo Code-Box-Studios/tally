@@ -6,7 +6,25 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { runtimeConfig } from "../core/config";
 import { SessionProvider } from "../features/auth/session-provider";
-import { ThemeProvider } from "../shared/theme";
+import { ThemeProvider, useTheme } from "../shared/theme";
+
+function ThemedNavigator() {
+  const theme = useTheme();
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      edges={["top", "bottom"]}
+    >
+      <StatusBar style={theme.isDark ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.background },
+        }}
+      />
+    </SafeAreaView>
+  );
+}
 export default function RootLayout() {
   useEffect(() => {
     if (
@@ -47,10 +65,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <ThemeProvider>
-          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false }} />
-          </SafeAreaView>
+          <ThemedNavigator />
         </ThemeProvider>
       </SessionProvider>
     </SafeAreaProvider>

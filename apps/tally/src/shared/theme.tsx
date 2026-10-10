@@ -1,15 +1,18 @@
 import React, {
   createContext,
   useContext,
+  useEffect,
   type PropsWithChildren,
 } from "react";
 import { useColorScheme } from "react-native";
+import * as SystemUI from "expo-system-ui";
 import { useSession } from "../features/auth/session-provider";
 const light = {
+  isDark: false,
   background: "#f6f7f4",
   surface: "#ffffff",
   ink: "#26332d",
-  muted: "#778078",
+  muted: "#657166",
   primary: "#3c6653",
   tint: "#edf4ee",
   border: "#e6e9e2",
@@ -17,6 +20,7 @@ const light = {
   warm: "#fff4e6",
 };
 const dark = {
+  isDark: true,
   background: "#151d19",
   surface: "#1d2721",
   ink: "#e6ece5",
@@ -34,11 +38,11 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     system = useColorScheme();
   const mode =
     profile?.themeMode === "system" ? system : (profile?.themeMode ?? system);
-  return (
-    <Context.Provider value={mode === "dark" ? dark : light}>
-      {children}
-    </Context.Provider>
-  );
+  const theme = mode === "dark" ? dark : light;
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(theme.background).catch(() => {});
+  }, [theme.background]);
+  return <Context.Provider value={theme}>{children}</Context.Provider>;
 }
 export function useTheme() {
   return useContext(Context);
