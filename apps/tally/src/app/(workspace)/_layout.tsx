@@ -12,8 +12,8 @@ export default function Workspace() {
   if (recovery) return <Redirect href="/reset-password" />;
   if (!ready)
     return (
-      <Page>
-        <Loading />
+      <Page centered>
+        <Loading fullScreen />
       </Page>
     );
   if (!session) return <AuthScreen />;

@@ -4,13 +4,13 @@ import {
   Text,
   TextInput,
   Pressable,
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
 import { useTheme } from "./theme";
+export { Loading } from "./loading";
 export function Txt({
   children,
   muted,
@@ -268,14 +268,6 @@ export function Empty({
     </Card>
   );
 }
-export function Loading() {
-  return (
-    <View style={{ padding: 36, alignItems: "center" }}>
-      <ActivityIndicator />
-      <Txt muted>Loading your workspace…</Txt>
-    </View>
-  );
-}
 export function Failure({
   error,
   retry,
@@ -346,20 +338,26 @@ export function Form({
 export function Page({
   children,
   centered = false,
-}: PropsWithChildren<{ centered?: boolean }>) {
+  maxWidth = 1200,
+  padding = 24,
+}: PropsWithChildren<{
+  centered?: boolean;
+  maxWidth?: number;
+  padding?: number;
+}>) {
   const theme = useTheme();
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.background }}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        padding: 24,
+        padding,
         gap: 18,
         paddingBottom: centered ? 32 : 56,
         ...(centered ? { flexGrow: 1, justifyContent: "center" } : {}),
       }}
     >
-      <View style={{ width: "100%", maxWidth: 1200, alignSelf: "center" }}>
+      <View style={{ width: "100%", maxWidth, alignSelf: "center" }}>
         {children}
       </View>
     </ScrollView>

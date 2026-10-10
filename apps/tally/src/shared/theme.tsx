@@ -18,6 +18,14 @@ const light = {
   border: "#e6e9e2",
   danger: "#b64c3a",
   warm: "#fff4e6",
+  surface2: "#f8f9f6",
+  green: "#426953",
+  greenBg: "#eef4e9",
+  blue: "#4b6c91",
+  blueBg: "#edf2f8",
+  amber: "#92713b",
+  amberBg: "#f8f3e6",
+  redBg: "#faf0ec",
 };
 const dark = {
   isDark: true,
@@ -30,6 +38,14 @@ const dark = {
   border: "#344137",
   danger: "#ffad97",
   warm: "#3e3322",
+  surface2: "#222e26",
+  green: "#b1cfad",
+  greenBg: "#2a3c2b",
+  blue: "#b1c8e4",
+  blueBg: "#293b4d",
+  amber: "#dbc38e",
+  amberBg: "#403727",
+  redBg: "#44332a",
 };
 type Theme = typeof light;
 const Context = createContext<Theme>(light);

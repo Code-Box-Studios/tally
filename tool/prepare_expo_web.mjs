@@ -1,7 +1,19 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { copyFile, readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 const directory = resolve(process.argv[2] ?? "apps/tally/dist");
+// A new URL bypasses browsers' separate favicon caches when branding changes.
+const favicon = await readFile(join(directory, "favicon.ico"));
+const faviconName = `favicon-${createHash("sha256").update(favicon).digest("hex").slice(0, 16)}.ico`;
+await copyFile(join(directory, "favicon.ico"), join(directory, faviconName));
+const html = await readFile(join(directory, "index.html"), "utf8");
+await writeFile(
+  join(directory, "index.html"),
+  html.replace(
+    /href="\/favicon(?:-[a-f0-9]+)?\.ico"/,
+    `href="/${faviconName}"`,
+  ),
+);
 async function walk(root, prefix = "") {
   const entries = await readdir(root, { withFileTypes: true });
   const nested = await Promise.all(
