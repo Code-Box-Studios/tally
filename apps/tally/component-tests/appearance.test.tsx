@@ -35,7 +35,10 @@ jest.mock("../src/features/people/catalog-form", () => ({
 jest.mock("../src/features/reminders/preferences-form", () => ({
   PreferencesForm: () => null,
 }));
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn() },
+  useLocalSearchParams: () => ({}),
+}));
 
 function Probe() {
   const theme = useTheme(),

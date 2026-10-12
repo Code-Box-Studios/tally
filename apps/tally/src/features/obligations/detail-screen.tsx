@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router, type Href } from "expo-router";
 import { useRecords } from "../../shared/queries";
 import { useSession } from "../auth/session-provider";
 import {
@@ -29,6 +29,7 @@ import {
   styles,
 } from "../../shared/ui";
 import { PaymentForm } from "../payments/payment-form";
+import { DateField } from "../../shared/date-field";
 import { CorrectionForm } from "../payments/correction-form";
 import { ObligationForm } from "./obligation-form";
 import { PeriodActionForm } from "../recurring/period-action-form";
@@ -109,11 +110,25 @@ export function DetailScreen() {
         title={recordTitle(obligation)}
         subtitle={`${label(text(d, "section"))} · ${code}`}
         action={
-          <Button
-            secondary
-            title="Edit obligation"
-            onPress={() => setPanel({ kind: "edit" })}
-          />
+          <FlexRow>
+            <Button
+              secondary
+              title="Edit obligation"
+              onPress={() => setPanel({ kind: "edit" })}
+            />
+            {!!text(d, "contactId") && (
+              <Button
+                secondary
+                title="Contact statement"
+                onPress={() =>
+                  router.push({
+                    pathname: "/statement",
+                    params: { contactId: text(d, "contactId") },
+                  } as Href)
+                }
+              />
+            )}
+          </FlexRow>
         }
       />
       <View style={{ gap: 20 }}>
@@ -219,10 +234,11 @@ export function DetailScreen() {
                       {label(panel.action!)} recurring schedule. Historical
                       periods remain.
                     </Txt>
-                    <Field
+                    <DateField
                       label="Effective date"
                       value={effectiveDate}
-                      onChangeText={setEffectiveDate}
+                      onChange={setEffectiveDate}
+                      today={todayInZone(profile!.timezone)}
                     />
                   </>
                 ) : (

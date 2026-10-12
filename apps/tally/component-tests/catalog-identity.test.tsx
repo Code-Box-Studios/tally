@@ -5,7 +5,11 @@ jest.mock("../src/features/reminders/notification-service", () => ({
   clearNotifications: async () => {},
   enableNotifications: async () => {},
 }));
-jest.mock("expo-router", () => ({ router: { push() {} } }));
+let mockTab: string | undefined;
+jest.mock("expo-router", () => ({
+  router: { push() {} },
+  useLocalSearchParams: () => ({ tab: mockTab }),
+}));
 jest.mock("../src/features/auth/session-provider", () => ({
   useSession: () => ({
     profile: {
@@ -28,12 +32,31 @@ jest.mock("../src/shared/queries", () => ({
                 data: { name: "Bank B", type: "bankAccount", revision: 1 },
               },
             ]
-          : [],
+          : [
+              {
+                id: "category",
+                data: {
+                  name: "Custom category",
+                  active: true,
+                  revision: 1,
+                  iconKey: "gift",
+                },
+              },
+            ],
     },
   }),
 }));
+beforeEach(() => {
+  mockTab = undefined;
+});
 jest.mock("../src/shared/theme", () => ({
-  useAppearance: () => ({ mode: "light", setMode: () => {}, saveBusy: false, beginSave: () => true, finishSave: () => {} }),
+  useAppearance: () => ({
+    mode: "light",
+    setMode: () => {},
+    saveBusy: false,
+    beginSave: () => true,
+    finishSave: () => {},
+  }),
   useTheme: () => ({
     surface: "#fff",
     ink: "#111",
@@ -54,4 +77,21 @@ it("loads the selected source fields when switching edit identity and resets for
     screen.getByRole("button", { name: "Add payment source" }),
   );
   expect(screen.getByLabelText("Name").props.value).toBe("");
+});
+it("opens category management directly from the category picker link", async () => {
+  mockTab = "categories";
+  await render(<SettingsScreen />);
+  expect(
+    screen.getByRole("radio", { name: "Categories" }).props.accessibilityState
+      .checked,
+  ).toBe(true);
+  expect(screen.getByRole("button", { name: "Add category" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Edit" }));
+  expect(screen.getByLabelText("Category name").props.value).toBe(
+    "Custom category",
+  );
+  expect(
+    screen.getByRole("radio", { name: "Gift icon" }).props.accessibilityState
+      .checked,
+  ).toBe(true);
 });

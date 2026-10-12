@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useSession } from "../auth/session-provider";
 import { text, amount, type Row } from "../../core/domain/records";
 import { parseMoney, moneyInput } from "../../core/domain/money";
-import { civilDate } from "../../core/domain/date";
+import { civilDate, todayInZone } from "../../core/domain/date";
 import { Choices, Field, Form, Txt } from "../../shared/ui";
+import { DateField } from "../../shared/date-field";
 export function CorrectionForm({
   payment,
   obligation,
@@ -13,7 +14,7 @@ export function CorrectionForm({
   obligation: Row;
   onDone: () => void;
 }) {
-  const { execute } = useSession(),
+  const { profile, execute } = useSession(),
     [mode, setMode] = useState("reverse"),
     [reason, setReason] = useState(""),
     [money, setMoney] = useState(
@@ -71,10 +72,11 @@ export function CorrectionForm({
             onChangeText={setMoney}
             keyboardType="decimal-pad"
           />
-          <Field
+          <DateField
             label="Correct payment date"
             value={date}
-            onChangeText={setDate}
+            onChange={setDate}
+            today={todayInZone(profile!.timezone)}
           />
         </>
       )}

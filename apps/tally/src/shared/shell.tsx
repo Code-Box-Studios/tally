@@ -12,6 +12,7 @@ import { Txt, Button } from "./ui";
 import { Brand } from "./brand";
 import { Icon, type IconName } from "./icons";
 import { AppearanceControl } from "./appearance-control";
+import { InstallTallyAction } from "./install-tally-action";
 import { useSession } from "../features/auth/session-provider";
 const destinations = [
   ["/home", "Home", "home"],
@@ -337,6 +338,7 @@ export function Shell({ children }: PropsWithChildren) {
             </Pressable>
           </View>
         </View>
+        <InstallTallyAction />
         {(cached || waiting > 0) && (
           <View
             style={{

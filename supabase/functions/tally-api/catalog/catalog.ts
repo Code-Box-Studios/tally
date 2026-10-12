@@ -20,6 +20,33 @@ export const sourceTypes = [
   "payroll",
   "other",
 ] as const;
+export const sourceIconKeys = [
+  "bank",
+  "wallet",
+  "card",
+  "cash",
+  "other",
+] as const;
+export const categoryIconKeys = [
+  "wallet",
+  "home",
+  "bolt",
+  "globe",
+  "creditCard",
+  "shield",
+  "car",
+  "education",
+  "people",
+  "briefcase",
+  "membership",
+  "installments",
+  "tag",
+  "food",
+  "heart",
+  "plane",
+  "bag",
+  "gift",
+] as const;
 export interface CatalogInput {
   kind: "contact" | "source" | "category";
   id: string | null;
@@ -70,6 +97,10 @@ export function validateCatalog(input: unknown): CatalogInput {
       archived: boolValue(raw.archived),
     };
   } else if (kind === "source") {
+    const optionalFields = ["providerId", "iconKey"].filter((key) =>
+      data.values !== null && typeof data.values === "object" &&
+      Object.hasOwn(data.values, key)
+    );
     const raw = exactObject(data.values, [
       "name",
       "type",
@@ -77,10 +108,20 @@ export function validateCatalog(input: unknown): CatalogInput {
       "lastFour",
       "notes",
       "active",
+      ...optionalFields,
     ]);
     const lastFour = nullableText(raw.lastFour, 4);
     if (lastFour !== null && !/^\d{4}$/.test(lastFour)) {
       return invalid("Enter exactly four digits.");
+    }
+    const providerId = Object.hasOwn(raw, "providerId")
+      ? nullableText(raw.providerId, 80)
+      : undefined;
+    if (
+      providerId !== undefined && providerId !== null &&
+      !/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(providerId)
+    ) {
+      return invalid("Choose a valid payment provider.");
     }
     values = {
       name: textValue(raw.name, 120, true),
@@ -89,14 +130,29 @@ export function validateCatalog(input: unknown): CatalogInput {
       lastFour,
       notes: textValue(raw.notes, 4000),
       active: boolValue(raw.active),
+      ...(providerId !== undefined ? { providerId } : {}),
+      ...(Object.hasOwn(raw, "iconKey")
+        ? {
+          iconKey: raw.iconKey === null
+            ? null
+            : enumValue(raw.iconKey, sourceIconKeys),
+        }
+        : {}),
     };
   } else {
-    const raw = exactObject(data.values, ["name", "active"]);
+    const hasIcon = data.values !== null && typeof data.values === "object" &&
+      Object.hasOwn(data.values, "iconKey");
+    const raw = exactObject(data.values, [
+      "name",
+      "active",
+      ...(hasIcon ? ["iconKey"] : []),
+    ]);
     const name = textValue(raw.name, 80, true);
     values = {
       name,
       searchName: name.normalize("NFKC").toLocaleLowerCase("en"),
       active: boolValue(raw.active),
+      ...(hasIcon ? { iconKey: enumValue(raw.iconKey, categoryIconKeys) } : {}),
     };
   }
   return { kind, id, expectedRevision, values };
@@ -132,7 +188,7 @@ export async function saveCatalog(
         revision: current ? revision(current.revision) + 1 : 1,
         ...(payload.kind === "category"
           ? {
-            iconKey: current?.iconKey ?? null,
+            iconKey: payload.values.iconKey ?? current?.iconKey ?? null,
             isDefault: current?.isDefault ?? false,
           }
           : {}),

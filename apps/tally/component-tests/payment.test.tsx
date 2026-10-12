@@ -54,3 +54,18 @@ it("records a partial payment with integer money and the exact instance identity
     }),
   );
 });
+
+it("records the calendar-selected payment date without shifting the civil day", async () => {
+  await render(<PaymentForm obligation={obligation} onDone={() => {}} />);
+  await fireEvent.changeText(screen.getByLabelText("Payment amount"), "2000");
+  await fireEvent.press(screen.getByRole("button", { name: /^Payment date:/ }));
+  await fireEvent.press(screen.getByRole("button", { name: "Choose year" }));
+  await fireEvent.press(screen.getByRole("button", { name: "2028" }));
+  await fireEvent.press(screen.getByRole("button", { name: "February" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Feb 29, 2028" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Record payment" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "recordPayment",
+    expect.objectContaining({ paymentDate: "2028-02-29" }),
+  );
+});

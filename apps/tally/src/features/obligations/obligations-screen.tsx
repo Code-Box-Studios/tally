@@ -1,10 +1,14 @@
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import { router, type Href } from "expo-router";
 import { useRecords } from "../../shared/queries";
 import { recordTitle, text, amount, label } from "../../core/domain/records";
 import { formatMoney, currencies, parseMoney } from "../../core/domain/money";
-import { displayDate, civilDate } from "../../core/domain/date";
+import { displayDate, civilDate, todayInZone } from "../../core/domain/date";
+import { DateField } from "../../shared/date-field";
+import { SearchField } from "../../shared/search-field";
+import { useTheme } from "../../shared/theme";
+import { useSession } from "../auth/session-provider";
 import {
   Heading,
   Page,
@@ -12,7 +16,6 @@ import {
   Field,
   Card,
   Txt,
-  Row,
   Pill,
   Button,
   Loading,
@@ -20,11 +23,14 @@ import {
   Empty,
 } from "../../shared/ui";
 export function ObligationsScreen() {
+  const { profile } = useSession();
+  const theme = useTheme();
+  const mobile = useWindowDimensions().width < 680;
   const query = useRecords("obligations"),
     contacts = useRecords("contacts"),
     categories = useRecords("categories"),
     sources = useRecords("paymentSources");
-  const [section, setSection] = useState("iOwe"),
+  const [section, setSection] = useState("all"),
     [search, setSearch] = useState(""),
     [status, setStatus] = useState("all"),
     [currency, setCurrency] = useState("all"),
@@ -37,6 +43,30 @@ export function ObligationsScreen() {
     [end, setEnd] = useState(""),
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
+  const filterCount = [
+    status !== "all",
+    currency !== "all",
+    contact !== "all",
+    category !== "all",
+    mode !== "all",
+    source !== "all",
+    !!start,
+    !!end,
+    !!minimum,
+    !!maximum,
+  ].filter(Boolean).length;
+  function clearFilters() {
+    setStatus("all");
+    setCurrency("all");
+    setContact("all");
+    setCategory("all");
+    setMode("all");
+    setSource("all");
+    setStart("");
+    setEnd("");
+    setMinimum("");
+    setMaximum("");
+  }
   let filterError: string | null = null,
     min = 0,
     max = Infinity;
@@ -60,7 +90,7 @@ export function ObligationsScreen() {
     query.data?.rows.filter(
       (r) =>
         !filterError &&
-        r.data.section === section &&
+        (section === "all" || r.data.section === section) &&
         (mode === "all" || r.data.paymentMode === mode) &&
         (source === "all" || r.data.paymentSourceId === source) &&
         (!start || text(r.data, "nextDueDate") >= start) &&
@@ -69,11 +99,15 @@ export function ObligationsScreen() {
             text(r.data, "nextDueDate") <= end)) &&
         (amount(
           r.data,
-          section === "monthlyDues" ? "defaultAmountMinor" : "remainingMinor",
+          r.data.section === "monthlyDues"
+            ? "defaultAmountMinor"
+            : "remainingMinor",
         ) ?? 0) >= min &&
         (amount(
           r.data,
-          section === "monthlyDues" ? "defaultAmountMinor" : "remainingMinor",
+          r.data.section === "monthlyDues"
+            ? "defaultAmountMinor"
+            : "remainingMinor",
         ) ?? 0) <= max &&
         (status === "all" ||
           r.data.financialStatus === status ||
@@ -100,12 +134,15 @@ export function ObligationsScreen() {
           .includes(search.toLowerCase()),
     ) ?? [];
   return (
-    <Page>
+    <Page padding={mobile ? 16 : 24}>
       <Heading
         title="Obligations"
         subtitle="A clear view of what’s outstanding."
         action={
-          <Button title="+ Add" onPress={() => router.push("/add" as Href)} />
+          <Button
+            title="Add obligation"
+            onPress={() => router.push("/add" as Href)}
+          />
         }
       />
       <View style={{ gap: 18 }}>
@@ -113,23 +150,40 @@ export function ObligationsScreen() {
           label="Show"
           value={section}
           options={[
+            { value: "all", label: "All" },
             { value: "iOwe", label: "I Owe" },
             { value: "owedToMe", label: "Owed to Me" },
             { value: "monthlyDues", label: "Monthly Dues" },
           ]}
           onChange={setSection}
         />
-        <Field
-          label="Search obligations"
-          placeholder="Person, bill, category or notes"
-          value={search}
-          onChangeText={setSearch}
-        />
-        <Button
-          secondary
-          title={filters ? "Hide filters" : "Filters"}
-          onPress={() => setFilters(!filters)}
-        />
+        <View
+          style={{
+            flexDirection: mobile ? "column" : "row",
+            alignItems: mobile ? "stretch" : "flex-end",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <SearchField
+              label="Search obligations"
+              placeholder="Search person, bill, category or notes"
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+          <Button
+            secondary
+            title={
+              filters
+                ? "Hide filters"
+                : filterCount
+                  ? `Filters (${filterCount})`
+                  : "Filters"
+            }
+            onPress={() => setFilters(!filters)}
+          />
+        </View>
         {filters && (
           <Card>
             <Choices
@@ -155,15 +209,19 @@ export function ObligationsScreen() {
               ]}
               onChange={setSource}
             />
-            <Field
-              label="Due from (YYYY-MM-DD)"
+            <DateField
+              label="Due from"
               value={start}
-              onChangeText={setStart}
+              onChange={setStart}
+              optional
+              today={todayInZone(profile!.timezone)}
             />
-            <Field
-              label="Due until (YYYY-MM-DD)"
+            <DateField
+              label="Due until"
               value={end}
-              onChangeText={setEnd}
+              onChange={setEnd}
+              optional
+              today={todayInZone(profile!.timezone)}
             />
             <Field
               label="Minimum remaining / bill amount"
@@ -223,9 +281,15 @@ export function ObligationsScreen() {
               ]}
               onChange={setCategory}
             />
+            <Button
+              secondary
+              title="Clear filters"
+              onPress={clearFilters}
+              disabled={!filterCount}
+            />
           </Card>
         )}
-        {filterError && <Failure error={new Error(filterError)} />}
+        {filterError ? <Failure error={new Error(filterError)} /> : null}
         {query.isPending ? (
           <Loading />
         ) : query.error ? (
@@ -233,65 +297,155 @@ export function ObligationsScreen() {
         ) : (
           <>
             <Txt muted>
-              {rows.length} obligations
+              {rows.length} {rows.length === 1 ? "obligation" : "obligations"}
               {query.data?.cached ? " · Cached view" : ""}
             </Txt>
-            {rows.map((r) => (
-              <Pressable
-                key={r.id}
-                accessibilityRole="button"
-                accessibilityLabel={recordTitle(r)}
-                onPress={() => router.push(`/obligations/${r.id}` as Href)}
-              >
-                <Card>
-                  <Row>
-                    <View style={{ flex: 1, minWidth: 140 }}>
-                      <Txt style={{ fontSize: 17, fontWeight: "600" }}>
-                        {recordTitle(r)}
-                      </Txt>
-                      <Txt muted>
-                        {text(r.data, "contactName") ||
-                          text(r.data, "description") ||
-                          displayDate(text(r.data, "nextDueDate") || null)}
-                      </Txt>
+            {rows.map((r) => {
+              const person = contacts.data?.rows.find(
+                (c) => c.id === r.data.contactId,
+              );
+              const personName =
+                text(r.data, "contactName") ||
+                (person ? recordTitle(person) : "");
+              const categoryRow = categories.data?.rows.find(
+                (c) => c.id === r.data.categoryId,
+              );
+              const dueDate = text(r.data, "nextDueDate");
+              const recurring = r.data.section === "monthlyDues";
+              return (
+                <Pressable
+                  key={r.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={recordTitle(r)}
+                  onPress={() => router.push(`/obligations/${r.id}` as Href)}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
+                >
+                  <Card style={{ padding: mobile ? 16 : 20 }}>
+                    <View
+                      style={{
+                        flexDirection: mobile ? "column" : "row",
+                        gap: 18,
+                        alignItems: mobile ? "stretch" : "center",
+                      }}
+                    >
+                      <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <View
+                            style={{
+                              backgroundColor: theme.tint,
+                              borderRadius: 6,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                            }}
+                          >
+                            <Txt
+                              style={{
+                                color: theme.primary,
+                                fontSize: 12,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {label(text(r.data, "section"))}
+                            </Txt>
+                          </View>
+                          {categoryRow ? (
+                            <Txt muted>{recordTitle(categoryRow)}</Txt>
+                          ) : null}
+                        </View>
+                        <Txt
+                          style={{
+                            fontSize: 20,
+                            lineHeight: 28,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {recordTitle(r)}
+                        </Txt>
+                        {personName || text(r.data, "description") ? (
+                          <Txt muted>
+                            {personName || text(r.data, "description")}
+                          </Txt>
+                        ) : null}
+                        <Txt muted>
+                          {dueDate
+                            ? `Next due ${displayDate(dueDate)}`
+                            : "No due date"}
+                        </Txt>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: mobile ? "row" : "column",
+                          justifyContent: "space-between",
+                          alignItems: mobile ? "center" : "flex-end",
+                          gap: 10,
+                        }}
+                      >
+                        <View
+                          style={{
+                            alignItems: mobile ? "flex-start" : "flex-end",
+                            gap: 2,
+                          }}
+                        >
+                          <Txt muted>
+                            {recurring ? "Bill amount" : "Remaining"}
+                          </Txt>
+                          <Txt
+                            style={{
+                              fontSize: 24,
+                              lineHeight: 32,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {formatMoney(
+                              amount(
+                                r.data,
+                                r.data.section === "monthlyDues"
+                                  ? "defaultAmountMinor"
+                                  : "remainingMinor",
+                              ),
+                              text(r.data, "currency"),
+                            )}
+                          </Txt>
+                        </View>
+                        <View style={{ alignItems: "flex-end", gap: 6 }}>
+                          <Pill danger={r.data.financialStatus === "overdue"}>
+                            {label(
+                              text(r.data, "lifecycle") === "active"
+                                ? text(r.data, "financialStatus", "active")
+                                : text(r.data, "lifecycle"),
+                            )}
+                          </Pill>
+                          {r.data.section === "monthlyDues" && (
+                            <Txt muted>
+                              {label(text(r.data, "paymentMode"))}
+                            </Txt>
+                          )}
+                        </View>
+                      </View>
                     </View>
-                    <View style={{ alignItems: "flex-end", gap: 6 }}>
-                      <Txt style={{ fontSize: 20 }}>
-                        {formatMoney(
-                          amount(
-                            r.data,
-                            r.data.section === "monthlyDues"
-                              ? "defaultAmountMinor"
-                              : "remainingMinor",
-                          ),
-                          text(r.data, "currency"),
-                        )}
-                      </Txt>
-                      <Pill danger={r.data.financialStatus === "overdue"}>
-                        {label(
-                          text(r.data, "lifecycle") === "active"
-                            ? text(r.data, "financialStatus", "active")
-                            : text(r.data, "lifecycle"),
-                        )}
-                      </Pill>
-                      {r.data.section === "monthlyDues" && (
-                        <Txt muted>{label(text(r.data, "paymentMode"))}</Txt>
-                      )}
-                    </View>
-                  </Row>
-                </Card>
-              </Pressable>
-            ))}
+                  </Card>
+                </Pressable>
+              );
+            })}
             {!rows.length && (
               <Empty
                 title={
-                  search
+                  search || filterCount
                     ? "Nothing matches yet"
-                    : section === "owedToMe"
-                      ? "Nothing owed to you yet"
-                      : section === "monthlyDues"
-                        ? "Your bills, all in one place"
-                        : "Nothing owed yet"
+                    : section === "all"
+                      ? "Your obligations, all in one place"
+                      : section === "owedToMe"
+                        ? "Nothing owed to you yet"
+                        : section === "monthlyDues"
+                          ? "Your bills, all in one place"
+                          : "Nothing owed yet"
                 }
                 description="Add an obligation, or adjust your search and filters."
                 action={

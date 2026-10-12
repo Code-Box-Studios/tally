@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { useRecords } from "../../shared/queries";
 import { useSession } from "../auth/session-provider";
 import { parseMoney, moneyInput } from "../../core/domain/money";
-import { civilDate } from "../../core/domain/date";
+import { civilDate, todayInZone } from "../../core/domain/date";
 import { text, amount, type Row, type Data } from "../../core/domain/records";
-import { Choices, Field, Form, Txt } from "../../shared/ui";
+import { Field, Form, Txt } from "../../shared/ui";
+import { DateField } from "../../shared/date-field";
+import { PaymentSourceField } from "../payment-sources/payment-source-field";
 export function PeriodActionForm({
   obligation,
   instance,
@@ -16,8 +17,7 @@ export function PeriodActionForm({
   action: "amount" | "edit" | "skip" | "failed";
   onDone: () => void;
 }) {
-  const { execute } = useSession(),
-    sources = useRecords("paymentSources"),
+  const { profile, execute } = useSession(),
     [source, setSource] = useState(text(instance.data, "paymentSourceId")),
     [money, setMoney] = useState(
       moneyInput(
@@ -82,23 +82,13 @@ export function PeriodActionForm({
       )}
       {action === "edit" && (
         <>
-          <Field
+          <DateField
             label="This period’s due date"
             value={due}
-            onChangeText={setDue}
+            onChange={setDue}
+            today={todayInZone(profile!.timezone)}
           />
-          <Choices
-            label="Payment source"
-            value={source}
-            options={[
-              { value: "", label: "None" },
-              ...(sources.data?.rows
-                .filter((r) => r.data.active !== false)
-                .map((r) => ({ value: r.id, label: text(r.data, "name") })) ??
-                []),
-            ]}
-            onChange={setSource}
-          />
+          <PaymentSourceField value={source} onChange={setSource} />
           <Field label="Period notes" value={notes} onChangeText={setNotes} />
         </>
       )}

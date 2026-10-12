@@ -1,4 +1,5 @@
 import React from "react";
+import { Platform } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 const paths = {
@@ -34,6 +35,19 @@ const paths = {
   check: "m5 12 4 4L19 6",
   more: "M4 12h.01M12 12h.01M20 12h.01",
   chevron: "m9 5 7 7-7 7",
+  wallet: "M3 6h16v14H3ZM3 6V4h14v2M15 11h6v5h-6Z",
+  creditCard: "M3 5h18v14H3ZM3 9h18M7 15h4",
+  car: "m5 8 2-5h10l2 5M3 8h18v10H3ZM5 18v3M19 18v3M6 13h2M16 13h2",
+  education: "m2 8 10-5 10 5-10 5ZM6 10v7l6 4 6-4v-7M22 8v8",
+  briefcase: "M3 7h18v14H3ZM8 7V3h8v4M3 12h18M10 12v3h4v-3",
+  membership: "M3 4h18v16H3ZM7 8h4M7 12h3M14 8h4M14 12h4M7 16h11",
+  installments: "M4 4h16v16H4ZM4 9h16M4 14h16M9 4v16",
+  tag: "M3 3h8l10 10-8 8L3 11ZM7 7h.01",
+  food: "M5 3v6a3 3 0 0 0 6 0V3M8 3v18M19 3c-4 4-4 9 0 9v9M19 3v9",
+  heart: "M20 5c-3-3-6-1-8 1-2-2-5-4-8-1-4 4 1 9 8 15 7-6 12-11 8-15Z",
+  plane: "m21 3-7 18-3-8-8-3ZM11 13 21 3",
+  bag: "M4 7h16l1 14H3ZM8 7V5a4 4 0 0 1 8 0v2",
+  gift: "M3 9h18v4H3ZM5 13v8h14v-8M12 9v12M12 9H7a3 3 0 1 1 3-3ZM12 9h5a3 3 0 1 0-3-3Z",
 } as const;
 export type IconName = keyof typeof paths;
 export function Icon({
@@ -55,7 +69,8 @@ export function Icon({
       strokeWidth={1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
-      accessible={false}
+      accessible={Platform.OS === "web" ? undefined : false}
+      aria-hidden={true}
     >
       <Path d={paths[name]} />
     </Svg>

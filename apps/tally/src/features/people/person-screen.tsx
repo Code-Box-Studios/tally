@@ -48,11 +48,22 @@ export function PersonScreen() {
         title={recordTitle(person)}
         subtitle={text(person.data, "email") || text(person.data, "phone")}
         action={
-          <Button
-            secondary
-            title="Edit contact"
-            onPress={() => setEdit(!edit)}
-          />
+          <Row>
+            <Button
+              secondary
+              title="Edit contact"
+              onPress={() => setEdit(!edit)}
+            />
+            <Button
+              title="Generate statement"
+              onPress={() =>
+                router.push({
+                  pathname: "/statement",
+                  params: { contactId: id },
+                } as Href)
+              }
+            />
+          </Row>
         }
       />
       <View style={{ gap: 18 }}>

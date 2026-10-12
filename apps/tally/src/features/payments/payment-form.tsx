@@ -4,7 +4,6 @@ import { useRecords } from "../../shared/queries";
 import {
   text,
   amount,
-  recordTitle,
   label,
   type Row,
   type Data,
@@ -12,6 +11,8 @@ import {
 import { parseMoney, moneyInput } from "../../core/domain/money";
 import { civilDate, todayInZone } from "../../core/domain/date";
 import { Choices, Field, Form, Txt, Button } from "../../shared/ui";
+import { DateField } from "../../shared/date-field";
+import { PaymentSourceField } from "../payment-sources/payment-source-field";
 export function PaymentForm({
   obligation,
   instance,
@@ -24,7 +25,6 @@ export function PaymentForm({
   onDone: () => void;
 }) {
   const { profile, execute } = useSession(),
-    sources = useRecords("paymentSources"),
     payments = useRecords("payments"),
     remaining = amount(instance?.data ?? obligation.data, "remainingMinor"),
     code = text(obligation.data, "currency");
@@ -117,22 +117,13 @@ export function PaymentForm({
         onChangeText={setValue}
         keyboardType="decimal-pad"
       />
-      <Field
-        label="Payment date (YYYY-MM-DD)"
+      <DateField
+        label="Payment date"
         value={date}
-        onChangeText={setDate}
+        onChange={setDate}
+        today={todayInZone(profile!.timezone)}
       />
-      <Choices
-        label="Payment source"
-        value={source}
-        options={[
-          { value: "", label: "None" },
-          ...(sources.data?.rows
-            .filter((r) => r.data.active !== false)
-            .map((r) => ({ value: r.id, label: recordTitle(r) })) ?? []),
-        ]}
-        onChange={setSource}
-      />
+      <PaymentSourceField value={source} onChange={setSource} />
       <Choices
         label="Payment method"
         value={method}

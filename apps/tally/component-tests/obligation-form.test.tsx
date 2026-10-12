@@ -61,6 +61,30 @@ it("records money lent without changing its direction", async () => {
   );
 });
 
+it("chooses and clears an optional due date without inventing a deadline", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.changeText(screen.getByLabelText("Name"), "No deadline loan");
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "5000");
+  await fireEvent.press(
+    screen.getByRole("button", { name: /^Due date \(optional\):/ }),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Choose year" }));
+  await fireEvent.press(screen.getByRole("button", { name: "2028" }));
+  await fireEvent.press(screen.getByRole("button", { name: "February" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Feb 29, 2028" }));
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: /^Due date \(optional\): Feb 29, 2028$/,
+    }),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Clear date" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "createObligation",
+    expect.objectContaining({ dueDate: null }),
+  );
+});
+
 it("creates a variable bill with confirmation and no invented amount", async () => {
   await render(<ObligationForm />);
   await fireEvent.press(screen.getByRole("radio", { name: "Add monthly due" }));
@@ -95,6 +119,13 @@ it("blocks an installment schedule that does not equal the original amount", asy
   await fireEvent.changeText(screen.getByLabelText("Name"), "Installment loan");
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "20000");
   await fireEvent.changeText(
+    screen.getByLabelText("Number of installments"),
+    "2",
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Customize installments" }),
+  );
+  await fireEvent.changeText(
     screen.getByLabelText("Installment 1 amount"),
     "5000",
   );
@@ -121,5 +152,112 @@ it("blocks an installment schedule that does not equal the original amount", asy
         expect.objectContaining({ amountMinor: 1000000 }),
       ],
     }),
+  );
+});
+
+it("shows principal, interest and total due and saves the total as the payable balance", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.press(screen.getByRole("radio", { name: "I lent money" }));
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Loan to Alex");
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "1000");
+  await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
+  await fireEvent.changeText(screen.getByLabelText("Interest rate (%)"), "5");
+  expect(screen.getAllByText("₱1,000.00").length).toBeGreaterThan(0);
+  expect(screen.getByText("₱50.00")).toBeTruthy();
+  expect(screen.getAllByText("₱1,050.00").length).toBeGreaterThan(0);
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "createObligation",
+    expect.objectContaining({
+      amountMinor: 105000,
+      interestInfo: expect.objectContaining({
+        calculationVersion: 1,
+        principalMinor: 100000,
+        interestMinor: 5000,
+        totalMinor: 105000,
+        basis: "oneTime",
+      }),
+    }),
+  );
+});
+
+it("requires a due date before saving monthly interest", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Monthly loan");
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "1000");
+  await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
+  await fireEvent.changeText(screen.getByLabelText("Interest rate (%)"), "3");
+  await fireEvent.press(
+    screen.getByRole("button", { name: /^Interest basis:/ }),
+  );
+  await fireEvent.press(screen.getByRole("radio", { name: /Monthly.*30/ }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(
+    (
+      await screen.findAllByText(
+        "Choose a due date to calculate monthly or annual interest.",
+      )
+    ).length,
+  ).toBeGreaterThan(0);
+  expect(mockExecute).not.toHaveBeenCalled();
+});
+
+it("generates an exact installment schedule without entering each amount or opening customization", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "Add installments" }),
+  );
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Three payments");
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "100");
+  await fireEvent.changeText(
+    screen.getByLabelText("Number of installments"),
+    "3",
+  );
+  expect(screen.queryByLabelText("Installment 1 amount")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "createInstallment",
+    expect.objectContaining({
+      amountMinor: 10000,
+      installments: [
+        expect.objectContaining({ amountMinor: 3333 }),
+        expect.objectContaining({ amountMinor: 3333 }),
+        expect.objectContaining({ amountMinor: 3334 }),
+      ],
+    }),
+  );
+});
+
+it("preserves legacy informational interest when editing without calculator opt-in", async () => {
+  const interestInfo = {
+    rateBasisPoints: 500,
+    basis: "annual",
+    agreementNotes: "Old agreement",
+  };
+  await render(
+    <ObligationForm
+      existing={{
+        id: "legacy",
+        data: {
+          title: "Legacy loan",
+          section: "owedToMe",
+          currency: "PHP",
+          type: "owedToMe",
+          originalAmountMinor: 100000,
+          originationDate: "2026-10-01",
+          dueDate: "2026-10-31",
+          revision: 1,
+          interestInfo,
+        },
+      }}
+    />,
+  );
+  expect(
+    screen.getByText(/Existing interest terms remain informational/),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "editObligation",
+    expect.objectContaining({ amountMinor: 100000, interestInfo }),
   );
 });

@@ -2,7 +2,25 @@ import React, { useState } from "react";
 import { useSession } from "../auth/session-provider";
 import { text, label, type Row, type Data } from "../../core/domain/records";
 import { Field, Choices, Form, Txt } from "../../shared/ui";
-export function CatalogForm({
+import { PaymentSourceForm } from "../payment-sources/payment-source-form";
+import { CategoryForm } from "../categories/category-form";
+type CatalogFormProps = {
+  kind: "contact" | "source" | "category";
+  existing?: Row;
+  onDone: () => void;
+};
+export function CatalogForm(props: CatalogFormProps) {
+  if (props.kind === "source")
+    return (
+      <PaymentSourceForm existing={props.existing} onDone={props.onDone} />
+    );
+  if (props.kind === "category")
+    return (
+      <CategoryForm existing={props.existing} onDone={() => props.onDone()} />
+    );
+  return <BasicCatalogForm {...props} />;
+}
+function BasicCatalogForm({
   kind,
   existing,
   onDone,

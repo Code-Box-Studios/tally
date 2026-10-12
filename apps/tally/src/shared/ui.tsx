@@ -227,7 +227,7 @@ export function Heading({
         marginBottom: 24,
       }}
     >
-      <View>
+      <View style={{ maxWidth: "100%", flexShrink: 1 }}>
         <Txt big>{title}</Txt>
         {subtitle && <Txt muted>{subtitle}</Txt>}
       </View>

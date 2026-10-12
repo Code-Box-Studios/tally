@@ -14,6 +14,7 @@ import { Button, Card, Field, Form, Page, Txt } from "../../shared/ui";
 import { useTheme } from "../../shared/theme";
 import { Brand } from "../../shared/brand";
 import { AppearanceControl } from "../../shared/appearance-control";
+import { InstallTallyAction } from "../../shared/install-tally-action";
 import { useReducedMotion } from "../../shared/motion";
 import { AuthShowcase } from "./auth-showcase";
 export function AuthScreen({
@@ -116,6 +117,7 @@ export function AuthScreen({
           </View>
           <AppearanceControl />
         </View>
+        <InstallTallyAction />
         <View
           style={{
             flexDirection: wide ? "row" : "column",

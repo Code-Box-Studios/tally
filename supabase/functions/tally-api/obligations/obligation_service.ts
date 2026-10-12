@@ -8,6 +8,10 @@ import {
 } from "../shared/commands.ts";
 import { stageReminderPeriod } from "../notifications/reminder_jobs.ts";
 import {
+  type InterestInfo,
+  validateInterestInfo,
+} from "./interest_calculation.ts";
+import {
   civilDate,
   type Currency,
   currencyCode,
@@ -33,11 +37,7 @@ export interface ObligationInput {
   contactId: string | null;
   categoryId: string;
   paymentSourceId: string | null;
-  interestInfo: {
-    rateBasisPoints: number;
-    basis: string;
-    agreementNotes: string;
-  } | null;
+  interestInfo: InterestInfo | null;
 }
 const fields = [
   "title",
@@ -60,31 +60,20 @@ export function validateObligationCreation(input: unknown): ObligationInput {
   if (dueDate !== null && dueDate < originationDate) {
     return invalid("Due date must be on or after the borrowed or lent date.");
   }
-  let interestInfo: ObligationInput["interestInfo"] = null;
-  if (raw.interestInfo !== null) {
-    const info = exactObject(raw.interestInfo, [
-      "rateBasisPoints",
-      "basis",
-      "agreementNotes",
-    ]);
-    if (
-      typeof info.rateBasisPoints !== "number" ||
-      !Number.isSafeInteger(info.rateBasisPoints) || info.rateBasisPoints < 0 ||
-      info.rateBasisPoints > 100_000
-    ) return invalid("Enter valid informational interest terms.");
-    interestInfo = {
-      rateBasisPoints: info.rateBasisPoints,
-      basis: textValue(info.basis, 80, true),
-      agreementNotes: textValue(info.agreementNotes, 2000),
-    };
-  }
+  const amountMinor = moneyMinor(raw.amountMinor);
+  const interestInfo = validateInterestInfo(
+    raw.interestInfo,
+    amountMinor,
+    originationDate,
+    dueDate,
+  );
   return {
     title: textValue(raw.title, 120, true),
     description: textValue(raw.description, 1000),
     notes: textValue(raw.notes, 4000),
     direction: enumValue(raw.direction, ["owedByMe", "owedToMe"]),
     currency: currencyCode(raw.currency),
-    amountMinor: moneyMinor(raw.amountMinor),
+    amountMinor,
     originationDate,
     dueDate,
     contactId: nullableId(raw.contactId),

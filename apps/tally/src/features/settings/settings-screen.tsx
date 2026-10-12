@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View } from "react-native";
-import { router, type Href } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useSession } from "../auth/session-provider";
 import { useRecords } from "../../shared/queries";
@@ -10,7 +10,10 @@ import { CatalogForm } from "../people/catalog-form";
 import { PreferencesForm } from "../reminders/preferences-form";
 import { TimezoneField } from "../../shared/timezone-field";
 import { AppearanceControl } from "../../shared/appearance-control";
-import { useAppearance } from "../../shared/theme";
+import { useAppearance, useTheme } from "../../shared/theme";
+import { Icon } from "../../shared/icons";
+import { categoryIcon } from "../categories/category-icons";
+import { PaymentSourceIcon } from "../payment-sources/payment-source-icon";
 import {
   Page,
   Heading,
@@ -23,13 +26,23 @@ import {
   Failure,
 } from "../../shared/ui";
 export function SettingsScreen() {
+  const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
+  const initialTab =
+    requestedTab &&
+    ["preferences", "reminders", "sources", "categories"].includes(requestedTab)
+      ? requestedTab
+      : "preferences";
+  return <SettingsContent key={initialTab} initialTab={initialTab} />;
+}
+function SettingsContent({ initialTab }: { initialTab: string }) {
+  const theme = useTheme();
   const { saveBusy, beginSave, finishSave } = useAppearance();
   const { profile, repo, setProfile, signOut } = useSession(),
     sources = useRecords("paymentSources"),
     categories = useRecords("categories"),
     [code, setCode] = useState(profile!.defaultCurrency),
     [zone, setZone] = useState(profile!.timezone),
-    [tab, setTab] = useState("preferences"),
+    [tab, setTab] = useState(initialTab),
     [catalog, setCatalog] = useState<{
       kind: "source" | "category";
       row?: Row;
@@ -140,6 +153,32 @@ export function SettingsScreen() {
             {(tab === "sources" ? sources : categories).data?.rows.map((r) => (
               <Card key={r.id}>
                 <FlexRow>
+                  {tab === "categories" ? (
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 10,
+                        backgroundColor: theme.tint,
+                      }}
+                    >
+                      <Icon
+                        name={categoryIcon(r)}
+                        color={theme.primary}
+                        size={24}
+                      />
+                    </View>
+                  ) : (
+                    <PaymentSourceIcon
+                      name={String(r.data.name ?? "")}
+                      type={String(r.data.type ?? "other")}
+                      providerId={String(r.data.providerId ?? "")}
+                      iconKey={String(r.data.iconKey ?? "")}
+                      size={40}
+                    />
+                  )}
                   <View style={{ flex: 1 }}>
                     <Txt style={{ fontSize: 17 }}>{recordTitle(r)}</Txt>
                     <Txt muted>

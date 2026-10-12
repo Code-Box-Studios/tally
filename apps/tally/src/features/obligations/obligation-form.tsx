@@ -18,12 +18,25 @@ import {
   moneyInput,
   formatMoney,
 } from "../../core/domain/money";
-import { civilDate, todayInZone } from "../../core/domain/date";
+import { civilDate, displayDate, todayInZone } from "../../core/domain/date";
 import { Choices, Field, Form, Button, Txt } from "../../shared/ui";
 import { SelectField } from "../../shared/select-field";
+import { DateField } from "../../shared/date-field";
 import { useTheme } from "../../shared/theme";
 import { Icon } from "../../shared/icons";
 import { FormGrid, FormSection, ObligationTypePicker } from "./form-layout";
+import { CategoryField } from "../categories/category-field";
+import { PaymentSourceField } from "../payment-sources/payment-source-field";
+import {
+  calculateInterest,
+  generateInstallments,
+  installmentDates,
+  parseInterestRate,
+  splitInstallmentAmounts,
+  type InterestBasis,
+  type InstallmentFrequency,
+  type SimpleInterest,
+} from "./lending-calculations";
 export function ObligationForm({
   existing,
   instances = [],
@@ -34,9 +47,9 @@ export function ObligationForm({
   const { profile, execute } = useSession(),
     contacts = useRecords("contacts"),
     categories = useRecords("categories"),
-    sources = useRecords("paymentSources"),
     d = existing?.data ?? {},
-    rule = d.recurrence ? object(d.recurrence) : {};
+    rule = d.recurrence ? object(d.recurrence) : {},
+    savedInterest = d.interestInfo ? object(d.interestInfo) : null;
   const today = todayInZone(profile!.timezone),
     initialType =
       d.section === "monthlyDues"
@@ -56,12 +69,14 @@ export function ObligationForm({
     [code, setCode] = useState(text(d, "currency", profile!.defaultCurrency)),
     [money, setMoney] = useState(
       moneyInput(
-        amount(
-          d,
-          d.section === "monthlyDues"
-            ? "defaultAmountMinor"
-            : "originalAmountMinor",
-        ),
+        savedInterest?.calculationVersion === 1
+          ? amount(savedInterest, "principalMinor")
+          : amount(
+              d,
+              d.section === "monthlyDues"
+                ? "defaultAmountMinor"
+                : "originalAmountMinor",
+            ),
         text(d, "currency", profile!.defaultCurrency),
       ),
     ),
@@ -99,11 +114,25 @@ export function ObligationForm({
         ? String(Number(object(d.interestInfo).rateBasisPoints) / 100)
         : "",
     ),
-    [basis, setBasis] = useState(
-      d.interestInfo
-        ? text(object(d.interestInfo), "basis", "annual")
-        : "annual",
+    [basis, setBasis] = useState<InterestBasis>(
+      savedInterest?.calculationVersion === 1
+        ? (text(savedInterest, "basis", "oneTime") as InterestBasis)
+        : "oneTime",
     );
+  const [interestEnabled, setInterestEnabled] = useState(
+    savedInterest?.calculationVersion === 1,
+  );
+  const [count, setCount] = useState(String(instances.length || 6));
+  const [firstDue, setFirstDue] = useState(
+    instances.length
+      ? text(instances[0].data, "dueDate")
+      : installmentDates(2, today, "monthly")[1],
+  );
+  const [installmentFrequency, setInstallmentFrequency] =
+    useState<InstallmentFrequency>("monthly");
+  const [customize, setCustomize] = useState(
+    Boolean(existing && instances.length),
+  );
   const [schedule, setSchedule] = useState<
     { dueDate: string; amount: string }[]
   >(
@@ -112,10 +141,7 @@ export function ObligationForm({
           dueDate: text(r.data, "dueDate"),
           amount: moneyInput(amount(r.data, "amountMinor"), code),
         }))
-      : [
-          { dueDate: today, amount: "" },
-          { dueDate: today, amount: "" },
-        ],
+      : [],
   );
   const theme = useTheme();
   const [layoutWidth, setLayoutWidth] = useState(0);
@@ -124,6 +150,58 @@ export function ObligationForm({
   );
   const isRecurring = kind === "recurring",
     isInstallment = kind === "installment";
+  let calculated: SimpleInterest | null = null;
+  let calculatorError = "";
+  let scheduleError = "";
+  let totalMinor: number | null = null;
+  let effectiveDue = due || null;
+  let displayedSchedule = schedule;
+  try {
+    if (isInstallment) {
+      const dates = customize
+        ? schedule.map((s) => civilDate(s.dueDate))
+        : installmentDates(Number(count), firstDue, installmentFrequency);
+      effectiveDue = dates[dates.length - 1] || null;
+      if (dates[0] < civilDate(date))
+        throw new Error(
+          "First due date must follow the borrowed or lent date.",
+        );
+    }
+    if (!isRecurring && money.trim()) {
+      const principal = parseMoney(money, code);
+      calculated = interestEnabled
+        ? calculateInterest(
+            principal,
+            parseInterestRate(interest),
+            basis,
+            date,
+            effectiveDue,
+          )
+        : null;
+      totalMinor = calculated?.totalMinor ?? principal;
+    }
+  } catch (error) {
+    calculatorError = (error as Error).message;
+  }
+  if (isInstallment && !customize) {
+    try {
+      displayedSchedule =
+        totalMinor === null
+          ? []
+          : generateInstallments(
+              totalMinor,
+              Number(count),
+              firstDue,
+              installmentFrequency,
+            ).map((s) => ({
+              dueDate: s.dueDate,
+              amount: moneyInput(s.amountMinor, code),
+            }));
+    } catch (error) {
+      scheduleError = (error as Error).message;
+      displayedSchedule = [];
+    }
+  }
   async function save() {
     if (!title.trim()) throw new Error("Give this obligation a name.");
     const start = civilDate(date),
@@ -177,9 +255,12 @@ export function ObligationForm({
       };
       command = existing ? "editRecurring" : "createRecurring";
     } else {
-      const total = parseMoney(money, code),
+      if (calculatorError || scheduleError)
+        throw new Error(calculatorError || scheduleError);
+      const principal = parseMoney(money, code),
+        total = calculated?.totalMinor ?? principal,
         installments = isInstallment
-          ? schedule.map((item) => ({
+          ? displayedSchedule.map((item) => ({
               amountMinor: parseMoney(item.amount, code),
               dueDate: civilDate(item.dueDate),
             }))
@@ -189,6 +270,19 @@ export function ObligationForm({
         installments.reduce((sum, i) => sum + i.amountMinor, 0) !== total
       )
         throw new Error("Installments must add up to the original amount.");
+      if (
+        installments &&
+        (installments.length < 2 || installments.length > 120)
+      )
+        throw new Error("Choose between 2 and 120 installments.");
+      if (
+        existing &&
+        d.hasPaymentHistory === true &&
+        total !== d.originalAmountMinor
+      )
+        throw new Error(
+          "Paid history keeps its original total. Interest changes cannot alter recorded payments.",
+        );
       const dueDate = installments
         ? installments[installments.length - 1].dueDate
         : due
@@ -211,13 +305,14 @@ export function ObligationForm({
         contactId: contact || null,
         categoryId: category,
         paymentSourceId: source || null,
-        interestInfo: interest
+        interestInfo: calculated
           ? {
-              rateBasisPoints: parseMoney(interest, "PHP"),
-              basis,
-              agreementNotes: "",
+              ...calculated,
+              agreementNotes: text(savedInterest ?? {}, "agreementNotes"),
             }
-          : null,
+          : savedInterest && savedInterest.calculationVersion !== 1
+            ? savedInterest
+            : null,
         ...(installments ? { installments } : {}),
       };
       command = existing
@@ -249,20 +344,10 @@ export function ObligationForm({
       .filter((r) => r.data.archived !== true)
       .map((r) => ({ value: r.id, label: recordTitle(r) })) ?? []),
   ];
-  const categoryOptions =
-    categories.data?.rows
-      .filter((r) => r.data.active !== false)
-      .map((r) => ({ value: r.id, label: recordTitle(r) })) ?? [];
-  const sourceOptions = [
-    { value: "", label: "Choose later" },
-    ...(sources.data?.rows
-      .filter((r) => r.data.active !== false)
-      .map((r) => ({ value: r.id, label: recordTitle(r) })) ?? []),
-  ];
   let previewAmount = "Add an amount";
   if (money.trim()) {
     try {
-      previewAmount = formatMoney(parseMoney(money, code), code);
+      previewAmount = formatMoney(totalMinor ?? parseMoney(money, code), code);
     } catch {
       previewAmount = "Check your amount";
     }
@@ -324,7 +409,13 @@ export function ObligationForm({
               />
               <FormGrid columns={columns}>
                 <Field
-                  label={isRecurring ? "Default amount" : "Original amount"}
+                  label={
+                    isRecurring
+                      ? "Default amount"
+                      : interestEnabled
+                        ? "Principal amount"
+                        : "Original amount"
+                  }
                   value={money}
                   onChangeText={setMoney}
                   keyboardType="decimal-pad"
@@ -363,61 +454,49 @@ export function ObligationForm({
                   onChange={setContact}
                   searchable
                 />
-                <SelectField
-                  label="Category"
+                <CategoryField
+                  rows={categories.data?.rows ?? []}
                   value={category}
-                  options={
-                    categoryOptions.length
-                      ? categoryOptions
-                      : [
-                          {
-                            value: "default-personal-loan",
-                            label: "Personal Loan",
-                          },
-                        ]
-                  }
                   onChange={setCategory}
-                  searchable
                 />
               </FormGrid>
               <FormGrid columns={columns}>
-                <Field
+                <DateField
                   label={
                     isRecurring
-                      ? "Start date (YYYY-MM-DD)"
-                      : kind === "lent"
-                        ? "Date lent (YYYY-MM-DD)"
-                        : "Date borrowed (YYYY-MM-DD)"
+                      ? "Start date"
+                      : kind === "lent" ||
+                          (isInstallment && direction === "owedToMe")
+                        ? "Date lent"
+                        : "Date borrowed"
                   }
                   value={date}
-                  onChangeText={setDate}
-                  placeholder="YYYY-MM-DD"
-                  style={{ fontSize: 16 }}
+                  onChange={setDate}
+                  today={today}
                 />
                 {!isRecurring && !isInstallment && (
-                  <Field
-                    label="Due date (optional, YYYY-MM-DD)"
+                  <DateField
+                    label="Due date (optional)"
                     value={due}
-                    onChangeText={setDue}
+                    onChange={setDue}
+                    optional
+                    today={today}
                     placeholder="No due date yet"
-                    style={{ fontSize: 16 }}
                   />
                 )}
               </FormGrid>
               {!isRecurring && (
-                <SelectField
+                <PaymentSourceField
                   label="Payment source"
                   value={source}
-                  options={sourceOptions}
                   onChange={setSource}
-                  searchable
                 />
               )}
             </FormSection>
             {isInstallment && (
               <FormSection
                 title="Installment schedule"
-                subtitle="Each payment keeps its own history."
+                subtitle="Set the total, number of payments and first due date. We split the total exactly."
                 icon="calendar"
               >
                 {!existing && (
@@ -431,67 +510,265 @@ export function ObligationForm({
                     onChange={setDirection}
                   />
                 )}
-                {schedule.map((item, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      padding: 16,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      backgroundColor: theme.surface2,
-                      gap: 12,
-                    }}
-                  >
-                    <Txt style={{ fontSize: 13, fontWeight: "600" }}>
-                      Payment {i + 1}
-                    </Txt>
+                {!customize && (
+                  <>
                     <FormGrid columns={columns}>
                       <Field
-                        label={`Installment ${i + 1} due date`}
-                        value={item.dueDate}
-                        onChangeText={(v) =>
-                          setSchedule((s) =>
-                            s.map((x, n) =>
-                              n === i ? { ...x, dueDate: v } : x,
-                            ),
-                          )
-                        }
-                        style={{ fontSize: 16 }}
+                        label="Number of installments"
+                        value={count}
+                        onChangeText={setCount}
+                        keyboardType="number-pad"
+                        editable={!existing}
                       />
-                      <Field
-                        label={`Installment ${i + 1} amount`}
-                        value={item.amount}
-                        keyboardType="decimal-pad"
-                        onChangeText={(v) =>
-                          setSchedule((s) =>
-                            s.map((x, n) =>
-                              n === i ? { ...x, amount: v } : x,
-                            ),
-                          )
+                      <SelectField
+                        label="Payment frequency"
+                        value={installmentFrequency}
+                        options={[
+                          { value: "monthly", label: "Monthly" },
+                          { value: "weekly", label: "Weekly" },
+                          { value: "biweekly", label: "Every two weeks" },
+                        ]}
+                        onChange={(value) =>
+                          setInstallmentFrequency(value as InstallmentFrequency)
                         }
-                        style={{ fontSize: 16 }}
                       />
                     </FormGrid>
-                    {schedule.length > 2 && (
-                      <Button
-                        secondary
-                        title={`Remove installment ${i + 1}`}
-                        onPress={() =>
-                          setSchedule((s) => s.filter((_, n) => n !== i))
-                        }
-                      />
+                    <DateField
+                      label="First due date"
+                      value={firstDue}
+                      onChange={setFirstDue}
+                      today={today}
+                    />
+                    <Txt muted>
+                      {installmentFrequency === "monthly"
+                        ? "Monthly dates keep the first due day; short months use their last available day."
+                        : "Payments follow the chosen number of days."}{" "}
+                      The final payment absorbs any rounding remainder.
+                    </Txt>
+                    {!!(calculatorError || scheduleError) && (
+                      <Txt>{calculatorError || scheduleError}</Txt>
                     )}
-                  </View>
-                ))}
+                    {displayedSchedule.map((item, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 10,
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Txt>
+                          Payment {i + 1} · {displayDate(item.dueDate)}
+                        </Txt>
+                        <Txt>
+                          {formatMoney(parseMoney(item.amount, code), code)}
+                        </Txt>
+                      </View>
+                    ))}
+                    <Button
+                      secondary
+                      title="Customize installments"
+                      disabled={!displayedSchedule.length}
+                      onPress={() => {
+                        setSchedule(displayedSchedule);
+                        setCustomize(true);
+                      }}
+                    />
+                  </>
+                )}
+                {customize &&
+                  schedule.map((item, i) => (
+                    <View
+                      key={i}
+                      style={{
+                        padding: 16,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        backgroundColor: theme.surface2,
+                        gap: 12,
+                      }}
+                    >
+                      <Txt style={{ fontSize: 13, fontWeight: "600" }}>
+                        Payment {i + 1}
+                      </Txt>
+                      <FormGrid columns={columns}>
+                        <DateField
+                          label={`Installment ${i + 1} due date`}
+                          value={item.dueDate}
+                          onChange={(v) =>
+                            setSchedule((s) =>
+                              s.map((x, n) =>
+                                n === i ? { ...x, dueDate: v } : x,
+                              ),
+                            )
+                          }
+                          today={today}
+                        />
+                        <Field
+                          label={`Installment ${i + 1} amount`}
+                          value={item.amount}
+                          keyboardType="decimal-pad"
+                          onChangeText={(v) =>
+                            setSchedule((s) =>
+                              s.map((x, n) =>
+                                n === i ? { ...x, amount: v } : x,
+                              ),
+                            )
+                          }
+                          style={{ fontSize: 16 }}
+                        />
+                      </FormGrid>
+                      {!existing && schedule.length > 2 && (
+                        <Button
+                          secondary
+                          title={`Remove installment ${i + 1}`}
+                          onPress={() =>
+                            setSchedule((s) => s.filter((_, n) => n !== i))
+                          }
+                        />
+                      )}
+                    </View>
+                  ))}
+                {customize && (
+                  <Button
+                    secondary
+                    disabled={!!existing || schedule.length >= 120}
+                    title="Add installment"
+                    onPress={() =>
+                      setSchedule((s) => [...s, { dueDate: today, amount: "" }])
+                    }
+                  />
+                )}
+                {customize && (
+                  <Button
+                    secondary
+                    title="Redistribute total evenly"
+                    disabled={
+                      totalMinor === null ||
+                      totalMinor < schedule.length ||
+                      schedule.length < 2 ||
+                      schedule.length > 120
+                    }
+                    onPress={() => {
+                      if (totalMinor === null) return;
+                      const amounts = splitInstallmentAmounts(
+                        totalMinor,
+                        schedule.length,
+                      );
+                      setSchedule((items) =>
+                        items.map((item, index) => ({
+                          ...item,
+                          amount: moneyInput(amounts[index], code),
+                        })),
+                      );
+                    }}
+                  />
+                )}
+                {customize && !existing && (
+                  <Button
+                    secondary
+                    title="Use generated schedule"
+                    onPress={() => {
+                      setCount(String(schedule.length));
+                      setFirstDue(schedule[0].dueDate);
+                      setCustomize(false);
+                    }}
+                  />
+                )}
+              </FormSection>
+            )}
+            {!isRecurring && (
+              <FormSection
+                title="Interest calculator"
+                subtitle="Optional simple interest, fixed when you save this obligation."
+                icon="info"
+              >
+                {savedInterest &&
+                  savedInterest.calculationVersion !== 1 &&
+                  !interestEnabled && (
+                    <Txt muted>
+                      Existing interest terms remain informational and do not
+                      change the recorded balance.
+                    </Txt>
+                  )}
                 <Button
                   secondary
-                  disabled={schedule.length >= 120}
-                  title="Add installment"
-                  onPress={() =>
-                    setSchedule((s) => [...s, { dueDate: today, amount: "" }])
-                  }
+                  title={interestEnabled ? "Remove interest" : "Add interest"}
+                  onPress={() => setInterestEnabled((value) => !value)}
                 />
+                {interestEnabled && (
+                  <>
+                    <FormGrid columns={columns}>
+                      <Field
+                        label="Interest rate (%)"
+                        value={interest}
+                        onChangeText={setInterest}
+                        keyboardType="decimal-pad"
+                        placeholder="5.00"
+                      />
+                      <SelectField
+                        label="Interest basis"
+                        value={basis}
+                        options={[
+                          { value: "oneTime", label: "Flat · one-time charge" },
+                          {
+                            value: "monthly",
+                            label: "Monthly · actual days / 30",
+                          },
+                          {
+                            value: "annual",
+                            label: "Annual · actual days / 365",
+                          },
+                        ]}
+                        onChange={(value) => setBasis(value as InterestBasis)}
+                      />
+                    </FormGrid>
+                    <Txt muted>
+                      {basis === "oneTime"
+                        ? "Principal × rate. One fixed charge; a due date is optional."
+                        : `Principal × rate × actual days / ${basis === "monthly" ? "30" : "365"}. ${isInstallment ? "Dates run from origination through the final installment." : "Dates run from the borrowed or lent date through the due date."}`}
+                    </Txt>
+                    <Txt muted>
+                      No compounding or automatic accrual after saving. Interest
+                      is rounded once to the smallest currency unit and included
+                      in the balance.
+                    </Txt>
+                    {!!calculatorError && <Txt>{calculatorError}</Txt>}
+                    {calculated && (
+                      <>
+                        <FormGrid columns={columns}>
+                          <View style={{ gap: 4 }}>
+                            <Txt muted>Principal</Txt>
+                            <Txt>
+                              {formatMoney(calculated.principalMinor, code)}
+                            </Txt>
+                          </View>
+                          <View style={{ gap: 4 }}>
+                            <Txt muted>Interest amount</Txt>
+                            <Txt>
+                              {formatMoney(calculated.interestMinor, code)}
+                            </Txt>
+                          </View>
+                          <View style={{ gap: 4 }}>
+                            <Txt muted>Total due</Txt>
+                            <Txt big>
+                              {formatMoney(calculated.totalMinor, code)}
+                            </Txt>
+                          </View>
+                        </FormGrid>
+                        {basis !== "oneTime" && (
+                          <Txt muted>
+                            {calculated.dayCount} actual days ·{" "}
+                            {displayDate(calculated.originationDate)} to{" "}
+                            {displayDate(calculated.dueDate)}
+                          </Txt>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
               </FormSection>
             )}
             {isRecurring && (
@@ -542,12 +819,13 @@ export function ObligationForm({
                     ]}
                     onChange={setMonthEnd}
                   />
-                  <Field
+                  <DateField
                     label="End date (optional)"
-                    placeholder="YYYY-MM-DD"
+                    placeholder="No end date"
                     value={end}
-                    onChangeText={setEnd}
-                    style={{ fontSize: 16 }}
+                    onChange={setEnd}
+                    optional
+                    today={today}
                   />
                   <Txt muted style={{ fontSize: 12 }}>
                     Each period has its own bill. Changes to the amount apply to
@@ -569,12 +847,10 @@ export function ObligationForm({
                     ].map((value) => ({ value, label: label(value) }))}
                     onChange={setMode}
                   />
-                  <SelectField
+                  <PaymentSourceField
                     label="Payment source"
                     value={source}
-                    options={sourceOptions}
                     onChange={setSource}
-                    searchable
                   />
                   {mode !== "manual" && (
                     <Txt muted style={{ fontSize: 12 }}>
@@ -644,7 +920,7 @@ export function ObligationForm({
                   <Txt muted style={{ fontSize: 12 }}>
                     {isRecurring
                       ? "Description and notes · optional"
-                      : "Description, interest and notes · optional"}
+                      : "Description and notes · optional"}
                   </Txt>
                 </View>
                 <View
@@ -665,23 +941,6 @@ export function ObligationForm({
                     placeholder="What is this obligation for?"
                     style={{ fontSize: 16 }}
                   />
-                  {!isRecurring && (
-                    <FormGrid columns={columns}>
-                      <Field
-                        label="Interest rate % (optional, informational)"
-                        value={interest}
-                        onChangeText={setInterest}
-                        keyboardType="decimal-pad"
-                        style={{ fontSize: 16 }}
-                      />
-                      <Field
-                        label="Interest basis"
-                        value={basis}
-                        onChangeText={setBasis}
-                        style={{ fontSize: 16 }}
-                      />
-                    </FormGrid>
-                  )}
                   <Field
                     label="Notes"
                     value={notes}

@@ -4,13 +4,13 @@ import { router, type Href } from "expo-router";
 import { useRecords } from "../../shared/queries";
 import { recordTitle, text, amount, type Row } from "../../core/domain/records";
 import { formatMoney } from "../../core/domain/money";
+import { SearchField } from "../../shared/search-field";
 import {
   Page,
   Heading,
   Card,
   Txt,
   Button,
-  Field,
   Row as FlexRow,
   Loading,
   Failure,
@@ -64,7 +64,12 @@ export function PeopleScreen() {
             <CatalogForm kind="contact" onDone={() => setAdd(false)} />
           </Card>
         )}
-        <Field label="Search people" value={search} onChangeText={setSearch} />
+        <SearchField
+          label="Search people"
+          placeholder="Search name, email, phone or notes"
+          value={search}
+          onChangeText={setSearch}
+        />
         {contacts.isPending ? (
           <Loading />
         ) : contacts.error ? (

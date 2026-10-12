@@ -4,6 +4,7 @@ import Head from "expo-router/head";
 import { useSession } from "../auth/session-provider";
 import { useTheme } from "../../shared/theme";
 import { AppearanceControl } from "../../shared/appearance-control";
+import { InstallTallyAction } from "../../shared/install-tally-action";
 import { Icon, type IconName } from "../../shared/icons";
 import { HeroPreview, RepaymentDemo } from "./landing-demo.web";
 import "./landing.css";
@@ -160,6 +161,7 @@ export function LandingScreen() {
             </Link>
           </div>
         </div>
+        <InstallTallyAction />
       </header>
       <main id="tally-main">
         <section className="tally-container tally-hero">

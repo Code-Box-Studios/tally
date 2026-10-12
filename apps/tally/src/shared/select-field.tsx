@@ -1,10 +1,17 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Modal, Pressable, TextInput, View } from "react-native";
+import { FlatList, Modal, Pressable, View } from "react-native";
 import { useTheme } from "./theme";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
+import { SearchField } from "./search-field";
 import { Txt } from "./ui";
 
-export type SelectOption = { value: string; label: string };
+export type SelectOption = {
+  value: string;
+  label: string;
+  icon?: IconName;
+  leading?: React.ReactNode;
+  searchText?: string;
+};
 export function SelectField({
   label,
   value,
@@ -12,6 +19,7 @@ export function SelectField({
   onChange,
   searchable = false,
   placeholder = "Choose an option",
+  footer,
 }: {
   label: string;
   value: string;
@@ -19,6 +27,7 @@ export function SelectField({
   onChange: (value: string) => void;
   searchable?: boolean;
   placeholder?: string;
+  footer?: React.ReactNode | ((close: () => void) => React.ReactNode);
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false),
@@ -27,7 +36,7 @@ export function SelectField({
   const filtered = useMemo(
     () =>
       options.filter((option) =>
-        option.label
+        `${option.label} ${option.searchText ?? ""}`
           .replaceAll("_", " ")
           .toLowerCase()
           .includes(search.trim().replaceAll("_", " ").toLowerCase()),
@@ -61,6 +70,10 @@ export function SelectField({
           opacity: pressed ? 0.75 : 1,
         })}
       >
+        {selected?.leading ??
+          (selected?.icon ? (
+            <Icon name={selected.icon} color={theme.primary} />
+          ) : null)}
         <Txt style={{ flex: 1 }}>
           {selected?.label ?? (value || placeholder)}
         </Txt>
@@ -128,39 +141,14 @@ export function SelectField({
                 <Icon name="close" color={theme.muted} />
               </Pressable>
             </View>
-            {searchable && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  backgroundColor: theme.background,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  borderRadius: 10,
-                  paddingHorizontal: 12,
-                }}
-              >
-                <Icon name="search" color={theme.muted} size={18} />
-                <TextInput
-                  accessibilityLabel={`Search ${label.toLowerCase()}`}
-                  placeholder={`Search ${label.toLowerCase()}…`}
-                  placeholderTextColor={theme.muted}
-                  value={search}
-                  onChangeText={setSearch}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    minHeight: 48,
-                    fontSize: 16,
-                    color: theme.ink,
-                    fontFamily: "DM Sans",
-                  }}
-                />
-              </View>
-            )}
+            {searchable ? (
+              <SearchField
+                label={`Search ${label.toLowerCase()}`}
+                placeholder={`Search ${label.toLowerCase()}…`}
+                value={search}
+                onChangeText={setSearch}
+              />
+            ) : null}
             <FlatList
               style={{ flexGrow: 0, maxHeight: 360 }}
               data={filtered}
@@ -196,6 +184,15 @@ export function SelectField({
                           : "transparent",
                   })}
                 >
+                  {item.leading ??
+                    (item.icon ? (
+                      <Icon
+                        name={item.icon}
+                        color={
+                          value === item.value ? theme.primary : theme.muted
+                        }
+                      />
+                    ) : null)}
                   <Txt
                     style={{
                       flex: 1,
@@ -210,6 +207,7 @@ export function SelectField({
                 </Pressable>
               )}
             />
+            {typeof footer === "function" ? footer(close) : footer}
           </View>
         </View>
       </Modal>
