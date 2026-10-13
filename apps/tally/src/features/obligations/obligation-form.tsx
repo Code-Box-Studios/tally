@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ContactField } from "../people/contact-field";
 import { Pressable, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSession } from "../auth/session-provider";
@@ -7,7 +8,6 @@ import {
   text,
   amount,
   object,
-  recordTitle,
   label,
   type Row,
   type Data,
@@ -47,9 +47,11 @@ import {
 export function ObligationForm({
   existing,
   instances = [],
+  initialContactId = "",
 }: {
   existing?: Row;
   instances?: Row[];
+  initialContactId?: string;
 }) {
   const { profile, execute } = useSession(),
     contacts = useRecords("contacts"),
@@ -91,7 +93,7 @@ export function ObligationForm({
       text(d, "originationDate", text(rule, "startDate", today)),
     ),
     [due, setDue] = useState(text(d, "nextDueDate", text(d, "dueDate"))),
-    [contact, setContact] = useState(text(d, "contactId")),
+    [contact, setContact] = useState(text(d, "contactId", initialContactId)),
     [category, setCategory] = useState(
       text(d, "categoryId", "default-personal-loan"),
     ),
@@ -353,12 +355,6 @@ export function ObligationForm({
   }
   const columns = layoutWidth >= 580;
   const sidebar = layoutWidth >= 960 && !existing;
-  const contactOptions = [
-    { value: "", label: "No person selected" },
-    ...(contacts.data?.rows
-      .filter((r) => r.data.archived !== true)
-      .map((r) => ({ value: r.id, label: recordTitle(r) })) ?? []),
-  ];
   let previewAmount = "Add an amount";
   if (money.trim()) {
     try {
@@ -463,12 +459,10 @@ export function ObligationForm({
                 />
               )}
               <FormGrid columns={columns}>
-                <SelectField
-                  label="Person / organization"
+                <ContactField
                   value={contact}
-                  options={contactOptions}
+                  rows={contacts.data?.rows ?? []}
                   onChange={setContact}
-                  searchable
                 />
                 <CategoryField
                   rows={categories.data?.rows ?? []}
@@ -778,8 +772,9 @@ export function ObligationForm({
                     today={today}
                   />
                   <Txt muted style={{ fontSize: 12 }}>
-                    Each period has its own bill. Changes to the amount apply to
-                    future periods.
+                    {existing
+                      ? "Default amount and schedule changes apply only to periods generated after this save. Already generated periods, including future-dated bills, keep their saved amounts and dates. Use Set period amount or Edit period under Billing periods to change an existing bill."
+                      : "Each period has its own bill. Changes to the default amount and schedule apply only to periods generated after the change."}
                   </Txt>
                 </FormSection>
                 <FormSection
@@ -950,10 +945,12 @@ export function ObligationForm({
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <Icon name="people" size={16} color={theme.muted} />
                   <Txt muted style={{ flex: 1, fontSize: 12 }}>
-                    {
-                      contactOptions.find((option) => option.value === contact)
-                        ?.label
-                    }
+                    {text(
+                      contacts.data?.rows.find((row) => row.id === contact)
+                        ?.data ?? {},
+                      "displayName",
+                      contact ? "Contact selected" : "No person selected",
+                    )}
                   </Txt>
                 </View>
                 <View style={{ flexDirection: "row", gap: 8 }}>

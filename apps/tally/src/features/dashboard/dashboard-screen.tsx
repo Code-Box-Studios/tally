@@ -18,6 +18,8 @@ import { Icon } from "../../shared/icons";
 import { useTheme } from "../../shared/theme";
 import { MetricCard, MonthFocus, Panel, QuietEmpty } from "./dashboard-widgets";
 
+import { periodDestination } from "../obligations/obligation-navigation";
+
 export function DueRow({ row, obligations }: { row: Row; obligations: Row[] }) {
   const theme = useTheme(),
     parent = obligations.find((item) => item.id === row.data.obligationId);
@@ -28,9 +30,7 @@ export function DueRow({ row, obligations }: { row: Row; obligations: Row[] }) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={parent ? recordTitle(parent) : "Obligation"}
-      onPress={() =>
-        router.push(`/obligations/${row.data.obligationId}` as Href)
-      }
+      onPress={() => router.push(periodDestination(row))}
       style={({ pressed }) => ({
         flexDirection: "row",
         gap: 12,
@@ -107,7 +107,8 @@ export function DashboardScreen() {
     parents = useRecords("obligations"),
     periods = useRecords("obligationInstances"),
     payments = useRecords("payments"),
-    activity = useRecords("activities");
+    activity = useRecords("activities"),
+    evidence = useRecords("paymentEvidence");
   const theme = useTheme(),
     { width } = useWindowDimensions(),
     columns = width >= 1100,
@@ -143,16 +144,37 @@ export function DashboardScreen() {
     today,
   );
   if (!Object.keys(totals).length) totals[profile!.defaultCurrency] = zero;
+  const excludedParents = new Set(
+    obligations
+      .filter(
+        (row) =>
+          row.data.archived === true || row.data.lifecycle === "cancelled",
+      )
+      .map((row) => row.id),
+  );
   const outstanding = periods
     .data!.rows.filter(
       (row) =>
+        !excludedParents.has(text(row.data, "obligationId")) &&
         row.data.closed !== true &&
         !["cancelled", "skipped"].includes(text(row.data, "financialStatus")) &&
-        (amount(row.data, "remainingMinor") ?? 0) > 0,
+        ((amount(row.data, "remainingMinor") ?? 0) > 0 ||
+          (row.data.section === "monthlyDues" &&
+            amount(row.data, "remainingMinor") === null)),
     )
     .sort((a, b) =>
       text(a.data, "dueDate").localeCompare(text(b.data, "dueDate")),
     );
+  const amountsNeeded: Record<string, number> = {};
+  for (const row of outstanding) {
+    if (
+      row.data.section === "monthlyDues" &&
+      amount(row.data, "remainingMinor") === null
+    ) {
+      const code = text(row.data, "currency");
+      amountsNeeded[code] = (amountsNeeded[code] ?? 0) + 1;
+    }
+  }
   const due = outstanding.filter(
     (row) =>
       row.data.section !== "owedToMe" &&
@@ -168,6 +190,23 @@ export function DashboardScreen() {
       row.data.section !== "owedToMe" &&
       row.data.paymentMode !== "manual" &&
       text(row.data, "dueDate") >= today,
+  );
+  const reversed = new Set(
+    payments
+      .data!.rows.filter((row) => row.data.entryType === "reversal")
+      .map((row) => text(row.data, "reversesPaymentId")),
+  );
+  const confirmed = new Set(
+    (evidence.data?.rows ?? [])
+      .filter((row) => row.data.kind === "userConfirmed")
+      .map((row) => text(row.data, "paymentId")),
+  );
+  const unconfirmed = payments.data!.rows.filter(
+    (row) =>
+      row.data.entryType === "payment" &&
+      row.data.provenance === "assumedAutomatic" &&
+      !reversed.has(row.id) &&
+      !confirmed.has(row.id),
   );
   const ownerName =
     session?.user.user_metadata?.full_name || session?.user.user_metadata?.name;
@@ -230,6 +269,55 @@ export function DashboardScreen() {
         {(parents.data?.cached || periods.data?.cached) && (
           <Txt muted>Cached balances · reconnect to confirm.</Txt>
         )}
+        {(unconfirmed.length > 0 || evidence.error || evidence.isPending) && (
+          <Panel title="Confirm automatic deductions">
+            <Txt muted style={{ padding: 16 }}>
+              Assumed payments need your confirmation.
+            </Txt>
+            {evidence.error ? (
+              <Failure
+                error={evidence.error}
+                retry={() => void evidence.refetch()}
+              />
+            ) : evidence.isPending ? (
+              <Loading />
+            ) : (
+              unconfirmed.map((payment) => {
+                const period = periods.data!.rows.find(
+                  (row) =>
+                    row.id === payment.data.obligationInstanceId &&
+                    row.data.obligationId === payment.data.obligationId,
+                );
+                const parent = obligations.find(
+                  (row) => row.id === payment.data.obligationId,
+                );
+                return (
+                  <View key={payment.id} style={{ gap: 8, padding: 16 }}>
+                    <Txt style={{ fontWeight: "600" }}>
+                      {parent ? recordTitle(parent) : "Obligation"}
+                    </Txt>
+                    <Txt muted>
+                      {formatMoney(
+                        amount(payment.data, "amountMinor"),
+                        text(payment.data, "currency"),
+                      )}{" "}
+                      recorded automatically · Unconfirmed
+                    </Txt>
+                    {period ? (
+                      <Button
+                        secondary
+                        title="Review deduction"
+                        onPress={() => router.push(periodDestination(period))}
+                      />
+                    ) : (
+                      <Txt muted>Refresh records to review this deduction.</Txt>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </Panel>
+        )}
         {Object.entries(totals).map(([code, total]) => (
           <View key={code} style={{ gap: 20 }}>
             {Object.keys(totals).length > 1 && (
@@ -250,7 +338,7 @@ export function DashboardScreen() {
                 code={code}
                 tone="green"
                 icon="arrowDown"
-                href="/obligations"
+                href={`/obligations?section=payable&currency=${code}&status=outstanding`}
                 note={activeNote(code, "iOwe")}
                 style={{
                   flex: 1,
@@ -264,7 +352,7 @@ export function DashboardScreen() {
                 code={code}
                 tone="blue"
                 icon="arrowUp"
-                href="/obligations"
+                href={`/obligations?section=owedToMe&currency=${code}&status=outstanding`}
                 note={activeNote(code, "owedToMe")}
                 style={{
                   flex: 1,
@@ -278,7 +366,7 @@ export function DashboardScreen() {
                 code={code}
                 tone="amber"
                 icon="calendar"
-                href="/calendar"
+                href={`/calendar?section=payable&currency=${code}&status=outstanding`}
                 note={`of ${formatMoney(total.dueMonth, code)} scheduled`}
                 style={{
                   flex: threeMetrics ? 1 : undefined,
@@ -287,6 +375,13 @@ export function DashboardScreen() {
                 }}
               />
             </View>
+            {!!amountsNeeded[code] && (
+              <Txt muted style={{ fontSize: 12 }}>
+                {amountsNeeded[code]} bill{" "}
+                {amountsNeeded[code] === 1 ? "amount" : "amounts"} needed ·
+                Totals include known amounts only.
+              </Txt>
+            )}
             <View
               style={{
                 flexDirection: "row",
@@ -337,7 +432,7 @@ export function DashboardScreen() {
                   accessibilityLabel="Review overdue obligations"
                   onPress={() =>
                     router.push(
-                      `/obligations/${overdue[0].data.obligationId}` as Href,
+                      "/obligations?section=payable&status=overdue" as Href,
                     )
                   }
                   style={{
@@ -370,6 +465,7 @@ export function DashboardScreen() {
                   <Icon name="arrow" color={theme.danger} size={14} />
                 </Pressable>
               )}
+              {overdue.length > 0 && rows(overdue, 3)}
               {dueToday.length > 0 && (
                 <>
                   <Txt
@@ -408,10 +504,6 @@ export function DashboardScreen() {
                   description="No outstanding payments due in the next seven days."
                 />
               )}
-              {overdue.length > 0 &&
-                !dueToday.length &&
-                !soon.length &&
-                rows(overdue, 3)}
               <View
                 style={{
                   flexDirection: "row",

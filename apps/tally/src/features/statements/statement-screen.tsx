@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useSession } from "../auth/session-provider";
 import { formatStatementMoney } from "./statement-money";
-import { displayDate } from "../../core/domain/date";
+import { displayDate, todayInZone } from "../../core/domain/date";
 import { label } from "../../core/domain/records";
 import {
   Button,
@@ -19,16 +19,21 @@ import {
 } from "../../shared/ui";
 import {
   buildStatement,
+  selectStatementHistory,
+  statementHistoryLabel,
   statementTimestamp,
   type AccountStatement,
 } from "./statement";
 import { exportStatementPdf } from "./export-pdf";
+import { DateField } from "../../shared/date-field";
 
 export function StatementScreen() {
   const { contactId } = useLocalSearchParams<{ contactId: string }>();
   const { repo, profile, cached, pending } = useSession();
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<unknown>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const query = useQuery({
     queryKey: [repo?.namespace, repo?.owner, "account-statement", contactId],
     enabled: !!repo && !!profile && !!contactId,
@@ -69,24 +74,72 @@ export function StatementScreen() {
       });
     },
   });
-  const statement = query.data;
+  let statement: AccountStatement | undefined;
+  let rangeError: unknown = null;
+  if (query.data) {
+    try {
+      statement = selectStatementHistory(query.data, { from, to });
+    } catch (error) {
+      rangeError = error;
+    }
+  }
   return (
     <Page maxWidth={980}>
       <Heading
         title="Statement of account"
-        subtitle="Review current balances and complete recorded history."
+        subtitle="Review current balances and choose payment activity dates."
       />
       {query.isPending || query.isFetching ? (
         <Loading />
       ) : query.error ? (
         <Failure error={query.error} retry={() => void query.refetch()} />
-      ) : statement ? (
+      ) : query.data ? (
         <View style={{ gap: 18 }}>
+          <Card>
+            <Txt style={{ fontWeight: "600" }}>Payment activity dates</Txt>
+            <Txt muted>
+              Dates filter payments and reversals. Balances and schedules remain
+              current at generation.
+            </Txt>
+            <Row>
+              <View style={{ flex: 1, minWidth: 180 }}>
+                <DateField
+                  label="From"
+                  value={from}
+                  onChange={setFrom}
+                  optional
+                  placeholder="Beginning of history"
+                  today={todayInZone(profile!.timezone)}
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 180 }}>
+                <DateField
+                  label="To"
+                  value={to}
+                  onChange={setTo}
+                  optional
+                  placeholder="Latest payment"
+                  today={todayInZone(profile!.timezone)}
+                />
+              </View>
+            </Row>
+            <Button
+              secondary
+              title="All history"
+              onPress={() => {
+                setFrom("");
+                setTo("");
+                setExportError(null);
+              }}
+            />
+          </Card>
+          {!!rangeError && <Failure error={rangeError} />}
           <Row>
             <Button
               title={exporting ? "Preparing PDF…" : "Export PDF"}
-              disabled={exporting}
+              disabled={exporting || !statement}
               onPress={() => {
+                if (!statement) return;
                 setExporting(true);
                 setExportError(null);
                 void exportStatementPdf(statement, () => repo!.check())
@@ -111,7 +164,7 @@ export function StatementScreen() {
             </Txt>
           )}
           {!!exportError && <Failure error={exportError} />}
-          <StatementPreview statement={statement} />
+          {statement && <StatementPreview statement={statement} />}
         </View>
       ) : null}
     </Page>
@@ -142,8 +195,9 @@ function StatementPreview({ statement }: { statement: AccountStatement }) {
             : "Current records loaded for this statement."}
         </Txt>
         <Txt muted>
-          Balances reflect this snapshot at generation. Complete recorded
-          history covers obligations currently linked to this contact.
+          Balances and schedules reflect this snapshot at generation. They are
+          not historical balances at the selected dates. Recurring history stays
+          with each billing period’s original contact.
         </Txt>
         <Txt muted>
           Each currency and each debt direction stays separate. Cancelled and
@@ -254,6 +308,12 @@ function StatementPreview({ statement }: { statement: AccountStatement }) {
           {account.section === "monthlyDues" && !account.periods.length && (
             <Txt muted>No billing periods generated yet.</Txt>
           )}
+          {account.installment && (
+            <Txt style={{ fontWeight: "600" }}>Installment schedule</Txt>
+          )}
+          {account.installment && !account.periods.length && (
+            <Txt muted>Installment schedule unavailable in these records.</Txt>
+          )}
           {account.periods.map((period) => (
             <View key={period.id} style={{ gap: 4, paddingTop: 12 }}>
               <Txt style={{ fontWeight: "600" }}>
@@ -278,13 +338,43 @@ function StatementPreview({ statement }: { statement: AccountStatement }) {
         </Card>
       ))}
       <Heading
-        title="All recorded payments and reversals"
-        subtitle="Original entries remain visible after correction."
+        title={
+          statement.historyRange.from || statement.historyRange.to
+            ? "Selected payment activity"
+            : "All recorded payments and reversals"
+        }
+        subtitle={
+          statement.historyRange.from || statement.historyRange.to
+            ? statementHistoryLabel(statement.historyRange)
+            : "Original entries remain visible after correction."
+        }
       />
       <Txt muted>
-        Payment date reflects the original payment. Recorded date reflects when
-        each entry was saved, including corrections.
+        Activity uses payment dates, including corrections recorded later.
+        Recorded dates show when entries were saved. Net activity subtracts
+        reversals; it does not represent the current outstanding balance.
       </Txt>
+      {statement.activitySummaries.map((activity) => (
+        <Card key={activity.currency}>
+          <Txt style={{ fontWeight: "600" }}>
+            {activity.currency} · Net payment activity
+          </Txt>
+          <Txt>
+            Paid to contact ·{" "}
+            {formatStatementMoney(
+              activity.paidToContactMinor,
+              activity.currency,
+            )}
+          </Txt>
+          <Txt>
+            Received from contact ·{" "}
+            {formatStatementMoney(
+              activity.receivedFromContactMinor,
+              activity.currency,
+            )}
+          </Txt>
+        </Card>
+      ))}
       {statement.history.map((entry) => (
         <Card key={entry.id}>
           <Txt style={{ fontWeight: "600" }}>{entry.title}</Txt>
@@ -323,7 +413,7 @@ function StatementPreview({ statement }: { statement: AccountStatement }) {
         </Card>
       ))}
       {!statement.history.length && (
-        <Txt muted>No recorded payments or reversals.</Txt>
+        <Txt muted>No recorded payments or reversals in this date range.</Txt>
       )}
       <Txt muted>
         Prepared from your Tally records. Informational statement; independent

@@ -168,3 +168,49 @@ it("refuses export if a collection fails instead of presenting a partial history
   expect(screen.queryByRole("button", { name: "Export PDF" })).toBeNull();
   expect(mockExport).not.toHaveBeenCalled();
 });
+
+it("filters payment activity with the calendar while exporting the same current balances and scope", async () => {
+  await mount();
+  expect(await screen.findByText("Payment · p1")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: /^From:/ }));
+  await fireEvent.press(screen.getByRole("button", { name: "Choose year" }));
+  await fireEvent.press(screen.getByRole("button", { name: "2026" }));
+  await fireEvent.press(screen.getByRole("button", { name: "October" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Oct 2, 2026" }));
+  expect(screen.queryByText("Payment · p1")).toBeNull();
+  expect(screen.getAllByText("₱70.00").length).toBeGreaterThan(0);
+  expect(screen.getByText("Payment dates: Oct 2, 2026 onward")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Export PDF" }));
+  expect(mockExport).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      history: [],
+      historyRange: { from: "2026-10-02", to: null },
+      summaries: [expect.objectContaining({ youOweMinor: 7000 })],
+    }),
+    expect.any(Function),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "All history" }));
+  expect(screen.getByText("Payment · p1")).toBeTruthy();
+});
+
+it("blocks export for a From date later than the To date until corrected", async () => {
+  await mount();
+  await screen.findByText("Alice");
+  for (const [field, day] of [
+    ["From", "Oct 3, 2026"],
+    ["To", "Oct 1, 2026"],
+  ]) {
+    await fireEvent.press(
+      screen.getByRole("button", { name: new RegExp(`^${field}:`) }),
+    );
+    await fireEvent.press(screen.getByRole("button", { name: "Choose year" }));
+    await fireEvent.press(screen.getByRole("button", { name: "2026" }));
+    await fireEvent.press(screen.getByRole("button", { name: "October" }));
+    await fireEvent.press(screen.getByRole("button", { name: day }));
+  }
+  expect(
+    screen.getByText("From date must be on or before To date."),
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Export PDF" })).toBeDisabled();
+  expect(mockExport).not.toHaveBeenCalled();
+});

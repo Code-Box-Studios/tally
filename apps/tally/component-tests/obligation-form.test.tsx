@@ -2,9 +2,12 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ObligationForm } from "../src/features/obligations/obligation-form";
 
-const mockExecute = jest.fn(async () => ({
+const mockExecute = jest.fn(async (command: string) => ({
   status: "synced",
-  result: { obligationId: "new-obligation" },
+  result:
+    command === "saveCatalog"
+      ? { id: "alex" }
+      : { obligationId: "new-obligation" },
 }));
 const mockReplace = jest.fn();
 jest.mock("expo-router", () => ({
@@ -25,6 +28,35 @@ jest.mock("../src/shared/queries", () => ({
 beforeEach(() => {
   mockExecute.mockClear();
   mockReplace.mockClear();
+});
+
+it("creates a contact inline without losing the obligation draft", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Laptop loan");
+  await fireEvent.changeText(
+    screen.getByLabelText("Original amount"),
+    "2500.50",
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: /^Person \/ organization:/ }),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
+  await fireEvent.changeText(screen.getByLabelText("Contact name"), "Alex");
+  await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
+  expect(screen.getByLabelText("Name").props.value).toBe("Laptop loan");
+  expect(screen.getByLabelText("Original amount").props.value).toBe("2500.50");
+  expect(
+    screen.getByRole("button", { name: "Person / organization: Alex" }),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "createObligation",
+    expect.objectContaining({
+      title: "Laptop loan",
+      amountMinor: 250050,
+      contactId: "alex",
+    }),
+  );
 });
 
 it("records a loan in the selected currency with the original amount", async () => {

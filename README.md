@@ -4,35 +4,22 @@ Tally now uses **Expo / React Native / TypeScript** with **Supabase**. The prima
 
 The Flutter/Firebase sections below describe the preserved migration reference.
 
-# Tally
+## Product
 
-Tally — Know what’s due. The default app now uses Flutter + Supabase, including authenticated financial commands, private files, recurring workers, reminders, and owner-isolated offline storage.
+Tally tracks borrowed money, money lent, recurring bills, installments, interest, repayments, and statements of account. It keeps currencies separate and preserves payment history through recorded corrections.
 
-For the working local app and hosted deployment, use [Supabase operations](docs/operations/supabase.md). Run `python3 tool/start_supabase_local.py`, serve the Edge Functions, then `python3 tool/run_supabase_local.py` and open http://localhost:7382. The Firebase instructions below describe retained legacy entry points and existing test data.
+## Active application
 
-**Know what’s due.**
+- **Frontend:** Expo / React Native / TypeScript in `apps/tally`.
+- **Backend:** Supabase Auth, Postgres, Storage, Edge Functions, and scheduled workers in `supabase`.
+- **Local app:** http://localhost:7384 against the isolated local backend at port 56321.
+- **Checks:** `tool/check_expo.sh`; backend SQL, Deno, and local integration commands are listed in `.github/workflows/ci.yml`.
+- **Operations:** [Expo deployment, authentication, offline behavior, and device testing](docs/operations/expo.md).
 
-Tally is a personal obligation tracker for loans, debts, money owed, monthly dues, recurring bills, installments, manual payments, and automatic deductions.
+Never reset the local database for frontend testing. Integration suites create and remove their own temporary identities.
 
-The application uses Flutter, Material 3, Riverpod, go_router, and Supabase. It targets Android, iOS, web, tablets, and responsive desktop browsers.
+## Migration reference
 
-## Project status
+The root `lib`, `test`, `android`, and `ios` directories contain the preserved Flutter implementation. `functions` and `firebase` retain the earlier Firebase backend. These are migration references, not the current Expo build entry points. Existing migration work remains separate from active app changes.
 
-The Supabase runtime supports email/password authentication, onboarding, obligations, installments, recurring periods, partial payments and corrections, automatic deduction tracking, currency-separated dashboard/contact summaries, calendar/activity, private attachments, reminders, and protected account deletion. Financial writes use trusted Edge services and atomic PostgreSQL transactions. Native and trusted-browser storage support owner-isolated offline commands and cached reads.
-
-The local app runs at http://localhost:7382 using the instructions above. `lib/main.dart` and `lib/main_prod.dart` use the production Supabase runtime; `lib/main_dev.dart` uses the isolated local runtime. `lib/main_preview.dart` remains an explicit sample-data design preview. Hosted release, Google OAuth, email delivery, FCM/APNs, and native distribution require the corresponding external project configuration and credentials; see the operations guide for exact setup and tested limits.
-
-Start with the [design overview and requirements coverage](docs/superpowers/specs/2026-10-03-tally-design.md).
-
-| Document | Purpose |
-| --- | --- |
-| [Product requirements](docs/product/requirements.md) | MVP, functional and non-functional requirements, stories, acceptance criteria |
-| [User experience](docs/product/experience.md) | Journeys, screens, responsive navigation, onboarding, accessibility |
-| [Flutter architecture](docs/architecture/flutter.md) | Feature structure, domain entities, DTOs, repositories, Riverpod, routing |
-| [Supabase implementation](docs/operations/supabase.md) | Current SQL, RLS, commands, storage, workers, environments, and deployment |
-| [Firebase architecture](docs/architecture/firebase.md) | Collections, schemas, relationships, queries, indexes, rules, authentication, storage |
-| [Financial engine](docs/architecture/financial-engine.md) | Money, payments, installments, recurrence, deductions, summaries, notifications |
-| [Testing and operations](docs/quality/testing-and-operations.md) | Offline synchronization, errors, validation, tests, emulators, environments, release gates |
-| [Development roadmap](docs/roadmap.md) | Incremental deliverables, dependencies, verification and completion criteria |
-
-The original design documents and roadmap describe the earlier Firebase delivery order; the Supabase migration spec and operations guide describe the current backend. Detailed implementation plans are written for one milestone at a time; the foundation plan is the first runnable Flutter increment.
+The [original requirements](docs/product/requirements.md), [user experience](docs/product/experience.md), [financial engine](docs/architecture/financial-engine.md), and [Supabase operations](docs/operations/supabase.md) provide historical design and backend context. The Expo operations guide and current source define the active frontend behavior.

@@ -14,7 +14,11 @@ import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { completeAuthLink } from "./deep-link";
-import { backend } from "../../core/backend/client";
+import {
+  backend,
+  signOutDeletedOwner,
+  signOutOwnedSession,
+} from "../../core/backend/client";
 import { ApiError, TallyRepository } from "../../core/backend/repository";
 import { runtimeConfig } from "../../core/config";
 import { privateStore } from "../../core/storage";
@@ -22,8 +26,15 @@ import type { Profile, Data } from "../../core/domain/records";
 import { PersistentCommandStore } from "../sync/data/persistent-store";
 import { MemoryStore } from "../sync/data/memory-store";
 import { CommandQueue } from "../sync/data/command-queue";
-import { DeletionCoordinator } from "../accounts/deletion-coordinator";
-import { clearNotifications } from "../reminders/notification-service";
+import {
+  DeletionCoordinator,
+  resumeAcceptedDeletions,
+} from "../accounts/deletion-coordinator";
+import {
+  clearNotifications,
+  clearLocalNotifications,
+  clearInactiveLocalNotifications,
+} from "../reminders/notification-service";
 import type { SavedCommand } from "../sync/data/store";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -78,13 +89,48 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const owner = useRef<string | null>(null),
     generation = useRef(0),
     trustRef = useRef(Platform.OS !== "web");
+  const recoverStartup = useRef<(() => Promise<void>) | null>(null);
   useEffect(() => {
     let live = true;
+    let authVersion = 0;
+    let recovery: Promise<string[]> | null = null;
+    let recovered: string[] | null = null;
     const client = backend();
+    const namespace = runtimeConfig().namespace;
+    const reportError = (error: unknown) => {
+      if (!live) return;
+      setError((error as Error).message);
+      setReady(true);
+    };
+    const recover = () => {
+      if (!recovery) {
+        recovery = resumeAcceptedDeletions(
+          privateStore,
+          namespace,
+          async (deletedOwner, prefix, deletionKey) => {
+            await clearLocalNotifications(prefix);
+            for (const key of await privateStore.keys(prefix))
+              if (key !== deletionKey) await privateStore.remove(key);
+            await signOutDeletedOwner(deletedOwner);
+          },
+        )
+          .then((deleted) => {
+            recovered = deleted;
+            if (live) setError(null);
+            return deleted;
+          })
+          .catch((error) => {
+            recovery = null;
+            throw error;
+          });
+      }
+      return recovery;
+    };
     const apply = (next: Session | null) => {
       if (!live) return;
       const uid = next?.user.id ?? null;
       if (uid !== owner.current) {
+        const previousOwner = owner.current;
         owner.current = uid;
         generation.current++;
         queryClient.clear();
@@ -94,22 +140,53 @@ export function SessionProvider({ children }: PropsWithChildren) {
         setPending([]);
         setError(null);
         setReady(!uid);
+        // Authentication can change without the explicit sign-out flow. Queue
+        // cancellation after invalidation so in-flight scheduling cannot leave
+        // the previous owner's reminders behind.
+        if (previousOwner)
+          void clearLocalNotifications(`${namespace}:${previousOwner}:`).catch(
+            reportError,
+          );
       } else if (!uid) setReady(true);
       setSession(next);
+      // Persisted alert manifests also recover interrupted owner cleanup after
+      // process death, including launches where no session is restored.
+      void clearInactiveLocalNotifications(namespace, () =>
+        live ? owner.current : undefined,
+      ).catch(reportError);
     };
     const { data } = client.auth.onAuthStateChange((event, next) => {
+      const version = ++authVersion;
       if (event === "PASSWORD_RECOVERY") setRecovery(true);
       if (event === "SIGNED_OUT") setRecovery(false);
-      apply(next);
+      if (recovered) {
+        apply(next && recovered.includes(next.user.id) ? null : next);
+        return;
+      }
+      // Do not publish a session while accepted deletion cleanup is pending.
+      // Keep the callback synchronous: Supabase Auth work runs after it returns.
+      void recover()
+        .then((deleted) => {
+          if (version === authVersion)
+            apply(next && deleted.includes(next.user.id) ? null : next);
+        })
+        .catch(reportError);
     });
-    const initialGeneration = generation.current;
-    client.auth.getSession().then(({ data, error }) => {
-      if (!live || initialGeneration !== generation.current) return;
-      if (error) {
-        setError("Could not restore your sign-in.");
-        setReady(true);
-      } else apply(data.session);
-    });
+    const restore = async () => {
+      const version = authVersion;
+      const deleted = await recover();
+      const { data, error } = await client.auth.getSession();
+      if (!live || version !== authVersion) return;
+      if (error) throw new Error("Could not restore your sign-in.");
+      setError(null);
+      apply(
+        data.session && deleted.includes(data.session.user.id)
+          ? null
+          : data.session,
+      );
+    };
+    recoverStartup.current = restore;
+    void restore().catch(reportError);
     const handleLink = (url: string) => {
       if (Platform.OS !== "web")
         void completeAuthLink(url).catch((e) => {
@@ -124,8 +201,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
       handleLink(event.url),
     );
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") client.auth.startAutoRefresh();
-      else if (Platform.OS !== "web") client.auth.stopAutoRefresh();
+      if (state === "active") {
+        client.auth.startAutoRefresh();
+        if (recovered)
+          void clearInactiveLocalNotifications(namespace, () =>
+            live ? owner.current : undefined,
+          ).catch(reportError);
+      } else if (Platform.OS !== "web") client.auth.stopAutoRefresh();
     });
     return () => {
       live = false;
@@ -133,6 +215,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
       // Invalidate every asynchronous operation when this provider unmounts.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       generation.current++;
+      recoverStartup.current = null;
       data.subscription.unsubscribe();
       subscription.remove();
       links.remove();
@@ -218,13 +301,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
                 id,
               ),
             async () => {
+              await clearLocalNotifications(prefix);
               for (const key of await privateStore.keys(prefix))
                 if (key !== deletionKey) await privateStore.remove(key);
-              queryClient.clear();
-              const { error } = await backend().auth.signOut({
-                scope: "local",
-              });
-              if (error) throw error;
+              if (active()) queryClient.clear();
+              await signOutDeletedOwner(uid);
             },
             Crypto.randomUUID,
           ).request();
@@ -281,7 +362,14 @@ export function SessionProvider({ children }: PropsWithChildren) {
     };
   }, [sessionOwner, trustVersion]);
   const refresh = useCallback(async () => {
-    if (!repo) return;
+    if (!repo) {
+      try {
+        await recoverStartup.current?.();
+      } catch (e) {
+        setError((e as Error).message);
+      }
+      return;
+    }
     try {
       const value = await repo.profile();
       repo.check();
@@ -351,13 +439,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
   async function setTrust(enabled: boolean) {
     if (!repo || !session) return;
     if (
-      !enabled &&
       (queue ? await queue.list() : pending).some(
         (p) => !["synced", "discarded"].includes(p.status),
       )
     )
       throw new Error(
-        "Sync or review saved actions before removing device trust.",
+        "Sync or review saved actions before changing device trust.",
       );
     if (!enabled) await clearNotifications(repo);
     if (!enabled && privateStore.revokeTrust)
@@ -387,6 +474,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
     setTrustVersion((v) => v + 1);
   }
   async function signOut() {
+    const signingOutOwner = session?.user.id;
+    if (!signingOutOwner) return;
     if (
       (queue ? await queue.list() : pending).some(
         (p) => !["synced", "discarded"].includes(p.status),
@@ -394,10 +483,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
     )
       throw new Error("Sync or review your saved actions before signing out.");
     if (repo) await clearNotifications(repo);
-    const client = backend();
-    const { error } = await client.auth.signOut();
-    if (error) throw error;
-    queryClient.clear();
+    await signOutOwnedSession(signingOutOwner, "global");
+    if (!owner.current || owner.current === signingOutOwner)
+      queryClient.clear();
   }
   async function google() {
     const redirect =

@@ -6,6 +6,8 @@ jest.mock("../src/core/config", () => ({
 }));
 jest.mock("../src/features/reminders/notification-service", () => ({
   clearNotifications: async () => {},
+  clearInactiveLocalNotifications: async () => {},
+  clearLocalNotifications: async () => {},
 }));
 it("allows repository queries to restore durable private cache when the network is offline", () => {
   expect(queryClient.getDefaultOptions().queries?.networkMode).toBe("always");

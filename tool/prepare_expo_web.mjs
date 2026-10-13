@@ -6,7 +6,23 @@ const directory = resolve(process.argv[2] ?? "apps/tally/dist");
 const favicon = await readFile(join(directory, "favicon.ico"));
 const faviconName = `favicon-${createHash("sha256").update(favicon).digest("hex").slice(0, 16)}.ico`;
 await copyFile(join(directory, "favicon.ico"), join(directory, faviconName));
-const html = await readFile(join(directory, "index.html"), "utf8");
+let html = await readFile(join(directory, "index.html"), "utf8");
+// Apple fetches Home Screen icons separately from the page and favicon.
+// Keep the standard root fallback and give updated icons a fresh URL.
+const appleIcon = await readFile(join(directory, "apple-touch-icon.png")).catch(
+  (error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  },
+);
+if (appleIcon) {
+  const appleIconName = `apple-touch-icon-${createHash("sha256").update(appleIcon).digest("hex").slice(0, 16)}.png`;
+  await writeFile(join(directory, appleIconName), appleIcon);
+  html = html.replace(
+    /href="\/(?:icons\/)?apple-touch-icon(?:-[a-f0-9]+)?\.png"/,
+    `href="/${appleIconName}"`,
+  );
+}
 await writeFile(
   join(directory, "index.html"),
   html.replace(
@@ -39,10 +55,12 @@ const release = createHash("sha256")
   .digest("hex")
   .slice(0, 16);
 const assets = paths.map((p) => "/" + p);
+// Keep the controlled page's shell paired with this worker's cached assets
+// while a newer release waits for existing tabs to close.
 const script = `const CACHE='tally-expo-${release}';const ASSETS=${JSON.stringify(assets)};const ALLOWED=new Set(ASSETS);
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('tally-expo-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin)return;if(ALLOWED.has(url.pathname)){event.respondWith(caches.open(CACHE).then(async cache=>await cache.match(url.pathname)||fetch(event.request)));return;}if(event.request.mode==='navigate')event.respondWith(fetch(event.request).catch(()=>caches.open(CACHE).then(cache=>cache.match('/index.html'))));});
+self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin)return;if(ALLOWED.has(url.pathname)){event.respondWith(caches.open(CACHE).then(async cache=>await cache.match(url.pathname)||fetch(event.request)));return;}if(event.request.mode==='navigate')event.respondWith(caches.open(CACHE).then(async cache=>await cache.match('/index.html')||fetch(event.request)));});
 `;
 await writeFile(join(directory, "service-worker.js"), script);
 await writeFile(join(directory, "_redirects"), "/* /index.html 200\n");

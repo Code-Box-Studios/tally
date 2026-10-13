@@ -9,6 +9,11 @@ export async function enableNotifications(
   );
 }
 export async function clearNotifications(_repo: TallyRepository) {}
+export async function clearLocalNotifications(_prefix: string) {}
+export async function clearInactiveLocalNotifications(
+  _namespace: string,
+  _currentOwner: () => string | null | undefined,
+) {}
 export async function scheduleLocalReminders(
   _repo: TallyRepository,
   _instances: Row[],

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Pressable, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useRecords } from "../../shared/queries";
 import { useSession } from "../auth/session-provider";
 import {
@@ -28,8 +28,14 @@ import {
   Failure,
 } from "../../shared/ui";
 
+import {
+  overviewFilters,
+  outstandingPeriod,
+  periodDestination,
+} from "../obligations/obligation-navigation";
 const sections = [
   { value: "all", label: "All" },
+  { value: "payable", label: "All you owe" },
   { value: "iOwe", label: "I owe" },
   { value: "owedToMe", label: "Owed to me" },
   { value: "monthlyDues", label: "Monthly bills" },
@@ -38,6 +44,20 @@ const options = (values: readonly string[]) =>
   values.map((value) => ({ value, label: label(value) }));
 
 export function CalendarScreen() {
+  const params = useLocalSearchParams();
+  const initial = overviewFilters(params);
+  return (
+    <CalendarView
+      key={`${initial.section}:${initial.status}:${initial.currency}`}
+      initial={initial}
+    />
+  );
+}
+function CalendarView({
+  initial,
+}: {
+  initial: ReturnType<typeof overviewFilters>;
+}) {
   const { profile } = useSession();
   const instances = useRecords("obligationInstances"),
     obligations = useRecords("obligations"),
@@ -50,10 +70,10 @@ export function CalendarScreen() {
     [day, setDay] = useState("");
   const [view, setView] = useState<"Calendar" | "Agenda">("Calendar"),
     [contentWidth, setContentWidth] = useState(0);
-  const [section, setSection] = useState("all"),
-    [status, setStatus] = useState("all"),
+  const [section, setSection] = useState(initial.section),
+    [status, setStatus] = useState(initial.status),
     [mode, setMode] = useState("all"),
-    [currency, setCurrency] = useState("all"),
+    [currency, setCurrency] = useState(initial.currency),
     [contact, setContact] = useState("all"),
     [category, setCategory] = useState("all"),
     [search, setSearch] = useState(""),
@@ -89,11 +109,18 @@ export function CalendarScreen() {
       return (
         !filterError &&
         text(r.data, "dueDate").startsWith(month + "-") &&
-        (section === "all" || r.data.section === section) &&
+        (section === "all" ||
+          (section === "payable"
+            ? r.data.section !== "owedToMe"
+            : r.data.section === section)) &&
         (status === "all" ||
-          (status === "pending"
-            ? r.data.closed !== true
-            : r.data.financialStatus === status)) &&
+          (status === "outstanding"
+            ? outstandingPeriod(r) &&
+              parent?.data.archived !== true &&
+              parent?.data.lifecycle !== "cancelled"
+            : status === "pending"
+              ? r.data.closed !== true
+              : r.data.financialStatus === status)) &&
         (mode === "all" || r.data.paymentMode === mode) &&
         (currency === "all" || r.data.currency === currency) &&
         (contact === "all" || r.data.contactId === contact) &&
@@ -415,6 +442,7 @@ export function CalendarScreen() {
                     "paid",
                     "pending",
                     "partiallyPaid",
+                    "outstanding",
                     "overdue",
                     "upcoming",
                     "skipped",
@@ -732,11 +760,7 @@ export function CalendarScreen() {
                           key={row.id}
                           accessibilityRole="button"
                           accessibilityLabel={`${title}, ${formatMoney(amount(row.data, "remainingMinor"), text(row.data, "currency"))}, ${label(text(row.data, "financialStatus"))}`}
-                          onPress={() =>
-                            router.push(
-                              `/obligations/${text(row.data, "obligationId")}`,
-                            )
-                          }
+                          onPress={() => router.push(periodDestination(row))}
                           style={({ pressed }) => ({
                             borderWidth: 1,
                             borderColor: t.border,

@@ -77,6 +77,8 @@ jest.mock("../src/shared/theme", () => ({
 }));
 jest.mock("../src/features/reminders/notification-service", () => ({
   clearNotifications: async () => {},
+  clearInactiveLocalNotifications: async () => {},
+  clearLocalNotifications: async () => {},
 }));
 function Workspace() {
   const { ready, profile } = useSession();

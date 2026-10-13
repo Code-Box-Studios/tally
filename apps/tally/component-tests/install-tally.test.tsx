@@ -5,6 +5,7 @@ import { InstallTallyAction as NativeInstallTallyAction } from "../src/shared/in
 
 let mockSnapshot = { platform: "iphone", installed: false, canPrompt: false };
 const mockPrompt = jest.fn(async () => "dismissed");
+let mockWidth = 390;
 jest.mock("../src/shared/use-browser-install", () => ({
   useBrowserInstall: () => ({ ...mockSnapshot, prompt: mockPrompt }),
 }));
@@ -21,13 +22,39 @@ jest.mock("../src/shared/theme", () => ({
 }));
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
-  default: () => ({ width: 390, height: 844 }),
+  default: () => ({ width: mockWidth, height: 844 }),
 }));
 
 beforeEach(() => {
   mockSnapshot = { platform: "iphone", installed: false, canPrompt: false };
   mockPrompt.mockClear();
+  mockWidth = 390;
 });
+
+it.each([false, true])(
+  "keeps homepage installation available on a computer (prompt: %s)",
+  async (canPrompt) => {
+    mockWidth = 1280;
+    mockSnapshot = { platform: "other", installed: false, canPrompt };
+    await render(<InstallTallyAction />);
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Install Tally now" }),
+    );
+    expect(screen.getByText("On a computer")).toBeTruthy();
+    expect(screen.getByText(/Add to Dock/)).toBeTruthy();
+    expect(screen.queryByText("On iPhone")).toBeNull();
+    if (canPrompt) {
+      await fireEvent.press(
+        screen.getByRole("button", { name: "Install on this device" }),
+      );
+      expect(mockPrompt).toHaveBeenCalledTimes(1);
+    } else {
+      expect(
+        screen.queryByRole("button", { name: "Install on this device" }),
+      ).toBeNull();
+    }
+  },
+);
 
 it("opens Apple instructions from the header and closes them with Done", async () => {
   await render(<InstallTallyAction />);

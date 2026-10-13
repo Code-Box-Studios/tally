@@ -6,19 +6,24 @@ export async function saveFile(
   bytes: Uint8Array,
   filename: string,
   mime: string,
+  check: () => void,
 ) {
+  check();
   if (!(await Sharing.isAvailableAsync()))
     throw new Error("File sharing is unavailable on this device.");
+  check();
   const file = new File(
     Paths.cache,
     Crypto.randomUUID() + "-" + safeFileName(filename),
   );
   try {
+    check();
     file.create();
     file.write(bytes);
+    check();
     await Sharing.shareAsync(file.uri, {
       mimeType: mime,
-      dialogTitle: "Save private Tally attachment",
+      dialogTitle: "Save Tally file",
     });
   } finally {
     if (file.exists) file.delete();

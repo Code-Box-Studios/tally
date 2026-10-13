@@ -36,10 +36,11 @@ const environment = {
   ...process.env,
   CHROME_DEVTOOLS_AXI_BROWSER_URL:
     process.env.TALLY_QA_BROWSER ?? "http://127.0.0.1:36944",
-  CHROME_DEVTOOLS_AXI_SESSION: "tally-expo-new",
+  CHROME_DEVTOOLS_AXI_SESSION:
+    process.env.TALLY_QA_SESSION ?? "tally-expo-" + randomUUID(),
 };
 function run(script) {
-  const result = spawnSync("npx", ["-y", "chrome-devtools-axi", "run"], {
+  const result = spawnSync("npx", ["-y", "chrome-devtools-axi@0.1.41", "run"], {
     env: environment,
     input: script,
     encoding: "utf8",
@@ -47,42 +48,74 @@ function run(script) {
   });
   console.log(result.stdout.trim());
   if (result.status !== 0) {
-    const diagnostic = spawnSync("npx", ["-y", "chrome-devtools-axi", "run"], {
+    const diagnostic = spawnSync("npx", ["-y", "chrome-devtools-axi@0.1.41", "run"], {
       env: environment, encoding: "utf8", timeout: 15000,
       input: "console.log(JSON.stringify(await page.eval(()=>({path:location.pathname,width:innerWidth,body:document.body.innerText}))));",
     });
     console.log(diagnostic.stdout.trim());
     throw new Error(
-      "Browser journey failed: " + (result.stderr || result.stdout),
+      "Browser journey failed: " + (result.error?.code || result.signal || result.stderr || result.stdout),
     );
   }
 }
+const dueDate = new Date();
+dueDate.setUTCDate(dueDate.getUTCDate() + 7);
+const dueYear = String(dueDate.getUTCFullYear());
+const dueMonth = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" }).format(dueDate);
+const dueLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(dueDate);
 const viewportArgs = process.env.TALLY_QA_VIEWPORT ? ["--viewport", process.env.TALLY_QA_VIEWPORT] : [];
-const helpers = `const sleep=ms=>page.wait(ms);const button=label=>'[role="button"][aria-label="'+label+'"]';const field=label=>'[aria-label="'+label+'"]';const radio=label=>'[role="radio"][aria-label="'+label+'"]';async function click(label){await page.click(button(label));}async function save(label){const selector='[data-testid="tally-form"] '+button(label);await page.wait(selector,10000);await page.click(selector);await sleep(500);}async function check(text){let body='';for(let attempt=0;attempt<25;attempt++){body=await page.eval(()=>document.body.innerText);if(body.includes(text)){const size=await page.eval(()=>({width:innerWidth,content:document.documentElement.scrollWidth}));if(size.content>size.width)throw new Error('Horizontal layout overflow');console.log('PASS '+text);return;}await sleep(200);}throw new Error('Expected UI text: '+text+'; screen: '+body);}`;
+const helpers = `const sleep=ms=>page.wait(ms);const button=label=>'[role="button"][aria-label="'+label+'"]';const field=label=>'[aria-label="'+label+'"]';const radio=label=>'[role="radio"][aria-label="'+label+'"]';async function click(label){if(['Settings','Activity'].includes(label) && !(await page.eval('!!document.querySelector('+JSON.stringify(button(label))+')'))){await page.click(button('More'));}await page.click(button(label));}async function save(label){const selector='[data-testid="tally-form"] '+button(label);await page.wait(selector,10000);await page.click(selector);await sleep(500);}async function check(text){let body='';for(let attempt=0;attempt<25;attempt++){body=await page.eval(()=>document.body.innerText);if(body.includes(text)){const size=await page.eval(()=>({width:innerWidth,content:document.documentElement.scrollWidth}));if(size.content>size.width)throw new Error('Horizontal layout overflow');console.log('PASS '+text);return;}await sleep(200);}throw new Error('Expected UI text: '+text+'; screen: '+body);}`;
 try {
+  const opened = spawnSync("npx", ["-y", "chrome-devtools-axi@0.1.41", "open", "about:blank"], {
+    env: environment, encoding: "utf8", timeout: 30000,
+  });
+  if (opened.status !== 0) throw new Error("Browser test page could not be opened.");
   if (viewportArgs.length) {
-    const emulation = spawnSync("npx", ["-y", "chrome-devtools-axi", "emulate", ...viewportArgs, "--network", "Fast 4G"], { env: environment, encoding: "utf8" });
+    const emulation = spawnSync("npx", ["-y", "chrome-devtools-axi@0.1.41", "emulate", ...viewportArgs, "--network", "Fast 4G"], { env: environment, encoding: "utf8" });
     if (emulation.status !== 0) throw new Error("Viewport emulation failed.");
   }
   run(`${helpers}
- await page.open('http://localhost:7385');await sleep(500);
+ await page.open('http://localhost:7385/sign-in');await sleep(500);
  await page.eval(async()=>{for(const key of Object.keys(localStorage)){if(!key.startsWith('tally-auth-'))continue;let session;try{session=JSON.parse(localStorage.getItem(key));}catch{continue;}if(!/^expo-browser-[a-f0-9-]{36}@example\.test$/.test(session?.user?.email??''))continue;const prefix='expo-v1:http://127.0.0.1:56321:'+session.user.id+':';await new Promise(resolve=>{const r=indexedDB.open('tally-expo-v1',1);r.onsuccess=()=>{const tx=r.result.transaction('private','readwrite'),c=tx.objectStore('private').openCursor();c.onsuccess=()=>{if(c.result){if(String(c.result.key).startsWith(prefix))c.result.delete();c.result.continue();}};tx.oncomplete=()=>{r.result.close();resolve();};};});localStorage.removeItem(key);}});
 
  await page.eval(async()=>{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();});
- await page.open('http://localhost:7385');await sleep(400);
+ await page.open('about:blank');
+ await page.open('http://localhost:7385/sign-in');await sleep(400);
  if(await page.eval(()=>!!document.querySelector('[aria-label="Settings"]'))){await click('Settings');await sleep(300);}if(await page.eval(()=>!!document.querySelector('[aria-label="Sign out"]'))){await click('Sign out');await sleep(400);}
- await page.wait('input[aria-label="Email"]',10000);await page.fill('input'+field('Email'),${JSON.stringify(email)});await page.fill('input'+field('Password'),${JSON.stringify(password)});await save('Sign in');await check('Welcome to Tally.');await save('Open my workspace');await check('A fresh start.');
- await click('People');await sleep(300);await click('Add contact');await page.fill('input'+field('Name'),'Browser John');await save('Add contact');await check('Browser John');
- await click('+ Add');await page.click(radio('I lent money'));await page.fill('input'+field('Name'),'Browser John loan');await page.fill('input'+field('Original amount'),'5000');await page.click(radio('Browser John'));await click('Due date (optional): No due date yet');await click('Choose year');await click('2026');await click('October');await click('Oct 12, 2026');await save('Add obligation');await check('Owed to Me');
+ await page.wait('input[aria-label="Email"]',10000);await page.fill('input'+field('Email'),${JSON.stringify(email)});await page.fill('input'+field('Password'),${JSON.stringify(password)});await save('Sign in');await check('Welcome to Tally.');await save('Open my workspace');await check('Your money, at a glance.');
+ await click('People');await sleep(300);await click('Add contact');await page.fill('input'+field('Contact name'),'Browser John');await save('Add contact');await check('Browser John');
+ `);
+ run(`${helpers}
+ await click('Add obligation');await page.click(radio('I lent money'));await page.fill('input'+field('Name'),'Browser John loan');await page.fill('input'+field('Original amount'),'5000');await click('Person / organization: No person selected');await page.click(radio('Browser John'));await click('Due date (optional): No due date yet');await click('Choose year');await click(${JSON.stringify(dueYear)});await click(${JSON.stringify(dueMonth)});await click(${JSON.stringify(dueLabel)});await save('Add obligation');await check('Owed to Me');
  await click('Record payment');await page.fill('input'+field('Payment amount'),'2000');await save('Record payment');await check('₱3,000.00');
  await click('Correct payment');await page.fill('textarea'+field('Reason'),'Wrong test amount');await save('Save correction');await check('Payment reversed');await check('₱5,000.00');
- await click('+ Add');await page.click(radio('Add monthly due / recurring payment'));await page.fill('input'+field('Name'),'Browser Internet');await page.fill('input'+field('Default amount'),'1699');await save('Add obligation');await check('Billing periods');await click('Mark as paid');await save('Record payment');await check('₱1,699.00');await check('Payment recorded');
- await click('Calendar');await sleep(300);await check('Your financial calendar');await click('Activity');await sleep(300);await check('Activity');await click('Home');await sleep(300);await check('Owed to You');
+ `);
+ run(`${helpers}
+ await click('Add obligation');await page.click(radio('Add monthly due'));await page.fill('input'+field('Name'),'Browser Internet');await page.fill('input'+field('Default amount'),'1699');await save('Add obligation');await check('Billing periods');await click('Mark as paid');await save('Record payment');await check('₱1,699.00');await check('Payment recorded');
+ `);
+ run(`${helpers}
+ await click('Calendar');await sleep(300);await page.wait('input[aria-label="Search calendar"]',10000);console.log('PASS Calendar opens');await click('Activity');await sleep(300);await check('Activity');await click('Home');await sleep(300);await check('Owed to you');
  await click('Settings');await click('Saved actions & offline saving');await page.click(radio('Trusted device'));await page.wait('[aria-label="Sync now"]',10000);await check('Saved actions');
  await page.eval(async()=>{await navigator.serviceWorker.ready;});console.log('PASS offline app shell installed');
  `);
+  run(`${helpers}
+ await click('Settings');
+ await page.eval(()=>{window.__tallyQaCreateUrl=URL.createObjectURL;URL.createObjectURL=function(blob){window.__tallyQaExport=blob;return window.__tallyQaCreateUrl.call(URL,blob);};window.__tallyQaPreventDownload=event=>{if(event.target instanceof HTMLAnchorElement&&event.target.download.startsWith('tally-'))event.preventDefault();};document.addEventListener('click',window.__tallyQaPreventDownload,true);});
+ try {
+   await click('Download all records (JSON)');
+   for(let attempt=0;attempt<50;attempt++){if(await page.eval(()=>!!window.__tallyQaExport))break;await sleep(200);}
+   await page.eval(async()=>{const value=JSON.parse(await window.__tallyQaExport.text());if(value.format!=='tally-records'||value.profile.userId!==${JSON.stringify(user.id)}||!value.records.contacts.some(row=>row.data.displayName==='Browser John')||!value.records.payments.some(row=>row.data.entryType==='reversal')||Object.hasOwn(value,'access_token'))throw new Error('Incomplete or invalid record export');window.__tallyQaExport=null;});
+   await click('Download payments (CSV)');
+   for(let attempt=0;attempt<50;attempt++){if(await page.eval(()=>!!window.__tallyQaExport))break;await sleep(200);}
+   await page.eval(async()=>{const csv=await window.__tallyQaExport.text();if(!csv.includes('Signed amount (reversals negative)')||!csv.includes('"reversal"')||!csv.includes('"PHP"')||!csv.includes('"Browser John"'))throw new Error('Payment CSV lost financial history');});
+   console.log('PASS JSON and payment CSV exports retain owned records and reversals');
+ } finally {
+   await page.eval(()=>{URL.createObjectURL=window.__tallyQaCreateUrl;document.removeEventListener('click',window.__tallyQaPreventDownload,true);delete window.__tallyQaCreateUrl;delete window.__tallyQaPreventDownload;delete window.__tallyQaExport;});
+ }
+ await click('Saved actions & offline saving');
+ `);
   function browserCommand(...args) {
-    const result = spawnSync("npx", ["-y", "chrome-devtools-axi", ...args], { env: environment, encoding: "utf8", timeout: 30000 });
+    const result = spawnSync("npx", ["-y", "chrome-devtools-axi@0.1.41", ...args], { env: environment, encoding: "utf8", timeout: 30000 });
     if (result.status !== 0) throw new Error("Browser tab operation failed: " + result.stderr);
     return result.stdout;
   }
@@ -115,7 +148,7 @@ try {
   run(`await page.eval(()=>{window.__tallyQaBeforeNetwork={at:performance.timeOrigin,width:innerWidth,form:!!document.querySelector('[data-testid="tally-form"]')};});`);
   const offline = spawnSync(
     "npx",
-    ["-y", "chrome-devtools-axi", "emulate", ...viewportArgs, "--network", "Offline"],
+    ["-y", "chrome-devtools-axi@0.1.41", "emulate", ...viewportArgs, "--network", "Offline"],
     { env: environment, encoding: "utf8" },
   );
   if (offline.status !== 0) throw new Error("Offline emulation failed.");
@@ -124,19 +157,19 @@ try {
   );
   spawnSync(
     "npx",
-    ["-y", "chrome-devtools-axi", "emulate", ...viewportArgs, "--network", "Fast 4G"],
+    ["-y", "chrome-devtools-axi@0.1.41", "emulate", ...viewportArgs, "--network", "Fast 4G"],
     { env: environment, encoding: "utf8" },
   );
   run(
-    `${helpers}await click('Sync now');await sleep(500);await check('Nothing waiting on this device');await click('Obligations');await page.click(radio('Owed to Me'));await click('Browser John loan');await sleep(300);await check('₱4,000.00');await click('Settings');await click('Sign out');await sleep(400);await check('Your money, your space.');console.log('PASS reconnect applies one saved payment and signs out');`,
+    `${helpers}await click('Sync now');await sleep(500);await check('Nothing waiting on this device');await click('Obligations');await page.click(radio('Owed to Me'));await click('Browser John loan');await sleep(300);await check('₱4,000.00');await click('Settings');await click('Sign out');await sleep(400);await page.wait('input[aria-label="Email"]',10000);console.log('PASS reconnect applies one saved payment and signs out');`,
   );
   run(`${helpers}
-    await page.fill('input'+field('Email'),${JSON.stringify(email)});await page.fill('input'+field('Password'),${JSON.stringify(password)});await save('Sign in');await click('Settings');await click('Delete account');await page.fill('input'+field('Current password (email accounts)'),${JSON.stringify(password)});await page.fill('input'+field('Type DELETE'),'DELETE');await save('Delete my account');await check('Your money, your space.');console.log('PASS protected deletion clears the private local workspace');
+    await page.fill('input'+field('Email'),${JSON.stringify(email)});await page.fill('input'+field('Password'),${JSON.stringify(password)});await save('Sign in');await click('Settings');await click('Delete account');await page.fill('input'+field('Current password (email accounts)'),${JSON.stringify(password)});await page.fill('input'+field('Type DELETE'),'DELETE');await save('Delete my account');await page.wait('a[href="/sign-in"]',10000);await page.open('http://localhost:7385/home');await page.wait('input[aria-label="Email"]',10000);console.log('PASS protected deletion clears the private local workspace');
   `);
 } finally {
   spawnSync(
     "npx",
-    ["-y", "chrome-devtools-axi", "emulate", ...viewportArgs, "--network", "Fast 4G"],
+    ["-y", "chrome-devtools-axi@0.1.41", "emulate", ...viewportArgs, "--network", "Fast 4G"],
     { env: environment, encoding: "utf8" },
   );
   // Remove only this test's browser rows and session, including failed-test actions.

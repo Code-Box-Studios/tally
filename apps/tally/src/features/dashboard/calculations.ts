@@ -48,7 +48,16 @@ export function summaries(
     else if (d.section === "owedToMe")
       t.owed += amount(d, "remainingMinor") ?? 0;
   }
+  const excludedParents = new Set(
+    obligations
+      .filter(
+        (row) =>
+          row.data.archived === true || row.data.lifecycle === "cancelled",
+      )
+      .map((row) => row.id),
+  );
   for (const { data: d } of instances) {
+    if (excludedParents.has(text(d, "obligationId"))) continue;
     if (["cancelled", "skipped"].includes(String(d.financialStatus))) continue;
     const due = text(d, "dueDate"),
       remaining = amount(d, "remainingMinor") ?? 0,

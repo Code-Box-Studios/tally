@@ -25,9 +25,17 @@ export function getInstallPlatform(
   return "other";
 }
 
-export function getInstallInstructions(
-  platform: Exclude<InstallPlatform, "other">,
-) {
+export function getInstallInstructions(platform: InstallPlatform) {
+  if (platform === "other")
+    return {
+      title: "On a computer",
+      steps: [
+        "In Chrome, choose More, then Cast, save, and share, then Install page as app.",
+        "On Mac, open Tally in Safari and choose File, then Add to Dock.",
+        "Follow your browser’s steps, then open Tally from its app icon.",
+      ],
+      note: "If your browser offers an install button below, you can use it directly. Otherwise, open Tally in Chrome or Safari on Mac.",
+    };
   if (platform === "android")
     return {
       title: "On Android",

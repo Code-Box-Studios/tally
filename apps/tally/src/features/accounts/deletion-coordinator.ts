@@ -1,4 +1,4 @@
-import type { Data } from "../../core/domain/records";
+import { object, type Data } from "../../core/domain/records";
 interface Store {
   get: (key: string) => Promise<string | null>;
   set: (key: string, value: string) => Promise<void>;
@@ -61,4 +61,34 @@ export class DeletionCoordinator {
     await this.cleanup();
     await this.store.remove(this.key);
   }
+}
+
+/** Finish accepted owner-local cleanup even after the server revoked the session. */
+export async function resumeAcceptedDeletions(
+  store: Store & { keys: (prefix: string) => Promise<string[]> },
+  namespace: string,
+  cleanup: (owner: string, prefix: string, key: string) => Promise<void>,
+) {
+  const cleaned: string[] = [];
+  for (const key of await store.keys(namespace + ":")) {
+    if (!key.endsWith(":deletion")) continue;
+    const raw = await store.get(key);
+    if (!raw) continue;
+    const intent = object(JSON.parse(raw));
+    if (intent.state !== "accepted") continue;
+    if (
+      typeof intent.owner !== "string" ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(intent.owner) ||
+      typeof intent.id !== "string" ||
+      !intent.id ||
+      key !== `${namespace}:${intent.owner}:deletion`
+    )
+      throw new Error("Deletion needs recovery.");
+    await cleanup(intent.owner, `${namespace}:${intent.owner}:`, key);
+    // Keep this evidence until every cleanup step, including local sign-out,
+    // succeeds. A crash or rejected OS cancellation retries it next startup.
+    await store.remove(key);
+    cleaned.push(intent.owner);
+  }
+  return cleaned;
 }

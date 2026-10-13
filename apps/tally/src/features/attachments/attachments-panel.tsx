@@ -28,10 +28,15 @@ export function AttachmentsPanel({
     setError(null);
     try {
       await work();
-      await files.refetch();
     } catch (e) {
       setError(e);
     } finally {
+      // A failed transfer may already have reserved its attachment slot.
+      try {
+        await files.refetch();
+      } catch (e) {
+        setError((current: unknown) => current ?? e);
+      }
       setBusy(false);
     }
   }
@@ -45,11 +50,23 @@ export function AttachmentsPanel({
         <Card key={r.id} style={{ padding: 12 }}>
           <Txt>{text(r.data, "filename")}</Txt>
           <Txt muted>
-            {text(r.data, "state") === "awaitingUpload"
-              ? "Upload waiting. Choose the same file again to retry safely."
+            {["awaitingUpload", "processing"].includes(text(r.data, "state"))
+              ? "Upload unfinished. Retry with the same file."
               : text(r.data, "state")}
           </Txt>
           <Row>
+            {["awaitingUpload", "processing"].includes(
+              text(r.data, "state"),
+            ) && (
+              <Button
+                secondary
+                disabled={busy || !repo}
+                title="Retry upload"
+                onPress={() =>
+                  void run(() => addAttachment(repo!, targetType, targetId, r))
+                }
+              />
+            )}
             {r.data.state === "ready" && (
               <Button
                 secondary
@@ -80,12 +97,23 @@ export function AttachmentsPanel({
         </Card>
       ))}
       <Button
-        disabled={busy || rows.length >= 10}
+        disabled={
+          busy ||
+          !repo ||
+          files.isPending ||
+          !!files.error ||
+          rows.filter((r) =>
+            ["awaitingUpload", "processing", "ready"].includes(
+              text(r.data, "state"),
+            ),
+          ).length >= 10
+        }
         title={busy ? "Working…" : "Add attachment"}
         onPress={() =>
           void run(() => addAttachment(repo!, targetType, targetId))
         }
       />
+      {!!files.error && <Failure error={files.error} />}
       {!!error && <Failure error={error} />}
     </Card>
   );

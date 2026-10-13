@@ -17,25 +17,30 @@ export function InstallTallyAction() {
   const { width } = useWindowDimensions();
   const browser = useBrowserInstall();
   const [open, setOpen] = useState(false);
-  const [device, setDevice] = useState<"apple" | "android">("apple");
+  const [device, setDevice] = useState<"apple" | "android" | "computer">(
+    "apple",
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  if (
-    !browser ||
-    browser.installed ||
-    (width >= 800 && browser.platform === "other")
-  )
-    return null;
+  if (!browser || browser.installed) return null;
 
   const instructions = getInstallInstructions(
-    device === "android"
-      ? "android"
-      : browser.platform === "ipad"
-        ? "ipad"
-        : "iphone",
+    device === "computer"
+      ? "other"
+      : device === "android"
+        ? "android"
+        : browser.platform === "ipad"
+          ? "ipad"
+          : "iphone",
   );
   function showInstructions() {
-    setDevice(browser?.platform === "android" ? "android" : "apple");
+    setDevice(
+      browser?.platform === "other"
+        ? "computer"
+        : browser?.platform === "android"
+          ? "android"
+          : "apple",
+    );
     setMessage("");
     setOpen(true);
   }
@@ -150,7 +155,7 @@ export function InstallTallyAction() {
                 <Icon name="close" color={theme.ink} size={18} />
               </Pressable>
             </View>
-            <Txt muted>Keep Tally on your Home Screen for quick access.</Txt>
+            <Txt muted>Keep Tally on your device for quick access.</Txt>
             <View
               accessibilityRole="radiogroup"
               accessibilityLabel="Your device"
@@ -160,6 +165,7 @@ export function InstallTallyAction() {
                 [
                   ["apple", "iPhone / iPad"],
                   ["android", "Android"],
+                  ["computer", "Computer"],
                 ] as const
               ).map(([value, label]) => (
                 <Pressable

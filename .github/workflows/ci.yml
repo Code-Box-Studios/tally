@@ -28,7 +28,7 @@ jobs:
       - run: node tool/prepare_expo_web.mjs
   supabase:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -60,5 +60,16 @@ jobs:
       - run: python3 tool/test_supabase_devices.py
       - run: python3 tool/test_supabase_files.py
       - run: python3 tool/test_supabase_recurring_after_payment.py
+      - name: Install browser test tools
+        run: |
+          npm --prefix apps/tally ci
+          npm install --prefix "$RUNNER_TEMP/tally-browser-tools" --no-save --package-lock=false playwright@1.64.0
+          "$RUNNER_TEMP/tally-browser-tools/node_modules/.bin/playwright" install --with-deps chromium
+          npx --yes chrome-devtools-axi@0.1.41 --help > /dev/null
+          node -e 'console.log("TALLY_CHROME_BIN=" + require(process.argv[1]).chromium.executablePath())' "$RUNNER_TEMP/tally-browser-tools/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Build local browser test app
+        run: python3 tool/build_expo_local.py
+      - name: Check desktop, mobile, offline replay, and account deletion
+        run: node tool/test_expo_journeys.mjs
       - if: always()
         run: npx supabase stop --no-backup

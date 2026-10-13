@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
-import { backend } from "../../core/backend/client";
+import { backend, signOutDeletedOwner } from "../../core/backend/client";
 import { privateStore } from "../../core/storage";
 import { useSession, queryClient } from "../auth/session-provider";
-import { clearNotifications } from "../reminders/notification-service";
+import {
+  clearNotifications,
+  clearLocalNotifications,
+} from "../reminders/notification-service";
 import { DeletionCoordinator } from "./deletion-coordinator";
 import { Page, Heading, Card, Form, Field, Txt } from "../../shared/ui";
 export function DeleteScreen() {
@@ -63,13 +66,11 @@ export function DeleteScreen() {
                   id,
                 ),
               async () => {
+                await clearLocalNotifications(repo.prefix);
                 for (const entry of await privateStore.keys(repo.prefix))
                   if (entry !== key) await privateStore.remove(entry);
                 queryClient.clear();
-                const { error } = await backend().auth.signOut({
-                  scope: "local",
-                });
-                if (error) throw error;
+                await signOutDeletedOwner(repo.owner);
               },
               Crypto.randomUUID,
             );

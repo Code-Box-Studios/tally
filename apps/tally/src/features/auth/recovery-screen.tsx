@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { router } from "expo-router";
-import { backend } from "../../core/backend/client";
+import { backend, signOutOwnedSession } from "../../core/backend/client";
 import { Card, Field, Form, Page, Txt } from "../../shared/ui";
 export function RecoveryScreen() {
   const [password, setPassword] = useState(""),
@@ -23,8 +23,7 @@ export function RecoveryScreen() {
               );
             const { error } = await backend().auth.updateUser({ password });
             if (error) throw error;
-            const revoked = await backend().auth.signOut({ scope: "global" });
-            if (revoked.error) throw revoked.error;
+            await signOutOwnedSession(data.session.user.id, "global");
             setPassword("");
             setConfirmation("");
             router.replace("/sign-in");

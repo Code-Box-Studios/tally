@@ -7,7 +7,12 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockDimensions,
 }));
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+const mockPush = jest.fn();
+let mockParams = {};
+jest.mock("expo-router", () => ({
+  router: { push: (...args: unknown[]) => mockPush(...args) },
+  useLocalSearchParams: () => mockParams,
+}));
 jest.mock("../src/features/auth/session-provider", () => ({
   useSession: () => ({ profile: { timezone: "Asia/Manila" } }),
 }));
@@ -62,6 +67,8 @@ jest.mock("../src/shared/queries", () => ({
 
 beforeEach(() => {
   mockDimensions.width = 1280;
+  mockParams = {};
+  mockPush.mockClear();
 });
 
 it("keeps empty calendar cells out of day selection", async () => {
@@ -207,4 +214,19 @@ it("applies and resets advanced filters through the compact mobile toolbar", asy
     screen.getByRole("button", { name: "Oct 15, 2026, 2 due dates" }),
   ).toBeTruthy();
   expect(screen.getByRole("button", { name: /Loan to Alex/ })).toBeTruthy();
+});
+
+it("opens the selected period rather than losing it among other months", async () => {
+  await render(<CalendarScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: /Internet bill/ }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/obligations/[id]",
+    params: { id: "internet", instanceId: "internet-oct" },
+  });
+});
+it("applies dashboard currency and payable outstanding filters", async () => {
+  mockParams = { section: "payable", currency: "PHP", status: "outstanding" };
+  await render(<CalendarScreen />);
+  expect(screen.getByRole("button", { name: /Internet bill/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Loan to Alex/ })).toBeNull();
 });

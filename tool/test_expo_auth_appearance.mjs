@@ -15,7 +15,7 @@ const environment = {
     process.env.TALLY_UI_BROWSER_URL ?? "http://127.0.0.1:37148",
 };
 function command(args, input) {
-  const result = spawnSync("npx", ["-y", "chrome-devtools-axi", ...args], {
+  const result = spawnSync("npx", ["-y", "chrome-devtools-axi@0.1.41", ...args], {
     env: environment,
     input,
     encoding: "utf8",
@@ -31,7 +31,7 @@ function command(args, input) {
 const pages = command(["pages"]);
 const firstPage = pages.match(/^  (\d+),/m);
 if (firstPage) command(["selectpage", firstPage[1]]);
-command(["open", url.origin]);
+command(["open", new URL("/sign-in", url).href]);
 for (const viewport of [
   "1440x1000",
   "393x852x3,mobile,touch",
@@ -42,7 +42,7 @@ for (const viewport of [
     command(
       ["run"],
       `
-      await page.open(${JSON.stringify(url.origin)});
+      await page.open(${JSON.stringify(new URL("/sign-in", url).href)});
       await page.wait('input[aria-label="Email"]', 20000);
       await page.eval(async () => { await document.fonts.ready; });
       const result = await page.eval(() => {
@@ -61,7 +61,7 @@ for (const viewport of [
           return 'rgb(255, 255, 255)';
         };
         const textContrast = text => {
-          const element = [...document.querySelectorAll('div, p, h1, span')].find(e => e.textContent === text && e.children.length === 0);
+          const element = [...document.querySelectorAll('div, p, h1, span')].find(e => [...e.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent === text));
           if (!element) throw new Error('Missing visible text: ' + text);
           const a = luminance(getComputedStyle(element).color), b = luminance(background(element));
           return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
@@ -70,7 +70,7 @@ for (const viewport of [
         const submit = document.querySelector('[data-testid="tally-form"] [role="button"][aria-label="Sign in"]');
         return {
           backgroundLuminance: luminance(background(document.elementFromPoint(8, 80))),
-          brandContrast: textContrast('tally.'),
+          brandContrast: textContrast('tally'),
           taglineContrast: textContrast('Know what’s due.'),
           privacyContrast: textContrast('Private by default. No bank credentials needed.'),
           inputFontSize: parseFloat(getComputedStyle(email).fontSize),

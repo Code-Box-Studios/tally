@@ -1,4 +1,4 @@
-import { civilDate } from "../../core/domain/date";
+import { civilDate, displayDate } from "../../core/domain/date";
 import { currency, minor, type Currency } from "../../core/domain/money";
 import { addStatementTotals } from "./statement-money";
 import {
@@ -37,6 +37,7 @@ export interface StatementAccount {
   unknownAmounts: number;
   dueDate: string;
   periods: StatementPeriod[];
+  installment: boolean;
   principalMinor: number | null;
   interestMinor: number | null;
   interestPolicy: string;
@@ -79,6 +80,16 @@ export interface AccountStatement {
   }[];
   accounts: StatementAccount[];
   history: StatementEntry[];
+  historyRange: { from: string | null; to: string | null };
+  activitySummaries: {
+    currency: Currency;
+    paidToContactMinor: number;
+    receivedFromContactMinor: number;
+  }[];
+}
+export interface StatementHistoryRange {
+  from?: string | null;
+  to?: string | null;
 }
 interface StatementInput {
   contact: Row;
@@ -91,6 +102,7 @@ interface StatementInput {
   generatedAt: string;
   cached: boolean;
   pendingActions?: number;
+  historyRange?: StatementHistoryRange;
 }
 
 function add(left: number, right: number): number {
@@ -115,20 +127,60 @@ function unique(rows: Row[]): Map<string, Row> {
   return result;
 }
 
+function savedContact(row: Row, fallback: unknown): unknown {
+  // An explicit null is an unassigned record, not a missing legacy snapshot.
+  return Object.hasOwn(row.data, "contactId") ? row.data.contactId : fallback;
+}
+
 /** Produces a current snapshot from complete, owner-verified repository collections. */
 export function buildStatement(input: StatementInput): AccountStatement {
   if (!Number.isFinite(Date.parse(input.generatedAt)))
     throw new Error("Invalid statement generation date.");
   new Intl.DateTimeFormat("en", { timeZone: input.timezone });
   const allParents = unique(input.obligations);
-  unique(input.instances);
+  const allInstances = unique(input.instances);
   unique(input.payments);
   const evidence = input.evidence ?? [];
   unique(evidence);
-  const parents = input.obligations.filter(
-    (r) => r.data.contactId === input.contact.id,
+  const instances = input.instances.filter((instance) => {
+    const parent = allParents.get(text(instance.data, "obligationId"));
+    return (
+      parent &&
+      savedContact(instance, parent.data.contactId) === input.contact.id
+    );
+  });
+  const scoped = input.payments.filter((payment) => {
+    const parent = allParents.get(text(payment.data, "obligationId"));
+    if (!parent) return false;
+    if (parent.data.section !== "monthlyDues")
+      return parent.data.contactId === input.contact.id;
+    const instance = allInstances.get(
+      text(payment.data, "obligationInstanceId"),
+    );
+    const instanceContact = instance
+      ? savedContact(instance, parent.data.contactId)
+      : parent.data.contactId;
+    const contactId = savedContact(payment, instanceContact);
+    if (
+      instance &&
+      (contactId === input.contact.id ||
+        instanceContact === input.contact.id) &&
+      (instance.data.obligationId !== parent.id ||
+        contactId !== instanceContact)
+    )
+      throw new Error(
+        "A payment's contact differs from its billing period. Refresh before generating a statement.",
+      );
+    return contactId === input.contact.id;
+  });
+  const historicalParents = new Set(
+    [...instances, ...scoped].map((r) => text(r.data, "obligationId")),
   );
-  const parentIds = new Set(parents.map((r) => r.id));
+  const parents = input.obligations.filter(
+    (r) =>
+      r.data.contactId === input.contact.id ||
+      (r.data.section === "monthlyDues" && historicalParents.has(r.id)),
+  );
   for (const payment of input.payments) {
     if (
       payment.data.contactId === input.contact.id &&
@@ -148,50 +200,62 @@ export function buildStatement(input: StatementInput): AccountStatement {
       const excluded =
         parent.data.lifecycle === "cancelled" || parent.data.archived === true;
       const recurring = section === "monthlyDues";
-      const periods: StatementPeriod[] = recurring
-        ? input.instances
-            .filter((r) => r.data.obligationId === parent.id)
-            .map((period) => {
-              if (currency(period.data.currency) !== code)
-                throw new Error(
-                  "Billing period currency differs from its obligation.",
-                );
-              const originalMinor = amount(period.data, "amountMinor");
-              const remainingMinor = amount(period.data, "remainingMinor");
-              const paidMinor = known(period, "totalPaidMinor");
-              if (originalMinor === null) {
-                if (remainingMinor !== null || paidMinor !== 0)
-                  throw new Error(
-                    "An unknown bill amount cannot have confirmed payments or balance.",
-                  );
-              } else {
-                minor(originalMinor, true);
+      const installment = parent.data.type === "installment";
+      const periods: StatementPeriod[] =
+        recurring || installment
+          ? (recurring ? instances : input.instances)
+              .filter((r) => r.data.obligationId === parent.id)
+              .map((period) => {
                 if (
-                  remainingMinor === null ||
-                  add(paidMinor, minor(remainingMinor, true)) !== originalMinor
+                  currency(
+                    period.data.currency ?? (installment ? code : undefined),
+                  ) !== code
                 )
-                  throw new Error("Billing period balance needs recovery.");
-              }
-              return {
-                id: period.id,
-                title: text(period.data, "periodLabel", "Billing period"),
-                dueDate: optionalDate(period, "dueDate"),
-                originalMinor,
-                paidMinor,
-                remainingMinor,
-                status: label(text(period.data, "financialStatus")),
-                excluded:
-                  excluded ||
-                  ["cancelled", "skipped"].includes(
-                    text(period.data, "financialStatus"),
+                  throw new Error(
+                    "Billing period currency differs from its obligation.",
+                  );
+                const originalMinor = amount(period.data, "amountMinor");
+                const remainingMinor = amount(period.data, "remainingMinor");
+                const paidMinor = known(period, "totalPaidMinor");
+                if (originalMinor === null) {
+                  if (remainingMinor !== null || paidMinor !== 0)
+                    throw new Error(
+                      "An unknown bill amount cannot have confirmed payments or balance.",
+                    );
+                } else {
+                  minor(originalMinor, true);
+                  if (
+                    remainingMinor === null ||
+                    add(paidMinor, minor(remainingMinor, true)) !==
+                      originalMinor
+                  )
+                    throw new Error("Billing period balance needs recovery.");
+                }
+                return {
+                  id: period.id,
+                  title: text(
+                    period.data,
+                    "periodLabel",
+                    installment ? "Installment" : "Billing period",
                   ),
-              };
-            })
-            .sort(
-              (a, b) =>
-                a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id),
-            )
-        : [];
+                  dueDate: optionalDate(period, "dueDate"),
+                  originalMinor,
+                  paidMinor,
+                  remainingMinor,
+                  status: label(text(period.data, "financialStatus")),
+                  excluded:
+                    excluded ||
+                    ["cancelled", "skipped"].includes(
+                      text(period.data, "financialStatus"),
+                    ),
+                };
+              })
+              .sort(
+                (a, b) =>
+                  a.dueDate.localeCompare(b.dueDate) ||
+                  a.id.localeCompare(b.id),
+              )
+          : [];
       const paidMinor = recurring
         ? periods.reduce((total, p) => add(total, p.paidMinor), 0)
         : known(parent, "totalPaidMinor");
@@ -209,6 +273,27 @@ export function buildStatement(input: StatementInput): AccountStatement {
         : known(parent, "originalAmountMinor");
       if (!recurring && add(paidMinor, remainingMinor) !== originalMinor)
         throw new Error("Obligation balance needs recovery.");
+      if (installment) {
+        const ids = parent.data.installmentInstanceIds;
+        if (
+          (Array.isArray(ids) &&
+            (ids.length < 2 ||
+              ids.length !== periods.length ||
+              new Set(ids).size !== ids.length ||
+              periods.some((p) => !ids.includes(p.id)))) ||
+          (periods.length > 0 &&
+            (periods.some((p) => p.originalMinor === null) ||
+              periods.reduce((sum, p) => add(sum, p.originalMinor ?? 0), 0) !==
+                originalMinor ||
+              periods.reduce((sum, p) => add(sum, p.paidMinor), 0) !==
+                paidMinor ||
+              periods.reduce((sum, p) => add(sum, p.remainingMinor ?? 0), 0) !==
+                remainingMinor))
+        )
+          throw new Error(
+            "The installment schedule does not match its current balance. Refresh and try again.",
+          );
+      }
       let principalMinor: number | null = null,
         interestMinor: number | null = null,
         interestPolicy = "";
@@ -247,6 +332,7 @@ export function buildStatement(input: StatementInput): AccountStatement {
         unknownAmounts,
         dueDate: optionalDate(parent, "dueDate"),
         periods,
+        installment,
         principalMinor,
         interestMinor,
         interestPolicy,
@@ -259,9 +345,6 @@ export function buildStatement(input: StatementInput): AccountStatement {
         a.id.localeCompare(b.id),
     );
 
-  const scoped = input.payments.filter((r) =>
-    parentIds.has(text(r.data, "obligationId")),
-  );
   const originals = unique(scoped);
   const reversed = new Set<string>();
   for (const entry of scoped) {
@@ -274,7 +357,8 @@ export function buildStatement(input: StatementInput): AccountStatement {
       reversed.has(reference) ||
       original.data.obligationId !== entry.data.obligationId ||
       original.data.currency !== entry.data.currency ||
-      original.data.amountMinor !== entry.data.amountMinor
+      original.data.amountMinor !== entry.data.amountMinor ||
+      original.data.paymentDate !== entry.data.paymentDate
     )
       throw new Error(
         "A payment reversal could not be verified. Refresh before generating a statement.",
@@ -387,29 +471,88 @@ export function buildStatement(input: StatementInput): AccountStatement {
     }
     totals.set(account.currency, total);
   }
-  return {
-    contactId: input.contact.id,
-    contactName: recordTitle(input.contact),
-    contactEmail: text(input.contact.data, "email"),
-    contactPhone: text(input.contact.data, "phone"),
-    issuedBy: input.issuedBy,
-    timezone: input.timezone,
-    generatedAt: input.generatedAt,
-    cached: input.cached,
-    pendingActions: input.pendingActions ?? 0,
-    assumedPayments: history.filter(
-      (e) =>
-        e.entryType === "payment" &&
-        e.provenance === "assumedAutomatic" &&
-        !e.confirmationReference &&
-        !e.reversed,
-    ).length,
-    accounts,
-    history,
-    summaries: [...totals.values()].sort((a, b) =>
-      a.currency.localeCompare(b.currency),
-    ),
+  return selectStatementHistory(
+    {
+      contactId: input.contact.id,
+      contactName: recordTitle(input.contact),
+      contactEmail: text(input.contact.data, "email"),
+      contactPhone: text(input.contact.data, "phone"),
+      issuedBy: input.issuedBy,
+      timezone: input.timezone,
+      generatedAt: input.generatedAt,
+      cached: input.cached,
+      pendingActions: input.pendingActions ?? 0,
+      assumedPayments: history.filter(
+        (e) =>
+          e.entryType === "payment" &&
+          e.provenance === "assumedAutomatic" &&
+          !e.confirmationReference &&
+          !e.reversed,
+      ).length,
+      accounts,
+      history,
+      historyRange: { from: null, to: null },
+      activitySummaries: [],
+      summaries: [...totals.values()].sort((a, b) =>
+        a.currency.localeCompare(b.currency),
+      ),
+    },
+    input.historyRange,
+  );
+}
+
+/** Filters a complete statement's payment activity without changing its current balances. */
+export function selectStatementHistory(
+  statement: AccountStatement,
+  range: StatementHistoryRange = {},
+): AccountStatement {
+  const from = range.from ? civilDate(range.from) : null;
+  const to = range.to ? civilDate(range.to) : null;
+  if (from && to && from > to)
+    throw new Error("From date must be on or before To date.");
+  const history = statement.history.filter(
+    (entry) =>
+      (!from || entry.paymentDate >= from) && (!to || entry.paymentDate <= to),
+  );
+  const totals = new Map<Currency, { paid: bigint; received: bigint }>();
+  for (const entry of history) {
+    const total = totals.get(entry.currency) ?? { paid: 0n, received: 0n };
+    if (entry.direction === "owedToMe")
+      total.received += BigInt(entry.signedAmountMinor);
+    else total.paid += BigInt(entry.signedAmountMinor);
+    totals.set(entry.currency, total);
+  }
+  const exact = (value: bigint) => {
+    if (
+      value < -BigInt(Number.MAX_SAFE_INTEGER) ||
+      value > BigInt(Number.MAX_SAFE_INTEGER)
+    )
+      throw new Error("Statement activity total exceeds the supported range.");
+    return Number(value);
   };
+  return {
+    ...statement,
+    history,
+    historyRange: { from, to },
+    activitySummaries: [...totals]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([code, total]) => ({
+        currency: code,
+        paidToContactMinor: exact(total.paid),
+        receivedFromContactMinor: exact(total.received),
+      })),
+  };
+}
+
+export function statementHistoryLabel(
+  range: AccountStatement["historyRange"],
+): string {
+  if (range.from && range.to)
+    return `Payment dates: ${displayDate(range.from)} – ${displayDate(range.to)} (inclusive)`;
+  if (range.from) return `Payment dates: ${displayDate(range.from)} onward`;
+  if (range.to)
+    return `Payment dates: through ${displayDate(range.to)} (inclusive)`;
+  return "All recorded payments and reversals";
 }
 
 export function statementTimestamp(value: string, timezone: string): string {

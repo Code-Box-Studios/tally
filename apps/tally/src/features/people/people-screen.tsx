@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { Pressable, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useRecords } from "../../shared/queries";
-import { recordTitle, text, amount, type Row } from "../../core/domain/records";
-import { formatMoney } from "../../core/domain/money";
+import { recordTitle, text } from "../../core/domain/records";
+import { formatStatementMoney as formatMoney } from "../statements/statement-money";
+import { contactOverview } from "./contact-overview";
 import { SearchField } from "../../shared/search-field";
 import {
   Page,
@@ -17,26 +18,10 @@ import {
   Empty,
 } from "../../shared/ui";
 import { CatalogForm } from "./catalog-form";
-export function contactPositions(contact: string, obligations: Row[]) {
-  const values: Record<string, { owe: number; owed: number }> = {};
-  for (const r of obligations) {
-    if (
-      r.data.contactId !== contact ||
-      r.data.lifecycle === "cancelled" ||
-      r.data.section === "monthlyDues"
-    )
-      continue;
-    const code = text(r.data, "currency"),
-      v = values[code] ?? (values[code] = { owe: 0, owed: 0 });
-    if (r.data.section === "iOwe")
-      v.owe += amount(r.data, "remainingMinor") ?? 0;
-    else v.owed += amount(r.data, "remainingMinor") ?? 0;
-  }
-  return values;
-}
 export function PeopleScreen() {
   const contacts = useRecords("contacts"),
     obligations = useRecords("obligations"),
+    instances = useRecords("obligationInstances"),
     [add, setAdd] = useState(false),
     [search, setSearch] = useState("");
   const rows =
@@ -51,6 +36,25 @@ export function PeopleScreen() {
         .toLowerCase()
         .includes(search.toLowerCase()),
     ) ?? [];
+  const queries = [contacts, obligations, instances];
+  const pending = queries.some((query) => query.isPending);
+  let error = queries.find((query) => query.error)?.error;
+  const positions = new Map<
+    string,
+    ReturnType<typeof contactOverview>["positions"]
+  >();
+  if (!pending && !error) {
+    try {
+      for (const row of rows)
+        positions.set(
+          row.id,
+          contactOverview(row.id, obligations.data!.rows, instances.data!.rows)
+            .positions,
+        );
+    } catch (cause) {
+      error = cause as Error;
+    }
+  }
   return (
     <Page>
       <Heading
@@ -70,10 +74,18 @@ export function PeopleScreen() {
           value={search}
           onChangeText={setSearch}
         />
-        {contacts.isPending ? (
+        {queries.some((query) => query.data?.cached) && (
+          <Txt muted>Cached balances · reconnect to confirm.</Txt>
+        )}
+        {pending ? (
           <Loading />
-        ) : contacts.error ? (
-          <Failure error={contacts.error} />
+        ) : error ? (
+          <Failure
+            error={error}
+            retry={() =>
+              void Promise.all(queries.map((query) => query.refetch()))
+            }
+          />
         ) : (
           rows.map((r) => (
             <Pressable
@@ -93,23 +105,27 @@ export function PeopleScreen() {
                       {r.data.archived ? " · Archived" : ""}
                     </Txt>
                   </View>
-                  {Object.entries(
-                    contactPositions(r.id, obligations.data?.rows ?? []),
-                  ).map(([code, v]) => (
-                    <View key={code}>
-                      <Txt>
-                        {v.owed >= v.owe ? "Owes you " : "You owe "}
-                        {formatMoney(Math.abs(v.owed - v.owe), code)}
-                      </Txt>
-                      <Txt muted>Informational net position</Txt>
-                    </View>
-                  ))}
+                  {Object.entries(positions.get(r.id) ?? {}).map(
+                    ([code, v]) => (
+                      <View key={code}>
+                        <Txt>You owe {formatMoney(v.owe, code)}</Txt>
+                        <Txt>Owes you {formatMoney(v.owed, code)}</Txt>
+                        {!!v.unknownAmounts && (
+                          <Txt muted>
+                            {v.unknownAmounts} bill{" "}
+                            {v.unknownAmounts === 1 ? "amount" : "amounts"}{" "}
+                            needed · known amounts only
+                          </Txt>
+                        )}
+                      </View>
+                    ),
+                  )}
                 </FlexRow>
               </Card>
             </Pressable>
           ))
         )}
-        {!contacts.isPending && !rows.length && (
+        {!pending && !error && !rows.length && (
           <Empty
             title="Your people, remembered"
             description="Add a person or organization to connect loans, bills, and payment history."

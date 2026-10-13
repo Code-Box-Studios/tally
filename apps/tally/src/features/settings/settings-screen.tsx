@@ -14,6 +14,7 @@ import { useAppearance, useTheme } from "../../shared/theme";
 import { Icon } from "../../shared/icons";
 import { categoryIcon } from "../categories/category-icons";
 import { PaymentSourceIcon } from "../payment-sources/payment-source-icon";
+import { DataExportCard } from "./data-export-card";
 import {
   Page,
   Heading,
@@ -107,6 +108,7 @@ function SettingsContent({ initialTab }: { initialTab: string }) {
                 </Txt>
               </Form>
             </Card>
+            <DataExportCard />
             <Card>
               <Txt style={{ fontSize: 19 }}>Your device & account</Txt>
               <Button

@@ -4,7 +4,19 @@ import { PeopleScreen } from "../src/features/people/people-screen";
 import { ObligationsScreen } from "../src/features/obligations/obligations-screen";
 import type { Collection, Row } from "../src/core/domain/records";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+let mockParams = {};
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn() },
+  useLocalSearchParams: () => mockParams,
+}));
+jest.mock("../src/core/domain/date", () => ({
+  ...jest.requireActual("../src/core/domain/date"),
+  todayInZone: () => "2026-10-13",
+}));
+beforeEach(() => {
+  mockParams = {};
+  mockRows.obligationInstances = [];
+});
 jest.mock("../src/features/auth/session-provider", () => ({
   useSession: () => ({
     profile: { defaultCurrency: "PHP", timezone: "Asia/Manila" },
@@ -142,4 +154,45 @@ it("filters all sections using each obligation's remaining or bill amount", asyn
   await fireEvent.press(screen.getByRole("button", { name: "Clear filters" }));
   expect(screen.getByRole("button", { name: "Laptop loan" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Internet bill" })).toBeTruthy();
+});
+
+it("opens all overdue payable obligations including an older unknown bill", async () => {
+  mockParams = { section: "payable", currency: "PHP", status: "overdue" };
+  mockRows.obligationInstances = [
+    {
+      id: "old",
+      data: {
+        obligationId: "bill",
+        section: "monthlyDues",
+        remainingMinor: null,
+        dueDate: "2026-08-01",
+        financialStatus: "pending",
+      },
+    },
+    {
+      id: "loan-due",
+      data: {
+        obligationId: "borrowed",
+        section: "iOwe",
+        remainingMinor: 10000,
+        dueDate: "2026-10-01",
+        financialStatus: "pending",
+      },
+    },
+  ];
+  await render(<ObligationsScreen />);
+  expect(screen.getByRole("button", { name: "Internet bill" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Laptop loan" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Loan to Bea" })).toBeNull();
+});
+it("ignores unknown or repeated navigation filter values", async () => {
+  mockParams = {
+    section: ["owedToMe", "monthlyDues"],
+    currency: "FAKE",
+    status: "delete",
+  };
+  await render(<ObligationsScreen />);
+  expect(screen.getByRole("button", { name: "Internet bill" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Laptop loan" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Loan to Bea" })).toBeTruthy();
 });

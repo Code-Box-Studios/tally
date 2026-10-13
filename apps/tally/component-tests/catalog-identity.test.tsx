@@ -3,6 +3,8 @@ import { render, fireEvent, screen } from "@testing-library/react-native";
 import { SettingsScreen } from "../src/features/settings/settings-screen";
 jest.mock("../src/features/reminders/notification-service", () => ({
   clearNotifications: async () => {},
+  clearInactiveLocalNotifications: async () => {},
+  clearLocalNotifications: async () => {},
   enableNotifications: async () => {},
 }));
 let mockTab: string | undefined;

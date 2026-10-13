@@ -8,6 +8,34 @@ import type { TallyRepository } from "../../core/backend/repository";
 import { object, type Row, type Data } from "../../core/domain/records";
 import { readOwnedDevice } from "./device-record";
 import { selectLocalAlerts } from "./local-alerts";
+const localWork = new Map<string, Promise<void>>();
+function withLocalNotifications(prefix: string, work: () => Promise<void>) {
+  const next = (localWork.get(prefix) ?? Promise.resolve())
+    .catch(() => {})
+    .then(work);
+  localWork.set(prefix, next);
+  const finished = () => {
+    if (localWork.get(prefix) === next) localWork.delete(prefix);
+  };
+  void next.then(finished, finished);
+  return next;
+}
+function savedAlert(raw: string | null) {
+  if (!raw) return null;
+  try {
+    const value = object(JSON.parse(raw));
+    if (
+      typeof value.id !== "string" ||
+      (value.fingerprint !== null && typeof value.fingerprint !== "string")
+    )
+      throw new Error("Local reminders need recovery.");
+    return { id: value.id, fingerprint: value.fingerprint };
+  } catch (error) {
+    // Earlier versions saved the OS identifier without a schedule fingerprint.
+    if (raw.startsWith("{")) throw error;
+    return { id: raw, fingerprint: null };
+  }
+}
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -106,18 +134,71 @@ export async function clearNotifications(repo: TallyRepository) {
       );
     await privateStore.remove(repo.prefix + "notification-device");
   }
-  for (const key of await privateStore.keys(repo.prefix + "local-alert:")) {
-    const id = await privateStore.get(key);
-    if (id) await Notifications.cancelScheduledNotificationAsync(id);
+  await clearLocalNotifications(repo.prefix);
+  repo.check();
+}
+async function cancelLocalNotification(key: string, id: string) {
+  // Mark the schedule uncertain before cancelling. If removal is interrupted,
+  // reconciliation must not mistake the old fingerprint for a live OS alert.
+  await privateStore.set(key, JSON.stringify({ id, fingerprint: null }));
+  await Notifications.cancelScheduledNotificationAsync(id);
+}
+async function removeLocalNotifications(prefix: string) {
+  for (const key of await privateStore.keys(prefix + "local-alert:")) {
+    const saved = savedAlert(await privateStore.get(key));
+    if (saved) await cancelLocalNotification(key, saved.id);
     await privateStore.remove(key);
   }
-  repo.check();
+}
+export function clearLocalNotifications(prefix: string) {
+  return withLocalNotifications(prefix, () => removeLocalNotifications(prefix));
+}
+export async function clearInactiveLocalNotifications(
+  namespace: string,
+  currentOwner: () => string | null | undefined,
+) {
+  const owners = new Set<string>();
+  for (const key of await privateStore.keys(namespace + ":")) {
+    const relative = key.slice(namespace.length + 1),
+      separator = relative.indexOf(":");
+    if (
+      separator > 0 &&
+      relative.slice(separator + 1).startsWith("local-alert:")
+    )
+      owners.add(relative.slice(0, separator));
+  }
+  for (const owner of owners) {
+    const prefix = `${namespace}:${owner}:`;
+    await withLocalNotifications(prefix, async () => {
+      // Check again after earlier schedules finish. A rapid account switch may
+      // have made this owner active while recovery waited for the OS.
+      const activeOwner = currentOwner();
+      if (activeOwner !== undefined && owner !== activeOwner)
+        await removeLocalNotifications(prefix);
+    });
+  }
 }
 export async function scheduleLocalReminders(
   repo: TallyRepository,
   reminders: Row[],
   policy: Data,
 ) {
+  return withLocalNotifications(repo.prefix, () =>
+    reconcileLocalReminders(repo, reminders, policy),
+  );
+}
+async function reconcileLocalReminders(
+  repo: TallyRepository,
+  reminders: Row[],
+  policy: Data,
+) {
+  repo.check();
+  // Accepted cleanup keeps this marker until local sign-out finishes. Pending
+  // deletion also suspends alerts while its server response is uncertain.
+  if (await privateStore.get(repo.prefix + "deletion")) {
+    await removeLocalNotifications(repo.prefix);
+    return;
+  }
   repo.check();
   const permission = await Notifications.getPermissionsAsync();
   repo.check();
@@ -129,34 +210,42 @@ export async function scheduleLocalReminders(
   for (const key of keys) {
     repo.check();
     if (!next.some((p) => key === repo.prefix + "local-alert:" + p.id)) {
-      const id = await privateStore.get(key);
-      if (id) await Notifications.cancelScheduledNotificationAsync(id);
+      const saved = savedAlert(await privateStore.get(key));
+      if (saved) await cancelLocalNotification(key, saved.id);
       await privateStore.remove(key);
     }
   }
   for (const item of next) {
     repo.check();
-    const key = repo.prefix + "local-alert:" + item.id;
-    if (await privateStore.get(key)) continue;
-    const id = await Notifications.scheduleNotificationAsync({
-      identifier: repo.owner + ":" + item.id,
-      content: {
-        title: "Tally",
-        body: "You have a payment reminder. Open Tally to review it.",
-        data: { obligationId: item.obligationId },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: item.at,
-        channelId: "tally-reminders",
-      },
-    });
+    const key = repo.prefix + "local-alert:" + item.id,
+      fingerprint = JSON.stringify([item.at.toISOString(), item.obligationId]),
+      saved = savedAlert(await privateStore.get(key));
+    if (saved?.fingerprint === fingerprint) continue;
+    if (saved) await cancelLocalNotification(key, saved.id);
+    let id = key;
     try {
+      // Persist the deterministic identifier before scheduling so a process
+      // interruption still leaves enough evidence to cancel or retry the alert.
+      await privateStore.set(key, JSON.stringify({ id, fingerprint: null }));
       repo.check();
-      await privateStore.set(key, id);
+      id = await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content: {
+          title: "Tally",
+          body: "You have a payment reminder. Open Tally to review it.",
+          data: { obligationId: item.obligationId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: item.at,
+          channelId: "tally-reminders",
+        },
+      });
+      repo.check();
+      await privateStore.set(key, JSON.stringify({ id, fingerprint }));
       repo.check();
     } catch (e) {
-      await Notifications.cancelScheduledNotificationAsync(id);
+      await cancelLocalNotification(key, id);
       await privateStore.remove(key);
       throw e;
     }

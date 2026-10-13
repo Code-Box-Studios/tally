@@ -2,14 +2,17 @@ export async function saveFile(
   bytes: Uint8Array,
   filename: string,
   mime: string,
+  check: () => void,
 ) {
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: mime });
+  check();
+  const blob = new Blob([bytes.slice().buffer], { type: mime });
   const url = URL.createObjectURL(blob),
     anchor = document.createElement("a");
   try {
     anchor.href = url;
     anchor.download = filename;
     document.body.appendChild(anchor);
+    check();
     anchor.click();
   } finally {
     anchor.remove();

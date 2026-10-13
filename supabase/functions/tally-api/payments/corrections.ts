@@ -130,7 +130,14 @@ export async function correctPayment(
         );
       }
       const replacementAllocations = payload.replacement
-        ? allocatePayment(payload.replacement.amountMinor, restored)
+        ? allocatePayment(
+          payload.replacement.amountMinor,
+          restored,
+          // A date or metadata correction must keep the periods already paid.
+          payload.replacement.amountMinor === original.amountMinor
+            ? originalAllocations
+            : null,
+        )
         : [];
       const updated = payload.replacement
         ? changeAllocatedBalance(restored, replacementAllocations, 1)

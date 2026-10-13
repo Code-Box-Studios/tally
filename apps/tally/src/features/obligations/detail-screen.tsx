@@ -52,11 +52,17 @@ type Panel = {
   action?: string;
 } | null;
 export function DetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>(),
+  const { id, instanceId } = useLocalSearchParams<{
+      id: string;
+      instanceId?: string;
+    }>(),
     parents = useRecords("obligations"),
     periods = useRecords("obligationInstances"),
     payments = useRecords("payments"),
     { profile, execute } = useSession();
+  const [revealedPeriod, setRevealedPeriod] = useState<string | undefined>(
+    undefined,
+  );
   const [panel, setPanel] = useState<Panel>(null),
     [reason, setReason] = useState(""),
     [effectiveDate, setEffectiveDate] = useState(
@@ -102,6 +108,12 @@ export function DetailScreen() {
         .filter((r) => r.data.entryType === "reversal")
         .map((r) => r.data.reversesPaymentId),
     );
+  const selectedPeriod =
+    typeof instanceId === "string"
+      ? instances.find((row) => row.id === instanceId)
+      : undefined;
+  const focusPeriod = selectedPeriod && revealedPeriod !== instanceId;
+  const visibleInstances = focusPeriod ? [selectedPeriod] : instances;
   const done = () => {
     setPanel(null);
   };
@@ -177,7 +189,9 @@ export function DetailScreen() {
                       expectedRevision: Number(d.revision),
                       reminderPolicy: {
                         enabled: enabled === "yes",
-                        offsetDays: offsets.split(",").map(Number),
+                        offsetDays: offsets.trim()
+                          ? offsets.split(",").map(Number)
+                          : [],
                         localTime: time,
                       },
                     });
@@ -321,9 +335,19 @@ export function DetailScreen() {
                 <Button
                   secondary
                   title={recurring ? "Edit bill reminders" : "Edit reminders"}
-                  onPress={() =>
-                    setPanel({ kind: recurring ? "edit" : "reminder" })
-                  }
+                  onPress={() => {
+                    const policy = d.reminderPolicy
+                      ? object(d.reminderPolicy)
+                      : {};
+                    setEnabled(policy.enabled === false ? "no" : "yes");
+                    setOffsets(
+                      Array.isArray(policy.offsetDays)
+                        ? policy.offsetDays.join(",")
+                        : "3,0",
+                    );
+                    setTime(text(policy, "localTime", "09:00"));
+                    setPanel({ kind: recurring ? "edit" : "reminder" });
+                  }}
                 />
                 {recurring && d.lifecycle !== "ended" ? (
                   <>
@@ -368,8 +392,31 @@ export function DetailScreen() {
             </Card>
           </>
         )}
-        <Heading title={recurring ? "Billing periods" : "Payment schedule"} />
-        {instances.map((r) => (
+        <Heading
+          title={
+            focusPeriod
+              ? "Selected period"
+              : recurring
+                ? "Billing periods"
+                : "Payment schedule"
+          }
+          action={
+            focusPeriod ? (
+              <Button
+                secondary
+                title="Show all periods"
+                onPress={() => setRevealedPeriod(instanceId)}
+              />
+            ) : undefined
+          }
+        />
+        {!!instanceId && !selectedPeriod && (
+          <Txt muted>
+            The linked period is unavailable. Showing this obligation’s
+            schedule.
+          </Txt>
+        )}
+        {visibleInstances.map((r) => (
           <Card key={r.id}>
             <FlexRow>
               <View style={{ flex: 1, minWidth: 160 }}>

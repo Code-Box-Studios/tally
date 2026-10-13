@@ -33,8 +33,17 @@ export async function addAttachment(
   repo: TallyRepository,
   type: "obligation" | "instance" | "payment",
   targetId: string,
+  retry?: Row,
 ) {
   repo.check();
+  if (
+    retry &&
+    (retry.data.userId !== repo.owner ||
+      retry.data.targetType !== type ||
+      retry.data.targetId !== targetId ||
+      !["awaitingUpload", "processing"].includes(text(retry.data, "state")))
+  )
+    throw new Error("Choose an owned file with an unfinished upload.");
   const picked = await Picker.getDocumentAsync({
     type: mimes,
     multiple: false,
@@ -59,6 +68,15 @@ export async function addAttachment(
     throw new Error("File size changed. Choose the file again.");
   try {
     const checksum = await sha(bytes);
+    if (
+      retry &&
+      (retry.data.filename !== asset.name ||
+        retry.data.declaredContentType !== asset.mimeType ||
+        retry.data.declaredSizeBytes !== bytes.length ||
+        (retry.data.declaredSha256 !== null &&
+          retry.data.declaredSha256 !== checksum))
+    )
+      throw new Error("Choose the same file that was originally attached.");
     const transferKey =
       repo.prefix +
       "upload:" +
@@ -83,6 +101,35 @@ export async function addAttachment(
             revision: null,
           };
     repo.check();
+    if (retry) {
+      if (transfer.attachmentId && transfer.attachmentId !== retry.id)
+        throw new Error(
+          "This file has another unfinished transfer. Refresh and try again.",
+        );
+      if (retry.data.state === "processing") {
+        if (
+          typeof retry.data.uploadCommandId !== "string" ||
+          !Number.isSafeInteger(retry.data.uploadRevision) ||
+          Number(retry.data.uploadRevision) < 1 ||
+          retry.data.uploadSha256 !== checksum
+        )
+          throw new Error(
+            "The upload is still processing. Refresh before trying again.",
+          );
+        transfer.uploadId = retry.data.uploadCommandId;
+        transfer.revision = retry.data.uploadRevision;
+      } else if (!transfer.attachmentId) {
+        if (
+          !Number.isSafeInteger(retry.data.revision) ||
+          Number(retry.data.revision) < 1
+        )
+          throw new Error(
+            "The file reservation changed. Refresh before trying again.",
+          );
+        transfer.revision = retry.data.revision;
+      }
+      transfer.attachmentId = retry.id;
+    }
     await repo.transferIntent(transferKey, JSON.stringify(transfer));
     repo.check();
     if (!transfer.attachmentId) {
@@ -160,6 +207,7 @@ export async function downloadAttachment(repo: TallyRepository, row: Row) {
       bytes,
       text(row.data, "filename"),
       text(row.data, "contentType"),
+      () => repo.check(),
     );
   } finally {
     bytes.fill(0);

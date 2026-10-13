@@ -8,6 +8,7 @@ type CatalogFormProps = {
   kind: "contact" | "source" | "category";
   existing?: Row;
   onDone: () => void;
+  onSaved?: (row: Row | null) => void;
 };
 export function CatalogForm(props: CatalogFormProps) {
   if (props.kind === "source")
@@ -24,10 +25,12 @@ function BasicCatalogForm({
   kind,
   existing,
   onDone,
+  onSaved,
 }: {
   kind: "contact" | "source" | "category";
   existing?: Row;
   onDone: () => void;
+  onSaved?: (row: Row | null) => void;
 }) {
   const { execute } = useSession(),
     d = existing?.data ?? {},
@@ -84,16 +87,33 @@ function BasicCatalogForm({
                   active: active === "yes",
                 }
               : { name: name.trim(), active: active === "yes" };
-        await execute("saveCatalog", {
+        const result = await execute("saveCatalog", {
           kind,
           id: existing?.id ?? null,
           expectedRevision: existing ? Number(d.revision) : null,
           values,
         });
+        const id =
+          result.status === "synced" && typeof result.result?.id === "string"
+            ? result.result.id
+            : null;
+        onSaved?.(
+          id
+            ? {
+                id,
+                data: { ...values, revision: result.result?.revision ?? 1 },
+              }
+            : null,
+        );
         onDone();
       }}
     >
-      <Field label="Name" value={name} onChangeText={setName} maxLength={120} />
+      <Field
+        label={kind === "contact" ? "Contact name" : "Name"}
+        value={name}
+        onChangeText={setName}
+        maxLength={120}
+      />
       {kind === "contact" && (
         <>
           <Choices

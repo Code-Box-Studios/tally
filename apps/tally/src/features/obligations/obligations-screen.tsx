@@ -1,8 +1,14 @@
 import React, { useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
-import { router, type Href } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useRecords } from "../../shared/queries";
-import { recordTitle, text, amount, label } from "../../core/domain/records";
+import {
+  recordTitle,
+  text,
+  amount,
+  label,
+  type Row,
+} from "../../core/domain/records";
 import { formatMoney, currencies, parseMoney } from "../../core/domain/money";
 import { displayDate, civilDate, todayInZone } from "../../core/domain/date";
 import { DateField } from "../../shared/date-field";
@@ -22,18 +28,34 @@ import {
   Failure,
   Empty,
 } from "../../shared/ui";
+import { overviewFilters, outstandingPeriod } from "./obligation-navigation";
 export function ObligationsScreen() {
+  const params = useLocalSearchParams();
+  const initial = overviewFilters(params);
+  return (
+    <ObligationList
+      key={`${initial.section}:${initial.status}:${initial.currency}`}
+      initial={initial}
+    />
+  );
+}
+function ObligationList({
+  initial,
+}: {
+  initial: ReturnType<typeof overviewFilters>;
+}) {
   const { profile } = useSession();
   const theme = useTheme();
   const mobile = useWindowDimensions().width < 680;
   const query = useRecords("obligations"),
+    periods = useRecords("obligationInstances"),
     contacts = useRecords("contacts"),
     categories = useRecords("categories"),
     sources = useRecords("paymentSources");
-  const [section, setSection] = useState("all"),
+  const [section, setSection] = useState(initial.section),
     [search, setSearch] = useState(""),
-    [status, setStatus] = useState("all"),
-    [currency, setCurrency] = useState("all"),
+    [status, setStatus] = useState(initial.status),
+    [currency, setCurrency] = useState(initial.currency),
     [contact, setContact] = useState("all"),
     [category, setCategory] = useState("all"),
     [filters, setFilters] = useState(false),
@@ -43,6 +65,37 @@ export function ObligationsScreen() {
     [end, setEnd] = useState(""),
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
+  const today = todayInZone(profile!.timezone);
+  const needsPeriods = status === "overdue" || status === "outstanding";
+  function matchesStatus(row: Row) {
+    if (!needsPeriods)
+      return (
+        status === "all" ||
+        row.data.financialStatus === status ||
+        row.data.lifecycle === status
+      );
+    if (row.data.archived === true || row.data.lifecycle === "cancelled")
+      return false;
+    const open = (periods.data?.rows ?? []).filter(
+      (period) =>
+        period.data.obligationId === row.id && outstandingPeriod(period),
+    );
+    if (status === "outstanding")
+      return row.data.section === "monthlyDues"
+        ? open.length > 0
+        : (amount(row.data, "remainingMinor") ?? 0) > 0;
+    return (
+      open.some(
+        (period) =>
+          !!text(period.data, "dueDate") &&
+          text(period.data, "dueDate") < today,
+      ) ||
+      (row.data.section !== "monthlyDues" &&
+        (amount(row.data, "remainingMinor") ?? 0) > 0 &&
+        !!text(row.data, "nextDueDate") &&
+        text(row.data, "nextDueDate") < today)
+    );
+  }
   const filterCount = [
     status !== "all",
     currency !== "all",
@@ -90,7 +143,10 @@ export function ObligationsScreen() {
     query.data?.rows.filter(
       (r) =>
         !filterError &&
-        (section === "all" || r.data.section === section) &&
+        (section === "all" ||
+          (section === "payable"
+            ? r.data.section !== "owedToMe"
+            : r.data.section === section)) &&
         (mode === "all" || r.data.paymentMode === mode) &&
         (source === "all" || r.data.paymentSourceId === source) &&
         (!start || text(r.data, "nextDueDate") >= start) &&
@@ -109,9 +165,7 @@ export function ObligationsScreen() {
             ? "defaultAmountMinor"
             : "remainingMinor",
         ) ?? 0) <= max &&
-        (status === "all" ||
-          r.data.financialStatus === status ||
-          r.data.lifecycle === status) &&
+        matchesStatus(r) &&
         (currency === "all" || r.data.currency === currency) &&
         (contact === "all" || r.data.contactId === contact) &&
         (category === "all" || r.data.categoryId === category) &&
@@ -151,6 +205,7 @@ export function ObligationsScreen() {
           value={section}
           options={[
             { value: "all", label: "All" },
+            { value: "payable", label: "All you owe" },
             { value: "iOwe", label: "I Owe" },
             { value: "owedToMe", label: "Owed to Me" },
             { value: "monthlyDues", label: "Monthly Dues" },
@@ -242,6 +297,7 @@ export function ObligationsScreen() {
               options={[
                 "all",
                 "active",
+                "outstanding",
                 "partiallyPaid",
                 "paid",
                 "overdue",
@@ -290,10 +346,16 @@ export function ObligationsScreen() {
           </Card>
         )}
         {filterError ? <Failure error={new Error(filterError)} /> : null}
-        {query.isPending ? (
+        {query.isPending || (needsPeriods && periods.isPending) ? (
           <Loading />
-        ) : query.error ? (
-          <Failure error={query.error} retry={() => void query.refetch()} />
+        ) : query.error || (needsPeriods && periods.error) ? (
+          <Failure
+            error={query.error || periods.error}
+            retry={() => {
+              void query.refetch();
+              void periods.refetch();
+            }}
+          />
         ) : (
           <>
             <Txt muted>
