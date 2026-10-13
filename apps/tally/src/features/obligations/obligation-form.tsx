@@ -29,14 +29,21 @@ import { CategoryField } from "../categories/category-field";
 import { PaymentSourceField } from "../payment-sources/payment-source-field";
 import {
   calculateInterest,
+  calculateCustomInterest,
   generateInstallments,
   installmentDates,
   parseInterestRate,
   splitInstallmentAmounts,
-  type InterestBasis,
   type InstallmentFrequency,
   type SimpleInterest,
+  type CustomInterest,
 } from "./lending-calculations";
+import { InterestCalculator } from "./interest-calculator";
+import {
+  customInterestOptions,
+  hasComputedInterest,
+  readInterestSettings,
+} from "./interest-settings";
 export function ObligationForm({
   existing,
   instances = [],
@@ -69,8 +76,8 @@ export function ObligationForm({
     [code, setCode] = useState(text(d, "currency", profile!.defaultCurrency)),
     [money, setMoney] = useState(
       moneyInput(
-        savedInterest?.calculationVersion === 1
-          ? amount(savedInterest, "principalMinor")
+        hasComputedInterest(savedInterest)
+          ? amount(savedInterest ?? {}, "principalMinor")
           : amount(
               d,
               d.section === "monthlyDues"
@@ -109,19 +116,24 @@ export function ObligationForm({
         ? "no"
         : "yes",
     ),
-    [interest, setInterest] = useState(
-      d.interestInfo
-        ? String(Number(object(d.interestInfo).rateBasisPoints) / 100)
-        : "",
-    ),
-    [basis, setBasis] = useState<InterestBasis>(
-      savedInterest?.calculationVersion === 1
-        ? (text(savedInterest, "basis", "oneTime") as InterestBasis)
-        : "oneTime",
+    [interestSettings, setInterestSettings] = useState(() =>
+      readInterestSettings(
+        savedInterest,
+        text(d, "currency", profile!.defaultCurrency),
+      ),
     );
   const [interestEnabled, setInterestEnabled] = useState(
-    savedInterest?.calculationVersion === 1,
+    hasComputedInterest(savedInterest),
   );
+  const [interestTermsChanged, setInterestTermsChanged] = useState(false);
+  const interestLocked =
+    d.hasPaymentHistory === true ||
+    Number(d.totalPaidMinor) > 0 ||
+    instances.some(
+      (row) =>
+        row.data.hasPaymentHistory === true ||
+        Number(row.data.totalPaidMinor) > 0,
+    );
   const [count, setCount] = useState(String(instances.length || 6));
   const [firstDue, setFirstDue] = useState(
     instances.length
@@ -145,12 +157,10 @@ export function ObligationForm({
   );
   const theme = useTheme();
   const [layoutWidth, setLayoutWidth] = useState(0);
-  const [showDetails, setShowDetails] = useState(
-    Boolean(description || notes || interest),
-  );
+  const [showDetails, setShowDetails] = useState(Boolean(description || notes));
   const isRecurring = kind === "recurring",
     isInstallment = kind === "installment";
-  let calculated: SimpleInterest | null = null;
+  let calculated: SimpleInterest | CustomInterest | null = null;
   let calculatorError = "";
   let scheduleError = "";
   let totalMinor: number | null = null;
@@ -170,13 +180,18 @@ export function ObligationForm({
     if (!isRecurring && money.trim()) {
       const principal = parseMoney(money, code);
       calculated = interestEnabled
-        ? calculateInterest(
-            principal,
-            parseInterestRate(interest),
-            basis,
-            date,
-            effectiveDue,
-          )
+        ? savedInterest?.calculationVersion === 1 && !interestTermsChanged
+          ? calculateInterest(
+              principal,
+              parseInterestRate(interestSettings.rate),
+              savedInterest.basis as SimpleInterest["basis"],
+              date,
+              effectiveDue,
+            )
+          : calculateCustomInterest(
+              principal,
+              customInterestOptions(interestSettings, date, effectiveDue, code),
+            )
         : null;
       totalMinor = calculated?.totalMinor ?? principal;
     }
@@ -308,9 +323,9 @@ export function ObligationForm({
         interestInfo: calculated
           ? {
               ...calculated,
-              agreementNotes: text(savedInterest ?? {}, "agreementNotes"),
+              agreementNotes: interestSettings.agreementNotes,
             }
-          : savedInterest && savedInterest.calculationVersion !== 1
+          : savedInterest && !hasComputedInterest(savedInterest)
             ? savedInterest
             : null,
         ...(installments ? { installments } : {}),
@@ -372,7 +387,7 @@ export function ObligationForm({
       <View
         style={{
           flexDirection: sidebar ? "row" : "column",
-          gap: 24,
+          gap: 20,
           alignItems: "flex-start",
         }}
       >
@@ -384,6 +399,7 @@ export function ObligationForm({
           }}
         >
           <Form
+            maxWidth={sidebar ? "100%" : 680}
             saveLabel={existing ? "Save changes" : "Add obligation"}
             onSave={save}
             onCancel={() => router.back()}
@@ -680,96 +696,30 @@ export function ObligationForm({
               </FormSection>
             )}
             {!isRecurring && (
-              <FormSection
-                title="Interest calculator"
-                subtitle="Optional simple interest, fixed when you save this obligation."
-                icon="info"
-              >
-                {savedInterest &&
-                  savedInterest.calculationVersion !== 1 &&
-                  !interestEnabled && (
-                    <Txt muted>
-                      Existing interest terms remain informational and do not
-                      change the recorded balance.
-                    </Txt>
-                  )}
-                <Button
-                  secondary
-                  title={interestEnabled ? "Remove interest" : "Add interest"}
-                  onPress={() => setInterestEnabled((value) => !value)}
-                />
-                {interestEnabled && (
-                  <>
-                    <FormGrid columns={columns}>
-                      <Field
-                        label="Interest rate (%)"
-                        value={interest}
-                        onChangeText={setInterest}
-                        keyboardType="decimal-pad"
-                        placeholder="5.00"
-                      />
-                      <SelectField
-                        label="Interest basis"
-                        value={basis}
-                        options={[
-                          { value: "oneTime", label: "Flat · one-time charge" },
-                          {
-                            value: "monthly",
-                            label: "Monthly · actual days / 30",
-                          },
-                          {
-                            value: "annual",
-                            label: "Annual · actual days / 365",
-                          },
-                        ]}
-                        onChange={(value) => setBasis(value as InterestBasis)}
-                      />
-                    </FormGrid>
-                    <Txt muted>
-                      {basis === "oneTime"
-                        ? "Principal × rate. One fixed charge; a due date is optional."
-                        : `Principal × rate × actual days / ${basis === "monthly" ? "30" : "365"}. ${isInstallment ? "Dates run from origination through the final installment." : "Dates run from the borrowed or lent date through the due date."}`}
-                    </Txt>
-                    <Txt muted>
-                      No compounding or automatic accrual after saving. Interest
-                      is rounded once to the smallest currency unit and included
-                      in the balance.
-                    </Txt>
-                    {!!calculatorError && <Txt>{calculatorError}</Txt>}
-                    {calculated && (
-                      <>
-                        <FormGrid columns={columns}>
-                          <View style={{ gap: 4 }}>
-                            <Txt muted>Principal</Txt>
-                            <Txt>
-                              {formatMoney(calculated.principalMinor, code)}
-                            </Txt>
-                          </View>
-                          <View style={{ gap: 4 }}>
-                            <Txt muted>Interest amount</Txt>
-                            <Txt>
-                              {formatMoney(calculated.interestMinor, code)}
-                            </Txt>
-                          </View>
-                          <View style={{ gap: 4 }}>
-                            <Txt muted>Total due</Txt>
-                            <Txt big>
-                              {formatMoney(calculated.totalMinor, code)}
-                            </Txt>
-                          </View>
-                        </FormGrid>
-                        {basis !== "oneTime" && (
-                          <Txt muted>
-                            {calculated.dayCount} actual days ·{" "}
-                            {displayDate(calculated.originationDate)} to{" "}
-                            {displayDate(calculated.dueDate)}
-                          </Txt>
-                        )}
-                      </>
-                    )}
-                  </>
+              <InterestCalculator
+                enabled={interestEnabled}
+                onEnabled={() => {
+                  setInterestEnabled((value) => !value);
+                  setInterestTermsChanged(true);
+                }}
+                settings={interestSettings}
+                onChange={(value, changed = true) => {
+                  setInterestSettings(value);
+                  if (changed) setInterestTermsChanged(true);
+                }}
+                columns={columns}
+                code={code}
+                date={date}
+                due={effectiveDue}
+                onDueChange={setDue}
+                installment={isInstallment}
+                calculated={calculated}
+                error={calculatorError}
+                locked={interestLocked}
+                legacy={Boolean(
+                  savedInterest && !hasComputedInterest(savedInterest),
                 )}
-              </FormSection>
+              />
             )}
             {isRecurring && (
               <>
@@ -1011,8 +961,8 @@ export function ObligationForm({
                   <Txt muted style={{ flex: 1, fontSize: 12 }}>
                     {isRecurring
                       ? `Starts ${date}`
-                      : due
-                        ? `Due ${due}`
+                      : effectiveDue
+                        ? `Due ${effectiveDue}`
                         : "No due date set"}
                   </Txt>
                 </View>

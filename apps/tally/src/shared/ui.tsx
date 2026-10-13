@@ -293,18 +293,20 @@ export function Form({
   onCancel,
   fullWidth = false,
   disabled = false,
+  maxWidth = 680,
 }: PropsWithChildren<{
   onSave: () => Promise<void>;
   saveLabel?: string;
   onCancel?: () => void;
   fullWidth?: boolean;
   disabled?: boolean;
+  maxWidth?: ViewStyle["maxWidth"];
 }>) {
   const [busy, setBusy] = useState(false),
     [blocked, setBlocked] = useState(false),
     [error, setError] = useState("");
   return (
-    <View testID="tally-form" style={{ gap: 16, maxWidth: 680 }}>
+    <View testID="tally-form" style={{ gap: 16, maxWidth }}>
       {children}
       {!!error && <Failure error={new Error(error)} />}
       <View

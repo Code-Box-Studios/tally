@@ -3,6 +3,7 @@ import { HttpsError } from "../shared/errors.ts";
 import { exactObject } from "../shared/callable.ts";
 import { executeOwnerCommand } from "../shared/commands.ts";
 import { stageReminderPeriod } from "../notifications/reminder_jobs.ts";
+import { assertInterestTermsUnchanged } from "./interest_calculation.ts";
 import { statusForBalance } from "../shared/financial_status.ts";
 import { occurrenceInstanceId } from "../shared/occurrence_id.ts";
 import {
@@ -209,8 +210,16 @@ export async function editInstallment(
           "Keep the original number of installment periods.",
         );
       }
+      const hasPaymentHistory = parent.hasPaymentHistory ||
+        parent.totalPaidMinor > 0 ||
+        debt.instances.some((instance) =>
+          instance.hasPaymentHistory || instance.totalPaidMinor > 0
+        );
+      if (hasPaymentHistory) {
+        assertInterestTermsUnchanged(parent.interestInfo, payload.interestInfo);
+      }
       if (
-        parent.hasPaymentHistory &&
+        hasPaymentHistory &&
         (parent.originalAmountMinor !== payload.amountMinor ||
           parent.currency !== payload.currency ||
           parent.direction !== payload.direction ||

@@ -18,18 +18,20 @@ export function SearchField({
   value,
   onChangeText,
   placeholder = "Search…",
+  hideLabel = false,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder?: string;
+  hideLabel?: boolean;
 }) {
   const t = useTheme();
   const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 6 }}>
-      <Txt muted>{label}</Txt>
+      {!hideLabel && <Txt muted>{label}</Txt>}
       <View
         style={{
           flexDirection: "row",

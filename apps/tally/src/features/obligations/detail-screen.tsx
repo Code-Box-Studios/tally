@@ -32,6 +32,7 @@ import { PaymentForm } from "../payments/payment-form";
 import { DateField } from "../../shared/date-field";
 import { CorrectionForm } from "../payments/correction-form";
 import { ObligationForm } from "./obligation-form";
+import { hasComputedInterest, interestSummary } from "./interest-settings";
 import { PeriodActionForm } from "../recurring/period-action-form";
 import { AttachmentsPanel } from "../attachments/attachments-panel";
 type Panel = {
@@ -282,11 +283,31 @@ export function DetailScreen() {
               <Txt>{text(d, "description")}</Txt>
               <Txt muted>{text(d, "notes")}</Txt>
               {d.interestInfo && (
-                <Txt muted>
-                  Interest terms:{" "}
-                  {Number(object(d.interestInfo).rateBasisPoints) / 100}%{" "}
-                  {text(object(d.interestInfo), "basis")} · informational
-                </Txt>
+                <View style={{ gap: 6 }}>
+                  <Txt style={{ fontWeight: "600" }}>Interest terms</Txt>
+                  <Txt muted>
+                    {interestSummary(object(d.interestInfo), code)}
+                  </Txt>
+                  {hasComputedInterest(object(d.interestInfo)) && (
+                    <Txt muted>
+                      Principal{" "}
+                      {formatMoney(
+                        amount(object(d.interestInfo), "principalMinor"),
+                        code,
+                      )}{" "}
+                      · Interest included{" "}
+                      {formatMoney(
+                        amount(object(d.interestInfo), "interestMinor"),
+                        code,
+                      )}
+                    </Txt>
+                  )}
+                  {!!text(object(d.interestInfo), "agreementNotes") && (
+                    <Txt muted>
+                      {text(object(d.interestInfo), "agreementNotes")}
+                    </Txt>
+                  )}
+                </View>
               )}
               <FlexRow>
                 {!recurring &&

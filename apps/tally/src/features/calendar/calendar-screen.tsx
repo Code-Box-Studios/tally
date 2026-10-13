@@ -48,7 +48,7 @@ export function CalendarScreen() {
   const compact = viewport.width < 700;
   const [month, setMonth] = useState(today.slice(0, 7)),
     [day, setDay] = useState("");
-  const [view, setView] = useState<"Calendar" | "Agenda" | null>(null),
+  const [view, setView] = useState<"Calendar" | "Agenda">("Calendar"),
     [contentWidth, setContentWidth] = useState(0);
   const [section, setSection] = useState("all"),
     [status, setStatus] = useState("all"),
@@ -61,7 +61,7 @@ export function CalendarScreen() {
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
   const t = useTheme(),
-    activeView = view ?? (compact ? "Agenda" : "Calendar");
+    activeView = view;
   const split = (contentWidth || viewport.width - (compact ? 32 : 288)) >= 1000;
   const colors: Record<string, string> = {
     iOwe: t.green,
@@ -169,7 +169,13 @@ export function CalendarScreen() {
     onChange: (v: string) => void,
   ) {
     return (
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: compact ? "nowrap" : "wrap",
+          gap: 6,
+        }}
+      >
         {values.map((item) => (
           <Pressable
             key={item.value}
@@ -180,7 +186,10 @@ export function CalendarScreen() {
             onPress={() => onChange(item.value)}
             style={{
               minHeight: 44,
-              paddingHorizontal: 14,
+              flex: compact ? 1 : undefined,
+              minWidth: 0,
+              paddingHorizontal: compact ? 4 : 14,
+              paddingVertical: 6,
               justifyContent: "center",
               borderRadius: 10,
               borderWidth: 1,
@@ -190,7 +199,8 @@ export function CalendarScreen() {
           >
             <Txt
               style={{
-                fontSize: 14,
+                fontSize: compact ? 12 : 14,
+                textAlign: "center",
                 fontWeight: selected === item.value ? "700" : "500",
               }}
             >
@@ -201,15 +211,28 @@ export function CalendarScreen() {
       </View>
     );
   }
+  const todayButton = (
+    <Button
+      secondary
+      title="Today"
+      onPress={() => {
+        setMonth(today.slice(0, 7));
+        setDay(today);
+      }}
+    />
+  );
   return (
     <Page padding={compact ? 16 : 24} maxWidth={1280}>
       <Heading
         title="Calendar"
-        subtitle="See what’s due. Tap a date to see its details."
+        subtitle={
+          compact ? undefined : "See what’s due. Tap a date to see its details."
+        }
+        action={compact ? todayButton : undefined}
       />
       <View
         onLayout={(event) => setContentWidth(event.nativeEvent.layout.width)}
-        style={{ gap: 18 }}
+        style={{ gap: compact ? 10 : 18 }}
       >
         <View
           style={{
@@ -223,7 +246,7 @@ export function CalendarScreen() {
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: 8,
+              gap: compact ? 4 : 8,
               maxWidth: 520,
               flexGrow: 1,
               flexBasis: compact ? undefined : 360,
@@ -275,61 +298,112 @@ export function CalendarScreen() {
               <Icon name="chevron" color={t.ink} />
             </Pressable>
           </View>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            {chips(
-              [
-                { value: "Calendar", label: "Calendar" },
-                { value: "Agenda", label: "Agenda" },
-              ],
-              activeView,
-              (v) => setView(v as "Calendar" | "Agenda"),
-            )}
-            <Button
-              secondary
-              title="Today"
-              onPress={() => {
-                setMonth(today.slice(0, 7));
-                setDay(today);
+          {!compact && (
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 10,
               }}
-            />
-          </View>
+            >
+              {chips(
+                [
+                  { value: "Calendar", label: "Calendar" },
+                  { value: "Agenda", label: "Agenda" },
+                ],
+                activeView,
+                (v) => setView(v as "Calendar" | "Agenda"),
+              )}
+              {todayButton}
+            </View>
+          )}
         </View>
         {chips(sections, section, setSection)}
         <View
           style={{
-            flexDirection: compact ? "column" : "row",
-            alignItems: compact ? "stretch" : "flex-end",
-            gap: 12,
+            flexDirection: "row",
+            alignItems: "flex-end",
+            gap: compact ? 8 : 12,
           }}
         >
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <SearchField
               label="Search calendar"
+              hideLabel={compact}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search people, bills or notes…"
+              placeholder={
+                compact ? "Search calendar…" : "Search people, bills or notes…"
+              }
             />
           </View>
-          <Button
-            secondary
-            title={`${showFilters ? "Hide filters" : "Filters"}${filterCount ? ` (${filterCount})` : ""}`}
-            onPress={() => setShowFilters(!showFilters)}
-          />
-          {(filterCount > 0 || !!search || section !== "all") && (
+          {compact ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${showFilters ? "Hide filters" : "Filters"}${filterCount ? ` (${filterCount})` : ""}`}
+                accessibilityState={{ expanded: showFilters }}
+                onPress={() => setShowFilters(!showFilters)}
+                style={{
+                  minHeight: 48,
+                  paddingHorizontal: 10,
+                  borderWidth: 1,
+                  borderColor:
+                    showFilters || filterCount ? t.primary : t.border,
+                  borderRadius: 10,
+                  backgroundColor:
+                    showFilters || filterCount ? t.tint : t.surface,
+                  justifyContent: "center",
+                }}
+              >
+                <Txt style={{ fontSize: 12, fontWeight: "600" }}>
+                  Filters{filterCount ? ` (${filterCount})` : ""}
+                </Txt>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  activeView === "Calendar" ? "Show agenda" : "Show calendar"
+                }
+                onPress={() =>
+                  setView(activeView === "Calendar" ? "Agenda" : "Calendar")
+                }
+                style={{
+                  width: 48,
+                  minHeight: 48,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: t.border,
+                  borderRadius: 10,
+                  backgroundColor: t.surface,
+                }}
+              >
+                <Icon
+                  name={activeView === "Calendar" ? "obligations" : "calendar"}
+                  color={t.ink}
+                />
+              </Pressable>
+            </>
+          ) : (
+            <Button
+              secondary
+              title={`${showFilters ? "Hide filters" : "Filters"}${filterCount ? ` (${filterCount})` : ""}`}
+              onPress={() => setShowFilters(!showFilters)}
+            />
+          )}
+          {!compact && (filterCount > 0 || !!search || section !== "all") && (
             <Button secondary title="Reset filters" onPress={reset} />
           )}
         </View>
         {!!filterError && <Failure error={new Error(filterError)} />}
         {showFilters && (
           <Card>
+            {compact && (filterCount > 0 || !!search || section !== "all") && (
+              <Button secondary title="Reset filters" onPress={reset} />
+            )}
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14 }}>
               {[
                 {
@@ -438,7 +512,9 @@ export function CalendarScreen() {
           >
             {activeView === "Calendar" && (
               <View style={{ flex: split ? 1.8 : undefined, minWidth: 0 }}>
-                <Card style={{ padding: compact ? 8 : 16, gap: 14 }}>
+                <Card
+                  style={{ padding: compact ? 8 : 16, gap: compact ? 8 : 14 }}
+                >
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
                       (name) => (

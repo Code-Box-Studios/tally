@@ -57,6 +57,59 @@ function statement(
 }
 
 describe("statement of account", () => {
+  it("includes fixed V2 loan charges in statement and PDF breakdowns", () => {
+    const interestInfo = {
+      calculationVersion: 2,
+      principalMinor: 10000,
+      charge: { kind: "fixedAmount", amountMinor: 1500 },
+      ratePeriod: { kind: "oneTime" },
+      method: { kind: "simple" },
+      rounding: "halfUp",
+      originationDate: "2026-10-01",
+      dueDate: "2026-10-31",
+      dayCount: 30,
+      interestMinor: 1500,
+      totalMinor: 11500,
+      agreementNotes: "Agreed charge",
+    };
+    const result = statement(
+      [
+        debt("fixed", {
+          totalPaidMinor: 0,
+          remainingMinor: 11500,
+          originalAmountMinor: 11500,
+          interestInfo,
+        }),
+      ],
+      [],
+    );
+    expect(result.accounts[0].principalMinor).toBe(10000);
+    expect(result.accounts[0].interestMinor).toBe(1500);
+    expect(result.accounts[0].interestPolicy).toContain("₱15.00");
+    expect(result.accounts[0].interestPolicy).toContain("one-time charge");
+    expect(statementHtml(result)).toContain("₱15.00");
+    expect(statementHtml(result)).not.toContain("NaN");
+  });
+  it("rejects V2 interest whose breakdown differs from the recorded total", () => {
+    expect(() =>
+      statement(
+        [
+          debt("bad-interest", {
+            totalPaidMinor: 0,
+            remainingMinor: 11500,
+            originalAmountMinor: 11500,
+            interestInfo: {
+              calculationVersion: 2,
+              principalMinor: 10000,
+              interestMinor: 1600,
+              totalMinor: 11500,
+            },
+          }),
+        ],
+        [],
+      ),
+    ).toThrow(/Interest breakdown/);
+  });
   it("sums two valid large obligations and prints the complete currency total", () => {
     const result = statement(
       [

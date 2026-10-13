@@ -171,11 +171,12 @@ it("shows principal, interest and total due and saves the total as the payable b
     expect.objectContaining({
       amountMinor: 105000,
       interestInfo: expect.objectContaining({
-        calculationVersion: 1,
+        calculationVersion: 2,
         principalMinor: 100000,
         interestMinor: 5000,
         totalMinor: 105000,
-        basis: "oneTime",
+        charge: { kind: "percentage", rateBasisPoints: 500 },
+        ratePeriod: { kind: "oneTime" },
       }),
     }),
   );
@@ -188,18 +189,148 @@ it("requires a due date before saving monthly interest", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
   await fireEvent.changeText(screen.getByLabelText("Interest rate (%)"), "3");
   await fireEvent.press(
-    screen.getByRole("button", { name: /^Interest basis:/ }),
+    screen.getByRole("button", { name: /^Charge period:/ }),
   );
-  await fireEvent.press(screen.getByRole("radio", { name: /Monthly.*30/ }));
+  await fireEvent.press(screen.getByRole("radio", { name: "Every 30 days" }));
   await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
   expect(
-    (
-      await screen.findAllByText(
-        "Choose a due date to calculate monthly or annual interest.",
-      )
-    ).length,
+    (await screen.findAllByText(/Choose a due date/)).length,
   ).toBeGreaterThan(0);
   expect(mockExecute).not.toHaveBeenCalled();
+});
+
+it("saves a fixed interest amount in the selected currency", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.changeText(
+    screen.getByLabelText("Name"),
+    "Fixed loan charge",
+  );
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "1000");
+  await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
+  await fireEvent.press(screen.getByRole("radio", { name: "Fixed amount" }));
+  await fireEvent.changeText(
+    screen.getByLabelText("Interest amount (PHP)"),
+    "50",
+  );
+  expect(screen.getAllByText("₱1,050.00").length).toBeGreaterThan(0);
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "createObligation",
+    expect.objectContaining({
+      amountMinor: 105000,
+      interestInfo: expect.objectContaining({
+        calculationVersion: 2,
+        charge: { kind: "fixedAmount", amountMinor: 5000 },
+        ratePeriod: { kind: "oneTime" },
+        method: { kind: "simple" },
+      }),
+    }),
+  );
+});
+
+it("previews compound interest with a custom interval and rounding rule", async () => {
+  await render(
+    <ObligationForm
+      existing={{
+        id: "compound",
+        data: {
+          title: "Compound loan",
+          section: "owedToMe",
+          type: "owedToMe",
+          currency: "PHP",
+          originalAmountMinor: 100000,
+          revision: 1,
+          originationDate: "2026-10-01",
+          dueDate: "2026-11-30",
+        },
+      }}
+    />,
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
+  await fireEvent.changeText(screen.getByLabelText("Interest rate (%)"), "3");
+  await fireEvent.press(
+    screen.getByRole("button", { name: /^Charge period:/ }),
+  );
+  await fireEvent.press(screen.getByRole("radio", { name: "Every 30 days" }));
+  await fireEvent.press(screen.getByRole("radio", { name: "Compound" }));
+  expect(screen.getAllByText("₱1,060.90").length).toBeGreaterThan(0);
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Advanced interest options" }),
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("Compound every (days)"),
+    "15",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: /^Rounding:/ }));
+  await fireEvent.press(screen.getByRole("radio", { name: "Round up" }));
+  expect(screen.getAllByText("₱1,061.37").length).toBeGreaterThan(0);
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "editObligation",
+    expect.objectContaining({
+      amountMinor: 106137,
+      interestInfo: expect.objectContaining({
+        calculationVersion: 2,
+        charge: { kind: "percentage", rateBasisPoints: 300 },
+        ratePeriod: { kind: "days", days: 30 },
+        method: { kind: "compound", intervalDays: 15 },
+        rounding: "up",
+        dayCount: 60,
+      }),
+    }),
+  );
+});
+
+it("keeps paid V1 interest terms unchanged when editing agreement notes", async () => {
+  const interestInfo = {
+    calculationVersion: 1,
+    principalMinor: 100000,
+    rateBasisPoints: 500,
+    basis: "oneTime",
+    originationDate: "2026-10-01",
+    dueDate: "2026-10-31",
+    dayCount: 30,
+    interestMinor: 5000,
+    totalMinor: 105000,
+    agreementNotes: "Original agreement",
+  };
+  await render(
+    <ObligationForm
+      existing={{
+        id: "paid",
+        data: {
+          title: "Paid loan",
+          section: "owedToMe",
+          type: "owedToMe",
+          currency: "PHP",
+          originalAmountMinor: 105000,
+          originationDate: "2026-10-01",
+          dueDate: "2026-10-31",
+          hasPaymentHistory: true,
+          revision: 2,
+          interestInfo,
+        },
+      }}
+    />,
+  );
+  expect(
+    screen.getByRole("button", { name: "Remove interest" }),
+  ).toBeDisabled();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Advanced interest options" }),
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("Interest agreement notes"),
+    "Clarified agreement",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "editObligation",
+    expect.objectContaining({
+      amountMinor: 105000,
+      interestInfo: { ...interestInfo, agreementNotes: "Clarified agreement" },
+    }),
+  );
 });
 
 it("generates an exact installment schedule without entering each amount or opening customization", async () => {

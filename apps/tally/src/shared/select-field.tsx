@@ -20,6 +20,7 @@ export function SelectField({
   searchable = false,
   placeholder = "Choose an option",
   footer,
+  disabled = false,
 }: {
   label: string;
   value: string;
@@ -28,6 +29,7 @@ export function SelectField({
   searchable?: boolean;
   placeholder?: string;
   footer?: React.ReactNode | ((close: () => void) => React.ReactNode);
+  disabled?: boolean;
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false),
@@ -53,7 +55,8 @@ export function SelectField({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${selected?.label ?? (value || placeholder)}`}
-        accessibilityState={{ expanded: open }}
+        accessibilityState={{ expanded: open, disabled }}
+        disabled={disabled}
         aria-expanded={open}
         onPress={() => setOpen(true)}
         style={({ pressed }) => ({
@@ -67,7 +70,7 @@ export function SelectField({
           borderRadius: 10,
           paddingHorizontal: 14,
           paddingVertical: 11,
-          opacity: pressed ? 0.75 : 1,
+          opacity: disabled ? 0.6 : pressed ? 0.75 : 1,
         })}
       >
         {selected?.leading ??

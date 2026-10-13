@@ -2,6 +2,10 @@ import { civilDate } from "../../core/domain/date";
 import { currency, minor, type Currency } from "../../core/domain/money";
 import { addStatementTotals } from "./statement-money";
 import {
+  hasComputedInterest,
+  interestSummary,
+} from "../obligations/interest-settings";
+import {
   amount,
   label,
   object,
@@ -210,7 +214,7 @@ export function buildStatement(input: StatementInput): AccountStatement {
         interestPolicy = "";
       if (parent.data.interestInfo) {
         const info = object(parent.data.interestInfo);
-        if (info.calculationVersion === 1) {
+        if (hasComputedInterest(info)) {
           principalMinor = minor(info.principalMinor);
           interestMinor = minor(info.interestMinor, true);
           if (
@@ -220,8 +224,7 @@ export function buildStatement(input: StatementInput): AccountStatement {
             throw new Error(
               "Interest breakdown does not match the recorded obligation.",
             );
-          const basis = text(info, "basis");
-          interestPolicy = `${Number(info.rateBasisPoints) / 100}% · ${basis === "oneTime" ? "Flat one-time charge" : basis === "monthly" ? "Monthly · actual days / 30" : "Annual · actual days / 365"} · Fixed simple interest`;
+          interestPolicy = interestSummary(info, code);
         } else
           interestPolicy = `Legacy informational interest · ${Number(info.rateBasisPoints) / 100}% · ${text(info, "basis")}. Recorded balance unchanged.`;
       }

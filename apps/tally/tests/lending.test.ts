@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateInterest,
+  calculateCustomInterest,
   generateInstallments,
+  type CustomInterestOptions,
 } from "../src/features/obligations/lending-calculations";
 
 describe("simple interest calculator", () => {
@@ -53,6 +55,264 @@ describe("simple interest calculator", () => {
     expect(() =>
       calculateInterest(1, 100001, "oneTime", "2026-10-01", null),
     ).toThrow(/rate/i);
+  });
+});
+
+describe("custom agreed interest calculator", () => {
+  const options: CustomInterestOptions = {
+    charge: { kind: "percentage", rateBasisPoints: 300 },
+    ratePeriod: { kind: "days", days: 30 },
+    method: { kind: "simple" },
+    rounding: "halfUp",
+    originationDate: "2026-10-01",
+    dueDate: "2026-11-30",
+  };
+
+  it("supports daily, weekly and custom-day simple rates", () => {
+    for (const [days, rateBasisPoints, dueDate, interestMinor] of [
+      [1, 200, "2026-10-04", 6000],
+      [7, 100, "2026-10-11", 1429],
+      [17, 300, "2026-11-04", 6000],
+    ] as const) {
+      expect(
+        calculateCustomInterest(100000, {
+          ...options,
+          charge: { kind: "percentage", rateBasisPoints },
+          ratePeriod: { kind: "days", days },
+          dueDate,
+        }),
+      ).toMatchObject({ calculationVersion: 2, interestMinor });
+    }
+  });
+
+  it("calculates one-time and prorated fixed cash charges", () => {
+    expect(
+      calculateCustomInterest(100000, {
+        ...options,
+        charge: { kind: "fixedAmount", amountMinor: 5000 },
+        ratePeriod: { kind: "oneTime" },
+        dueDate: null,
+      }),
+    ).toMatchObject({ dayCount: 0, interestMinor: 5000, totalMinor: 105000 });
+    expect(
+      calculateCustomInterest(100000, {
+        ...options,
+        charge: { kind: "fixedAmount", amountMinor: 5000 },
+        dueDate: "2026-11-15",
+      }),
+    ).toMatchObject({ dayCount: 45, interestMinor: 7500, totalMinor: 107500 });
+  });
+
+  it("compounds full cycles and accrues a simple final partial cycle", () => {
+    expect(
+      calculateCustomInterest(100000, {
+        ...options,
+        method: { kind: "compound", intervalDays: 30 },
+      }),
+    ).toMatchObject({ dayCount: 60, interestMinor: 6090, totalMinor: 106090 });
+    expect(
+      calculateCustomInterest(100000, {
+        ...options,
+        method: { kind: "compound", intervalDays: 30 },
+        dueDate: "2026-12-05",
+      }),
+    ).toMatchObject({ dayCount: 65, interestMinor: 6620, totalMinor: 106620 });
+  });
+
+  it("supports a compounding interval distinct from the rate period", () => {
+    expect(
+      calculateCustomInterest(1000000, {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 1200 },
+        ratePeriod: { kind: "days", days: 365 },
+        method: { kind: "compound", intervalDays: 1 },
+        originationDate: "2026-01-01",
+        dueDate: "2027-01-01",
+      }),
+    ).toMatchObject({ interestMinor: 127475, totalMinor: 1127475 });
+  });
+
+  it("rounds only the final charge, including exact half-minor values", () => {
+    for (const [rounding, interestMinor] of [
+      ["halfUp", 1],
+      ["down", 0],
+      ["up", 1],
+    ] as const) {
+      expect(
+        calculateCustomInterest(1, {
+          ...options,
+          charge: { kind: "percentage", rateBasisPoints: 5000 },
+          ratePeriod: { kind: "oneTime" },
+          rounding,
+          dueDate: null,
+        }).interestMinor,
+      ).toBe(interestMinor);
+    }
+    expect(
+      calculateCustomInterest(1, {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 5000 },
+        ratePeriod: { kind: "days", days: 1 },
+        method: { kind: "compound", intervalDays: 1 },
+        dueDate: "2026-10-03",
+      }),
+    ).toMatchObject({ interestMinor: 1, totalMinor: 2 });
+  });
+
+  it("keeps leap-year actual days and zero-length terms explicit", () => {
+    expect(
+      calculateCustomInterest(100000, {
+        ...options,
+        originationDate: "2028-01-31",
+        dueDate: "2028-02-29",
+      }),
+    ).toMatchObject({ dayCount: 29, interestMinor: 2900 });
+    expect(
+      calculateCustomInterest(100000, {
+        ...options,
+        method: { kind: "compound", intervalDays: 30 },
+        dueDate: options.originationDate,
+        rounding: "up",
+      }),
+    ).toMatchObject({ dayCount: 0, interestMinor: 0, totalMinor: 100000 });
+  });
+
+  it("rejects incompatible methods, unordered dates and unsafe intervals", () => {
+    const invalid: unknown[] = [
+      { ...options, dueDate: null },
+      { ...options, dueDate: "2026-09-30" },
+      { ...options, dueDate: "2026-02-30" },
+      { ...options, rounding: "nearest" },
+      { ...options, charge: { kind: "percentage", rateBasisPoints: 100001 } },
+      { ...options, charge: { kind: "fixedAmount", amountMinor: -1 } },
+      {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 300, fee: 1 },
+      },
+      { ...options, ratePeriod: { kind: "days", days: 0 } },
+      { ...options, ratePeriod: { kind: "days", days: 36501 } },
+      { ...options, ratePeriod: { kind: "days", days: 1.5 } },
+      { ...options, method: { kind: "compound", intervalDays: 0 } },
+      { ...options, method: { kind: "compound", intervalDays: 36501 } },
+      {
+        ...options,
+        ratePeriod: { kind: "oneTime" },
+        method: { kind: "compound", intervalDays: 1 },
+      },
+      {
+        ...options,
+        charge: { kind: "fixedAmount", amountMinor: 100 },
+        method: { kind: "compound", intervalDays: 1 },
+      },
+    ];
+    for (const input of invalid)
+      expect(() =>
+        calculateCustomInterest(100000, input as CustomInterestOptions),
+      ).toThrow();
+    expect(() => calculateCustomInterest(1.2, options)).toThrow();
+  });
+
+  it("rejects rounding objects even when they stringify to a supported rule", () => {
+    expect(() =>
+      calculateCustomInterest(1, {
+        ...options,
+        rounding: { toString: () => "up" },
+      } as unknown as CustomInterestOptions),
+    ).toThrow();
+  });
+
+  it("matches independent server verification for every charge and rounding mode", async () => {
+    // Deno's explicit .ts imports stay outside the application's TypeScript module graph.
+    const serverModule = new URL(
+      "../../../supabase/functions/tally-api/obligations/interest_calculation.ts",
+      import.meta.url,
+    ).href;
+    const { calculateCustomInterest: verifyCustomInterest } = (await import(
+      serverModule
+    )) as {
+      calculateCustomInterest: typeof calculateCustomInterest;
+    };
+    const cases: CustomInterestOptions[] = [
+      options,
+      {
+        ...options,
+        method: { kind: "compound", intervalDays: 30 },
+        dueDate: "2026-12-05",
+      },
+      {
+        ...options,
+        method: { kind: "compound", intervalDays: 1 },
+        ratePeriod: { kind: "days", days: 365 },
+      },
+      {
+        ...options,
+        charge: { kind: "fixedAmount", amountMinor: 5 },
+        ratePeriod: { kind: "days", days: 17 },
+      },
+      {
+        ...options,
+        charge: { kind: "fixedAmount", amountMinor: 0 },
+        dueDate: options.originationDate,
+      },
+      {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 0 },
+        ratePeriod: { kind: "oneTime" },
+        dueDate: null,
+      },
+      {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 5000 },
+        ratePeriod: { kind: "oneTime" },
+        dueDate: null,
+      },
+    ];
+    for (const principal of [1, 101, 100000, 900000000000]) {
+      for (const terms of cases) {
+        for (const rounding of ["halfUp", "down", "up"] as const) {
+          const input = { ...terms, rounding };
+          let client;
+          try {
+            client = calculateCustomInterest(principal, input);
+          } catch {
+            expect(() => verifyCustomInterest(principal, input)).toThrow();
+            continue;
+          }
+          expect(verifyCustomInterest(principal, input)).toEqual(client);
+        }
+      }
+    }
+  });
+
+  it("bounds extreme compound debt without losing tiny long-term charges", () => {
+    expect(() =>
+      calculateCustomInterest(100000, {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 100000 },
+        ratePeriod: { kind: "days", days: 1 },
+        method: { kind: "compound", intervalDays: 1 },
+        originationDate: "1900-01-01",
+        dueDate: "2199-12-31",
+      }),
+    ).toThrow(/amount|range|large/i);
+    expect(
+      calculateCustomInterest(1, {
+        ...options,
+        charge: { kind: "percentage", rateBasisPoints: 1 },
+        ratePeriod: { kind: "days", days: 36500 },
+        method: { kind: "compound", intervalDays: 1 },
+        originationDate: "1900-01-01",
+        dueDate: "2199-12-31",
+        rounding: "up",
+      }),
+    ).toMatchObject({ interestMinor: 1, totalMinor: 2 });
+    expect(
+      calculateCustomInterest(1e12, {
+        ...options,
+        charge: { kind: "fixedAmount", amountMinor: 0 },
+      }).totalMinor,
+    ).toBe(1e12);
+    expect(() => calculateCustomInterest(1e12, options)).toThrow();
   });
 });
 

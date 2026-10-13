@@ -8,6 +8,7 @@ import {
 } from "../shared/commands.ts";
 import { stageReminderPeriod } from "../notifications/reminder_jobs.ts";
 import {
+  assertInterestTermsUnchanged,
   type InterestInfo,
   validateInterestInfo,
 } from "./interest_calculation.ts";
@@ -279,8 +280,14 @@ export async function editObligation(
         "obligationInstances",
         identifier(parent.singleInstanceId),
       );
+      const hasPaymentHistory = parent.hasPaymentHistory ||
+        parent.totalPaidMinor > 0 ||
+        instance.hasPaymentHistory || instance.totalPaidMinor > 0;
+      if (hasPaymentHistory) {
+        assertInterestTermsUnchanged(parent.interestInfo, payload.interestInfo);
+      }
       if (
-        parent.hasPaymentHistory &&
+        hasPaymentHistory &&
         (parent.originalAmountMinor !== payload.amountMinor ||
           parent.currency !== payload.currency ||
           parent.direction !== payload.direction ||
