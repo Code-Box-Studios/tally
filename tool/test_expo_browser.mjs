@@ -88,6 +88,7 @@ try {
  `);
  run(`${helpers}
  await click('Add obligation');await page.click(radio('I lent money'));await page.fill('input'+field('Name'),'Browser John loan');await page.fill('input'+field('Original amount'),'5000');await click('Person / organization: No person selected');await page.click(radio('Browser John'));await click('Due date (optional): No due date yet');await click('Choose year');await click(${JSON.stringify(dueYear)});await click(${JSON.stringify(dueMonth)});await click(${JSON.stringify(dueLabel)});await save('Add obligation');await check('Owed to Me');
+ await page.eval(()=>{for(const label of ['Payoff simulator','Share with borrower','Edit obligation','Contact statement']){const rect=document.querySelector('[aria-label="'+label+'"]')?.getBoundingClientRect();if(!rect || rect.left<0 || rect.right>innerWidth)throw new Error('Loan action outside viewport: '+label);}});console.log('PASS every loan action fits the viewport');
  await click('Record payment');await page.fill('input'+field('Payment amount'),'2000');await save('Record payment');await check('₱3,000.00');
  await click('Correct payment');await page.fill('textarea'+field('Reason'),'Wrong test amount');await save('Save correction');await check('Payment reversed');await check('₱5,000.00');
  `);
@@ -102,7 +103,7 @@ try {
  `);
  run(`${helpers}
  await click('Settings');await click('Import spreadsheet');await page.wait('textarea'+field('CSV text'),10000);await page.fill('textarea'+field('CSV text'),${JSON.stringify(importCsv)});
- await click('Match columns');await check('1 rows found.');await click('Preview import');await check('Row 2 · Browser CSV loan');await check('₱12.34');await check('0 invalid');
+ await click('Match columns');await check('1 row found.');await page.eval(()=>{const node=Array.from(document.querySelectorAll('div')).find(e=>e.textContent==='Step 2 of 3 · Match columns' && e.children.length===0);const rect=node?.getBoundingClientRect();if(!rect || rect.top<0 || rect.bottom>innerHeight)throw new Error('Import step did not return to the top');});await click('Preview import');await check('Row 2 · Browser CSV loan');await check('₱12.34');await check('0 invalid');
  await click('Import 1 selected row');await check('Import finished.');await check('Imported and synced.');
  await click('Import another CSV');await page.fill('textarea'+field('CSV text'),${JSON.stringify(importCsv)});await click('Match columns');await click('Preview import');await check('1 possible duplicates');
  if(!(await page.eval(()=>document.querySelector('[role="button"][aria-label="Import 0 selected rows"]')?.getAttribute('aria-disabled')==='true')))throw new Error('Repeated CSV import was not disabled');

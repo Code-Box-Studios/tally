@@ -113,6 +113,7 @@ export function PaymentForm({
       <Txt>Full and partial payments keep separate, traceable records.</Txt>
       <ReceiptScanReview
         currency={code}
+        today={todayInZone(profile!.timezone)}
         ownerKey={`${profile!.userId}:${obligation.id}:${instance?.id ?? ""}`}
         onActiveChange={setScanActive}
         onApply={(draft) => {

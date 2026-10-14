@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Card, Failure, Field, Txt } from "../../shared/ui";
 import { civilDate } from "../../core/domain/date";
+import { DateField } from "../../shared/date-field";
 import { moneyInput, parseMoney } from "../../core/domain/money";
 import {
   appendReceiptReference,
@@ -13,6 +14,7 @@ export type { ReceiptDraft } from "./receipt-parser";
 
 interface ReceiptScanReviewProps {
   currency: string;
+  today: string;
   ownerKey: string;
   onApply: (draft: ReceiptDraft) => void;
   onActiveChange?: (active: boolean) => void;
@@ -30,6 +32,7 @@ export function ReceiptScanReview(props: ReceiptScanReviewProps) {
 
 function ReceiptScanReviewContent({
   currency,
+  today,
   onApply,
   onActiveChange,
   disabled = false,
@@ -184,13 +187,15 @@ function ReceiptScanReviewContent({
                 onPress={() => setDraft((current) => ({ ...current, amount }))}
               />
             ))}
-          <Field
-            label="Scanned date (YYYY-MM-DD)"
+          <DateField
+            label="Scanned date"
+            today={today}
             value={draft.paymentDate ?? ""}
-            onChangeText={(paymentDate) =>
+            onChange={(paymentDate) =>
               setDraft((current) => ({ ...current, paymentDate }))
             }
-            placeholder="YYYY-MM-DD"
+            optional
+            placeholder="Keep current payment date"
           />
           {result.candidates.paymentDate.length > 1 &&
             result.candidates.paymentDate.map((paymentDate) => (

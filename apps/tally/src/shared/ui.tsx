@@ -231,7 +231,9 @@ export function Heading({
         <Txt big>{title}</Txt>
         {subtitle && <Txt muted>{subtitle}</Txt>}
       </View>
-      {action}
+      {action && (
+        <View style={{ maxWidth: "100%", flexShrink: 1 }}>{action}</View>
+      )}
     </View>
   );
 }

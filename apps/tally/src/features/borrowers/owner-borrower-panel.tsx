@@ -233,14 +233,14 @@ function OwnerBorrowerWorkspace({
   };
   if (review.isPending)
     return (
-      <Card>
+      <View style={{ gap: 16 }}>
         <Loading />
         <Txt muted>Loading borrower access…</Txt>
-      </Card>
+      </View>
     );
   if (review.error || !review.data)
     return (
-      <Card>
+      <View style={{ gap: 16 }}>
         <Txt big>Borrower access</Txt>
         <Failure
           error={review.error ?? new Error("Borrower records are unavailable.")}
@@ -248,7 +248,7 @@ function OwnerBorrowerWorkspace({
             void review.refetch();
           }}
         />
-      </Card>
+      </View>
     );
   const data = review.data;
   const canInvite =
@@ -268,7 +268,7 @@ function OwnerBorrowerWorkspace({
       ? window.location.origin + "/borrower"
       : "https://tally-code-box-studios.vercel.app/borrower";
   return (
-    <Card>
+    <View style={{ gap: 16 }}>
       <Txt big style={{ fontSize: 21 }}>
         Borrower access
       </Txt>
@@ -284,16 +284,6 @@ function OwnerBorrowerWorkspace({
       </Txt>
       {error ? <Failure error={new Error(error)} /> : null}
       {message ? <Txt>{message}</Txt> : null}
-      <Button
-        secondary
-        disabled={busy || review.isFetching}
-        title="Refresh borrower access"
-        onPress={() => {
-          void run(async () => {
-            await refresh();
-          });
-        }}
-      />
       {canInvite && !openShare && (
         <View style={{ gap: 12 }}>
           {invite ? (
@@ -472,10 +462,20 @@ function OwnerBorrowerWorkspace({
           changed={changed}
         />
       ))}
+      <Button
+        secondary
+        disabled={busy || review.isFetching}
+        title="Refresh borrower access"
+        onPress={() => {
+          void run(async () => {
+            await refresh();
+          });
+        }}
+      />
       {onDone && (
         <Button secondary disabled={busy} title="Done" onPress={onDone} />
       )}
-    </Card>
+    </View>
   );
 }
 

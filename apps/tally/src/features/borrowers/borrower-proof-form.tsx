@@ -72,6 +72,7 @@ export function BorrowerProofForm({
       {!locked && (
         <ReceiptScanReview
           currency={code}
+          today={todayInZone(timezone)}
           onActiveChange={setScanActive}
           ownerKey={`${repo?.owner}:${ownerId}:${shareId}`}
           onApply={(draft) => {
@@ -92,7 +93,12 @@ export function BorrowerProofForm({
       {locked ? (
         <Txt>Payment date: {date}</Txt>
       ) : (
-        <DateField label="Payment date" value={date} onChange={setDate} />
+        <DateField
+          label="Payment date"
+          value={date}
+          onChange={setDate}
+          today={todayInZone(timezone)}
+        />
       )}
       <Field
         label="Payment reference"

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { todayInZone } from "../../core/domain/date";
+import { displayDate, todayInZone } from "../../core/domain/date";
 import { formatMoney } from "../../core/domain/money";
 import {
   amount,
@@ -75,20 +75,25 @@ function PreviewTerms({
         <Txt>
           Principal {formatMoney(amount(interest, "principalMinor"), code)} +
           interest {formatMoney(amount(interest, "interestMinor"), code)} (
-          {Number(interest.rateBasisPoints) / 100}% {text(interest, "basis")})
+          {Number(interest.rateBasisPoints) / 100}%{" "}
+          {label(text(interest, "basis"))})
         </Txt>
       )}
       {recurrence ? (
         <Txt>
-          Starts {text(recurrence, "startDate")} ·{" "}
-          {text(recurrence, "frequency")} · {text(payload, "amountKind")} ·
-          Manual payment
-          {recurrence.endDate ? ` · Ends ${recurrence.endDate}` : ""}
+          Starts {displayDate(text(recurrence, "startDate"))} ·{" "}
+          {label(text(recurrence, "frequency"))} ·{" "}
+          {label(text(payload, "amountKind"))} · Manual payment
+          {recurrence.endDate
+            ? ` · Ends ${displayDate(text(recurrence, "endDate"))}`
+            : ""}
         </Txt>
       ) : (
         <Txt>
-          Original date {text(payload, "originationDate")} ·{" "}
-          {payload.dueDate ? `Due ${payload.dueDate}` : "No due date"}
+          Original date {displayDate(text(payload, "originationDate"))} ·{" "}
+          {payload.dueDate
+            ? `Due ${displayDate(text(payload, "dueDate"))}`
+            : "No due date"}
         </Txt>
       )}
       {Array.isArray(payload.installments) && (
@@ -96,7 +101,7 @@ function PreviewTerms({
           {payload.installments
             .map((term, index) => {
               const item = object(term);
-              return `${index + 1}. ${text(item, "dueDate")}: ${formatMoney(amount(item, "amountMinor"), code)}`;
+              return `${index + 1}. ${displayDate(text(item, "dueDate"))}: ${formatMoney(amount(item, "amountMinor"), code)}`;
             })
             .join("\n")}
         </Txt>
@@ -182,13 +187,42 @@ function ImportWorkspace() {
     catalog: typeof categoryRows,
     key: string,
   ) => catalog.find((row) => row.id === id)?.data[key] ?? "None";
+  const step = !table ? 1 : !rows ? 2 : 3;
   return (
-    <Page maxWidth={900}>
+    <Page key={step} maxWidth={900}>
       <Heading
         title="Import spreadsheet"
         subtitle="Bring loans and recurring bills into Tally. Review every row before saving."
       />
       <View style={{ gap: 18 }}>
+        <View accessibilityLiveRegion="polite" style={{ gap: 8 }}>
+          <Txt style={{ fontWeight: "600" }}>
+            Step {step} of 3 ·{" "}
+            {step === 1
+              ? "Choose data"
+              : step === 2
+                ? "Match columns"
+                : "Review & import"}
+          </Txt>
+          <View
+            style={{ flexDirection: "row", gap: 6 }}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {[1, 2, 3].map((number) => (
+              <View
+                key={number}
+                style={{
+                  flex: 1,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor:
+                    number <= step ? theme.primary : theme.border,
+                }}
+              />
+            ))}
+          </View>
+        </View>
         {error ? <Failure error={new Error(error)} /> : null}
         {queries.some((query) => query.data?.cached) && (
           <Txt muted>
@@ -198,15 +232,11 @@ function ImportWorkspace() {
         )}
         {!table ? (
           <Card>
-            <Txt>
-              Use UTF-8 CSV with a header row, up to 500 rows and 2 MiB. Dates
-              must use YYYY-MM-DD. Amounts use decimal units, such as 100.25.
+            <Txt style={{ fontSize: 18, fontWeight: "600" }}>
+              Upload or paste your spreadsheet
             </Txt>
             <Txt muted>
-              Supported: borrowed or lent loans, equal installments, simple
-              interest, and fixed or variable recurring bills. Existing
-              payments, outstanding balances, compound interest, custom
-              schedules and automatic deductions need manual entry.
+              Save your spreadsheet as CSV first. Up to 500 rows and 2 MiB.
             </Txt>
             <Button
               secondary
@@ -229,6 +259,10 @@ function ImportWorkspace() {
               placeholder="Title,Type,Amount,Date,Due Date"
               style={{ minHeight: 180 }}
             />
+            <Txt muted>
+              Include a header row. Dates: YYYY-MM-DD. Amounts: 100.25, without
+              a currency symbol. Use UTF-8 encoding.
+            </Txt>
             <Button
               secondary
               disabled={busy}
@@ -250,11 +284,17 @@ function ImportWorkspace() {
                 });
               }}
             />
+            <Txt muted>
+              Supports loans, equal installments, simple interest and recurring
+              bills. Enter existing payments, outstanding balances, compound
+              interest, custom schedules and automatic deductions manually.
+            </Txt>
           </Card>
         ) : !rows ? (
           <Card>
             <Txt>
-              {table.rows.length} rows found. Match columns to Tally fields.
+              {table.rows.length} {table.rows.length === 1 ? "row" : "rows"}{" "}
+              found. Match columns to Tally fields.
             </Txt>
             <Txt muted>
               People, categories and payment sources must match one active
@@ -284,25 +324,38 @@ function ImportWorkspace() {
               {profile.timezone}. Imported bills use manual payments and
               reminders 3 days before and on the due date.
             </Txt>
-            {table.headers.map((header, index) => (
-              <View key={index} style={{ gap: 4 }}>
-                <SelectField
-                  label={`Column ${index + 1}: ${header}`}
-                  value={mapping[index]}
-                  options={fieldOptions}
-                  onChange={(value) =>
-                    setMapping((current) =>
-                      current.map((field, column) =>
-                        column === index ? (value as ImportField | "") : field,
-                      ),
-                    )
-                  }
-                  disabled={busy}
-                  searchable
-                />
-                <Txt muted>Example: {table.rows[0][index] || "(empty)"}</Txt>
-              </View>
-            ))}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 20 }}>
+              {table.headers.map((header, index) => (
+                <View
+                  key={index}
+                  style={{
+                    gap: 4,
+                    flexBasis: 300,
+                    flexGrow: 1,
+                    flexShrink: 1,
+                    maxWidth: "100%",
+                  }}
+                >
+                  <SelectField
+                    label={`Column ${index + 1}: ${header}`}
+                    value={mapping[index]}
+                    options={fieldOptions}
+                    onChange={(value) =>
+                      setMapping((current) =>
+                        current.map((field, column) =>
+                          column === index
+                            ? (value as ImportField | "")
+                            : field,
+                        ),
+                      )
+                    }
+                    disabled={busy}
+                    searchable
+                  />
+                  <Txt muted>Example: {table.rows[0][index] || "(empty)"}</Txt>
+                </View>
+              ))}
+            </View>
             <Button
               disabled={busy}
               title={busy ? "Checking rows…" : "Preview import"}

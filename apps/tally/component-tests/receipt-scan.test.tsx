@@ -24,7 +24,12 @@ it("requires review and applies the edited fields only after an explicit action"
   );
   const apply = jest.fn();
   await render(
-    <ReceiptScanReview ownerKey="alice" currency="PHP" onApply={apply} />,
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
   );
   await fireEvent.press(
     screen.getByRole("button", { name: "Scan receipt or screenshot" }),
@@ -49,7 +54,12 @@ it("shows ambiguity and permits choosing a date without inventing an amount", as
   mockScan.mockResolvedValue("Date 03/04/2026");
   const apply = jest.fn();
   await render(
-    <ReceiptScanReview ownerKey="alice" currency="PHP" onApply={apply} />,
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
   );
   await fireEvent.press(
     screen.getByRole("button", { name: "Scan receipt or screenshot" }),
@@ -74,7 +84,12 @@ it("cancels an in-flight scan and ignores its late result", async () => {
   );
   const apply = jest.fn();
   await render(
-    <ReceiptScanReview ownerKey="alice" currency="PHP" onApply={apply} />,
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
   );
   await fireEvent.press(
     screen.getByRole("button", { name: "Scan receipt or screenshot" }),
@@ -97,13 +112,23 @@ it("clears private review data and rejects late OCR after an owner change", asyn
   );
   const apply = jest.fn();
   const view = await render(
-    <ReceiptScanReview ownerKey="alice" currency="PHP" onApply={apply} />,
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
   );
   await fireEvent.press(
     screen.getByRole("button", { name: "Scan receipt or screenshot" }),
   );
   await view.rerender(
-    <ReceiptScanReview ownerKey="bob" currency="PHP" onApply={apply} />,
+    <ReceiptScanReview
+      ownerKey="bob"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
   );
   await act(() => finish("Total PHP 999.00\nReference 001234"));
   expect(screen.queryByDisplayValue("999.00")).toBeNull();
@@ -111,27 +136,92 @@ it("clears private review data and rejects late OCR after an owner change", asyn
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("rejects invalid edited dates and preserves manual entry after OCR failure", async () => {
+it("lets users correct and clear a scanned date with the calendar", async () => {
+  mockScan.mockResolvedValue("Total PHP 20.00\n2026-02-28");
+  const apply = jest.fn();
+  await render(
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Scan receipt or screenshot" }),
+  );
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Scanned date: Feb 28, 2026" }),
+  );
+  expect(screen.queryByRole("button", { name: "Feb 30, 2026" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Feb 27, 2026" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Use reviewed details" }),
+  );
+  expect(apply).toHaveBeenLastCalledWith({
+    amount: "20.00",
+    paymentDate: "2026-02-27",
+  });
+
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Scan receipt or screenshot" }),
+  );
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Scanned date: Feb 28, 2026" }),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Clear date" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Use reviewed details" }),
+  );
+  expect(apply).toHaveBeenLastCalledWith({ amount: "20.00" });
+});
+
+it("uses the caller's workspace date for Today instead of the device date", async () => {
+  mockScan.mockResolvedValue("Amount paid PHP 250.00");
+  const apply = jest.fn();
+  await render(
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-01-02"
+      onApply={apply}
+    />,
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Scan receipt or screenshot" }),
+  );
+  await fireEvent.press(
+    await screen.findByRole("button", {
+      name: "Scanned date: Keep current payment date",
+    }),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Today" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Use reviewed details" }),
+  );
+  expect(apply).toHaveBeenCalledWith({
+    amount: "250.00",
+    paymentDate: "2026-01-02",
+  });
+});
+
+it("preserves manual entry after OCR failure", async () => {
   mockScan
     .mockResolvedValueOnce("Total PHP 20.00")
     .mockRejectedValueOnce(new Error("Image could not be read."));
   const apply = jest.fn();
   await render(
-    <ReceiptScanReview ownerKey="alice" currency="PHP" onApply={apply} />,
+    <ReceiptScanReview
+      ownerKey="alice"
+      currency="PHP"
+      today="2026-10-15"
+      onApply={apply}
+    />,
   );
   await fireEvent.press(
     screen.getByRole("button", { name: "Scan receipt or screenshot" }),
   );
   await screen.findByDisplayValue("20.00");
-  await fireEvent.changeText(
-    screen.getByLabelText("Scanned date (YYYY-MM-DD)"),
-    "2026-02-30",
-  );
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Use reviewed details" }),
-  );
-  expect(apply).not.toHaveBeenCalled();
-  expect(await screen.findByText("Enter a valid calendar date.")).toBeTruthy();
   await fireEvent.press(
     screen.getByRole("button", { name: "Scan receipt or screenshot" }),
   );

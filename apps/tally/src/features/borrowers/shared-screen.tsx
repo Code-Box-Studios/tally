@@ -96,7 +96,7 @@ function SharedContent() {
   const submissions = list(result, "submissions"),
     attachments = list(result, "attachments");
   return (
-    <Page>
+    <Page maxWidth={900}>
       <Heading
         title="Shared with me"
         subtitle="Loans shared with your verified email. Your own records stay separate."

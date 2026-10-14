@@ -129,57 +129,67 @@ export function DetailScreen() {
         title={recordTitle(obligation)}
         subtitle={`${label(text(d, "section"))} · ${code}`}
         action={
-          <FlexRow>
-            {!recurring &&
-              d.lifecycle === "active" &&
-              d.financialStatus === "paid" &&
-              d.remainingMinor === 0 && (
+          panel ? (
+            <Button secondary title="Back to obligation" onPress={done} />
+          ) : (
+            <FlexRow>
+              {!recurring &&
+                d.lifecycle === "active" &&
+                d.financialStatus === "paid" &&
+                d.remainingMinor === 0 && (
+                  <Button
+                    title="Paid-in-full confirmation"
+                    onPress={() => setPanel({ kind: "settlement" })}
+                  />
+                )}
+              {!recurring && (
                 <Button
-                  title="Paid-in-full confirmation"
-                  onPress={() => setPanel({ kind: "settlement" })}
+                  secondary
+                  title="Payoff simulator"
+                  onPress={() => setPanel({ kind: "payoff" })}
                 />
               )}
-            {!recurring && (
+              {!recurring && (
+                <Button
+                  secondary
+                  title={
+                    d.direction === "owedToMe"
+                      ? "Share with borrower"
+                      : "Borrower access"
+                  }
+                  onPress={() => setPanel({ kind: "borrower" })}
+                />
+              )}
               <Button
                 secondary
-                title="Payoff simulator"
-                onPress={() => setPanel({ kind: "payoff" })}
+                title="Edit obligation"
+                onPress={() => setPanel({ kind: "edit" })}
               />
-            )}
-            {!recurring && (
-              <Button
-                secondary
-                title={
-                  d.direction === "owedToMe"
-                    ? "Share with borrower"
-                    : "Borrower access"
-                }
-                onPress={() => setPanel({ kind: "borrower" })}
-              />
-            )}
-            <Button
-              secondary
-              title="Edit obligation"
-              onPress={() => setPanel({ kind: "edit" })}
-            />
-            {!!text(d, "contactId") && (
-              <Button
-                secondary
-                title="Contact statement"
-                onPress={() =>
-                  router.push({
-                    pathname: "/statement",
-                    params: { contactId: text(d, "contactId") },
-                  } as Href)
-                }
-              />
-            )}
-          </FlexRow>
+              {!!text(d, "contactId") && (
+                <Button
+                  secondary
+                  title="Contact statement"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/statement",
+                      params: { contactId: text(d, "contactId") },
+                    } as Href)
+                  }
+                />
+              )}
+            </FlexRow>
+          )
         }
       />
       <View style={{ gap: 20 }}>
         {panel ? (
-          <Card>
+          <Card
+            style={
+              ["settlement", "payoff", "borrower"].includes(panel.kind)
+                ? { width: "100%", maxWidth: 820, alignSelf: "center" }
+                : undefined
+            }
+          >
             {panel.kind === "settlement" ? (
               <SettlementPanel
                 key={obligation.id}
