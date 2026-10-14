@@ -2,6 +2,9 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ObligationForm } from "../src/features/obligations/obligation-form";
 
+// The first Expo render lazily initializes native modules on cold CI workers.
+jest.setTimeout(15_000);
+
 const mockExecute = jest.fn(async (command: string) => ({
   status: "synced",
   result:
