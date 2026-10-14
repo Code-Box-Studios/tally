@@ -89,6 +89,23 @@ try {
   await invoke(borrower, "borrowerDraft", { ...draftInput, commandId: randomUUID() }, 403);
   assert.equal((await invoke(borrower, "borrowerList", {})).shares.length, 0);
   console.log("PASS proof withdrawal, unchanged balance, and revocation across reads/writes/files");
+
+  await invoke(owner, "getSettlementSnapshot", { obligationId: loan.obligationId }, 400);
+  const finalPayment = await command(owner, "recordPayment", {
+    obligationId: loan.obligationId, obligationInstanceId: shared.loan.schedule[0].instanceId,
+    amountMinor: 7500, currency: "PHP", paymentDate: "2020-02-01",
+    paymentSourceId: null, paymentMethod: "cash", notes: "PRIVATE_SETTLEMENT_NOTE",
+  });
+  const settled = await invoke(owner, "getSettlementSnapshot", { obligationId: loan.obligationId });
+  assert.equal(settled.obligation.data.remainingMinor, 0);
+  assert.equal(settled.obligation.data.totalPaidMinor, 10000);
+  assert.equal(settled.payments.length, 2);
+  await invoke(stranger, "getSettlementSnapshot", { obligationId: loan.obligationId }, 400);
+  await invoke(borrower, "getSettlementSnapshot", { obligationId: loan.obligationId }, 400);
+  await command(owner, "correctPayment", { paymentId: finalPayment.paymentId, reason: "Settlement correction test", replacement: null });
+  await invoke(owner, "getSettlementSnapshot", { obligationId: loan.obligationId }, 400);
+  console.log("PASS paid confirmation checks full payment, owner isolation, and payment reversal");
+
 } finally {
   if (storedPaths.length) await request("/storage/v1/object/tally-attachments", status.SERVICE_ROLE_KEY, { prefixes: storedPaths }, "DELETE");
   for (const user of accounts.reverse()) await request(`/auth/v1/admin/users/${user.id}`, status.SERVICE_ROLE_KEY, null, "DELETE");

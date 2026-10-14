@@ -108,6 +108,19 @@ try {
  if(!(await page.eval(()=>document.querySelector('[role="button"][aria-label="Import 0 selected rows"]')?.getAttribute('aria-disabled')==='true')))throw new Error('Repeated CSV import was not disabled');
  await click('Obligations');await page.click(radio('Owed to Me'));await click('Browser CSV loan');await check('₱12.34');
  console.log('PASS CSV mapping preview saves selected rows and skips a repeated import');
+ await click('Record payment');await save('Record payment');await check('Paid-in-full confirmation');
+ await click('Paid-in-full confirmation');await check('Share a PDF showing this loan has been settled.');await check('1 confirmed payment');
+ await page.eval(()=>{window.__tallyQaOpen=window.open;window.__tallyQaPrinted='';window.open=()=>({opener:null,closed:false,document:{open(){},write(html){window.__tallyQaPdf=html;},close(){}},focus(){},print(){window.__tallyQaPrinted=window.__tallyQaPdf;},close(){}});});
+ try {
+   await click('Export PDF');
+   for(let i=0;i<50;i++){if(await page.eval(()=>!!window.__tallyQaPrinted))break;await sleep(200);}
+   await page.eval(()=>{const html=window.__tallyQaPrinted;if(!html.includes('Paid-in-full confirmation')||!html.includes('₱12.34')||!html.includes('₱0.00')||!html.includes('Settled on'))throw new Error('Paid confirmation PDF is incomplete');});
+   console.log('PASS paid-in-full confirmation preview and fresh PDF export');
+ } finally {await page.eval(()=>{window.open=window.__tallyQaOpen;delete window.__tallyQaOpen;delete window.__tallyQaPdf;delete window.__tallyQaPrinted;});}
+ await click('Close confirmation');await click('Correct payment');await page.fill('textarea'+field('Reason'),'Reverse settlement fixture');await save('Save correction');await check('Payment reversed');
+ if(await page.eval(()=>!!document.querySelector('[aria-label="Paid-in-full confirmation"]')))throw new Error('Reversed loan still offers a paid confirmation');
+ console.log('PASS reversal removes paid confirmation action');
+
  `);
  run(`${helpers}
  await click('Add obligation');await page.click(radio('Add monthly due'));await page.fill('input'+field('Name'),'Browser Internet');await page.fill('input'+field('Default amount'),'1699');await save('Add obligation');await check('Billing periods');await click('Mark as paid');await save('Record payment');await check('₱1,699.00');await check('Payment recorded');

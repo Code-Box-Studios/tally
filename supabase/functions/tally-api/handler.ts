@@ -1,3 +1,4 @@
+import { getSettlementSnapshot } from "./statements/settlement.ts";
 import {
   borrowerAction,
   createBorrowerShare,
@@ -139,6 +140,9 @@ export async function dispatch(
   identity: User,
   sessionId: string,
 ): Promise<unknown> {
+  if (name === "getSettlementSnapshot") {
+    return getSettlementSnapshot(uid, input, db);
+  }
   if (name === "getBorrowerReview") return getBorrowerReview(uid, input, db);
   if (
     [

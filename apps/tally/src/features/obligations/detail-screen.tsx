@@ -1,3 +1,4 @@
+import { SettlementPanel } from "../statements/settlement-panel";
 import { PayoffSimulator } from "../payoff/payoff-simulator";
 import { OwnerBorrowerPanel } from "../borrowers/owner-borrower-panel";
 import React, { useState } from "react";
@@ -39,6 +40,7 @@ import { PeriodActionForm } from "../recurring/period-action-form";
 import { AttachmentsPanel } from "../attachments/attachments-panel";
 type Panel = {
   kind:
+    | "settlement"
     | "payoff"
     | "borrower"
     | "pay"
@@ -128,6 +130,15 @@ export function DetailScreen() {
         subtitle={`${label(text(d, "section"))} · ${code}`}
         action={
           <FlexRow>
+            {!recurring &&
+              d.lifecycle === "active" &&
+              d.financialStatus === "paid" &&
+              d.remainingMinor === 0 && (
+                <Button
+                  title="Paid-in-full confirmation"
+                  onPress={() => setPanel({ kind: "settlement" })}
+                />
+              )}
             {!recurring && (
               <Button
                 secondary
@@ -169,7 +180,13 @@ export function DetailScreen() {
       <View style={{ gap: 20 }}>
         {panel ? (
           <Card>
-            {panel.kind === "payoff" ? (
+            {panel.kind === "settlement" ? (
+              <SettlementPanel
+                key={obligation.id}
+                obligationId={obligation.id}
+                onDone={done}
+              />
+            ) : panel.kind === "payoff" ? (
               <PayoffSimulator
                 obligation={obligation}
                 instances={instances}
