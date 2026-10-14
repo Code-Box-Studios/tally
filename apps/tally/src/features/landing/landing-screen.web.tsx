@@ -149,6 +149,7 @@ export function LandingScreen() {
             <a href="#questions">Questions</a>
           </nav>
           <div className="tally-nav-actions">
+            <InstallTallyAction />
             <AppearanceControl />
             <Link href="/sign-in" asChild>
               <a className="tally-sign-in">Sign in</a>
@@ -161,7 +162,6 @@ export function LandingScreen() {
             </Link>
           </div>
         </div>
-        <InstallTallyAction />
       </header>
       <main id="tally-main">
         <section className="tally-container tally-hero">

@@ -4,6 +4,9 @@ import { AuthScreen } from "../src/features/auth/auth-screen";
 import { ThemeProvider } from "../src/shared/theme";
 
 const mockReset = jest.fn(async () => ({ error: null }));
+jest.mock("expo-router", () => ({
+  Link: ({ children }: React.PropsWithChildren) => children,
+}));
 jest.mock("../src/features/auth/session-provider", () => ({
   useSession: () => ({ profile: null, google: async () => {} }),
 }));

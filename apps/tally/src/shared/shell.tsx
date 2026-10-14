@@ -273,7 +273,7 @@ export function Shell({ children }: PropsWithChildren) {
           <View
             style={{
               flexDirection: "row",
-              gap: wide ? 19 : 12,
+              gap: wide ? 19 : 6,
               alignItems: "center",
             }}
           >
@@ -319,6 +319,7 @@ export function Shell({ children }: PropsWithChildren) {
                 {profile?.defaultCurrency}
               </Txt>
             </View>
+            <InstallTallyAction />
             <AppearanceControl />
             <Pressable
               accessibilityRole="button"
@@ -339,7 +340,6 @@ export function Shell({ children }: PropsWithChildren) {
             </Pressable>
           </View>
         </View>
-        <InstallTallyAction />
         {(cached || waiting > 0) && (
           <View
             style={{

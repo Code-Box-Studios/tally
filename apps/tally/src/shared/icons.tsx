@@ -24,6 +24,7 @@ const paths = {
   arrow: "M4 12h16m-5-5 5 5-5 5",
   arrowUp: "M7 17 17 7M7 7h10v10",
   arrowDown: "M17 7 7 17M7 7v10h10",
+  download: "M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5",
   bell: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
   shield: "M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7Zm-4 9 3 3 5-6",
   globe:

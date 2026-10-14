@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import * as Linking from "expo-linking";
+import { Link } from "expo-router";
 import { backend } from "../../core/backend/client";
 import { useSession } from "./session-provider";
 import { Button, Card, Field, Form, Page, Txt } from "../../shared/ui";
@@ -109,15 +110,27 @@ export function AuthScreen({
             gap: 20,
           }}
         >
-          <View style={{ gap: 6 }}>
-            <Brand size={wide ? 34 : 29} />
-            <Txt muted style={{ fontSize: 12 }}>
-              Know what’s due.
-            </Txt>
+          <Link href="/" asChild>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Tally homepage"
+              style={({ pressed }) => ({
+                gap: 6,
+                minHeight: 44,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Brand size={wide ? 34 : 29} />
+              <Txt muted style={{ fontSize: 12 }}>
+                Know what’s due.
+              </Txt>
+            </Pressable>
+          </Link>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <InstallTallyAction />
+            <AppearanceControl />
           </View>
-          <AppearanceControl />
         </View>
-        <InstallTallyAction />
         <View
           style={{
             flexDirection: wide ? "row" : "column",

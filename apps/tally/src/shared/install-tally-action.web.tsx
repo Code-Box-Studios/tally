@@ -55,42 +55,34 @@ export function InstallTallyAction() {
 
   return (
     <>
-      <View
-        style={{
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Install Tally now"
+        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
+        onPress={showInstructions}
+        style={({ pressed }) => ({
+          minHeight: 44,
+          minWidth: 44,
+          flexShrink: 0,
+          flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: 20,
-          paddingVertical: 9,
-        }}
+          justifyContent: "center",
+          gap: 8,
+          paddingHorizontal: width < 800 ? 0 : 10,
+          paddingVertical: 6,
+          borderRadius: 10,
+          backgroundColor: pressed ? theme.tint : "transparent",
+          opacity: pressed ? 0.75 : 1,
+        })}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Install Tally now"
-          accessibilityState={{ expanded: open }}
-          aria-expanded={open}
-          onPress={showInstructions}
-          style={({ pressed }) => ({
-            minHeight: 44,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            paddingHorizontal: 16,
-            paddingVertical: 6,
-            borderRadius: 18,
-            borderWidth: 1,
-            borderColor: theme.border,
-            backgroundColor: theme.tint,
-            opacity: pressed ? 0.75 : 1,
-          })}
-        >
-          <Icon name="arrowDown" size={16} color={theme.primary} />
-          <Txt
-            style={{ color: theme.primary, fontSize: 12, fontWeight: "600" }}
-          >
-            Install Tally now
+        <Icon name="download" size={18} color={theme.muted} />
+        {width >= 800 && (
+          <Txt style={{ color: theme.muted, fontSize: 12, fontWeight: "500" }}>
+            Install app
           </Txt>
-        </Pressable>
-      </View>
+        )}
+      </Pressable>
       <Modal
         visible={open}
         transparent
