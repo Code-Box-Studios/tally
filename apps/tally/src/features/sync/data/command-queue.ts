@@ -1,6 +1,7 @@
 import type { Data } from "../../../core/domain/records";
 import type { CommandStore, SavedCommand } from "./store";
 import { validateReceipt, type Digest } from "./receipt";
+import { canonicalCommand } from "./command-identity";
 export class CommandQueue {
   private flushing: Promise<void> | null = null;
   constructor(
@@ -26,16 +27,16 @@ export class CommandQueue {
       )
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
-  async enqueue(name: string, payload: Data) {
+  async enqueue(name: string, payload: Data, stableId?: string) {
     this.check();
-    if (
+    if (stableId !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(stableId))
+      throw new Error("Invalid saved action identifier.");
+    const full =
       (await this.list()).filter(
         (c) => !["synced", "discarded"].includes(c.status),
-      ).length >= 1000
-    )
-      throw new Error("Sync or review saved actions before adding more.");
+      ).length >= 1000;
     const item: SavedCommand = {
-      id: this.uuid(),
+      id: stableId ?? this.uuid(),
       owner: this.owner,
       environment: this.environment,
       schema: 1,
@@ -47,12 +48,28 @@ export class CommandQueue {
       error: null,
       result: null,
     };
-    await this.store.atomic(item.id, () => {
+    const saved = await this.store.atomic(item.id, (existing) => {
       this.check();
+      if (existing) {
+        if (
+          !stableId ||
+          existing.owner !== this.owner ||
+          existing.environment !== this.environment ||
+          existing.schema !== 1 ||
+          existing.name !== name ||
+          canonicalCommand(existing.payload) !== canonicalCommand(item.payload)
+        )
+          throw new Error(
+            "This saved action identifier belongs to different details.",
+          );
+        return existing;
+      }
+      if (full)
+        throw new Error("Sync or review saved actions before adding more.");
       return item;
     });
     this.check();
-    return item;
+    return saved!;
   }
   async retry(id: string) {
     this.check();

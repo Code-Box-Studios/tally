@@ -42,6 +42,8 @@ async function target(
       ? "obligations"
       : type === "instance"
       ? "obligationInstances"
+      : type === "borrowerSubmission"
+      ? "borrowerSubmissions"
       : "payments",
     id,
   );
@@ -76,6 +78,7 @@ export async function reserveAttachment(
   uid: string,
   input: unknown,
   db: CommandDatabase,
+  authorize?: (context: OwnerCommandContext) => Promise<void>,
 ) {
   return executeMetadataCommand(
     uid,
@@ -83,6 +86,7 @@ export async function reserveAttachment(
     "reserveAttachment",
     validateAttachmentReservation,
     async (context, payload) => {
+      await authorize?.(context);
       const parent = await target(
         context,
         payload.targetType,
@@ -156,6 +160,7 @@ export async function uploadAttachment(
   uid: string,
   input: unknown,
   db: CommandDatabase,
+  authorize?: (context: OwnerCommandContext) => Promise<void>,
 ) {
   const { commandId, payload } = envelope(uid, input),
     raw = exactObject(payload, [
@@ -212,6 +217,7 @@ export async function uploadAttachment(
     "claimUpload",
     (value) => value,
     async (context) => {
+      await authorize?.(context);
       const current = await context.read("attachments", id);
       await target(context, current.targetType, current.targetId);
       if (
@@ -296,6 +302,7 @@ export async function uploadAttachment(
     "uploadAttachment",
     (value) => value,
     async (context) => {
+      await authorize?.(context);
       const current = await context.read("attachments", id);
       if (
         current.state !== "processing" || current.uploadToken !== token ||

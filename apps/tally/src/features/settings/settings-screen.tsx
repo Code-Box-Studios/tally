@@ -108,6 +108,17 @@ function SettingsContent({ initialTab }: { initialTab: string }) {
                 </Txt>
               </Form>
             </Card>
+            <Card>
+              <Txt style={{ fontSize: 19 }}>Bring your records into Tally</Txt>
+              <Txt muted>
+                Import loans, installments and bills from a CSV spreadsheet.
+                Review every row before saving.
+              </Txt>
+              <Button
+                title="Import spreadsheet"
+                onPress={() => router.push("/settings/import" as Href)}
+              />
+            </Card>
             <DataExportCard />
             <Card>
               <Txt style={{ fontSize: 19 }}>Your device & account</Txt>

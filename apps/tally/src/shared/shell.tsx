@@ -19,6 +19,7 @@ const destinations = [
   ["/obligations", "Obligations", "obligations"],
   ["/people", "People", "people"],
   ["/calendar", "Calendar", "calendar"],
+  ["/shared", "Shared with me", "people"],
   ["/activity", "Activity", "activity"],
   ["/settings", "Settings", "settings"],
 ] as const;
@@ -416,7 +417,9 @@ export function Shell({ children }: PropsWithChildren) {
               accessibilityLabel="More"
               accessibilityState={{
                 selected:
-                  path.startsWith("/activity") || path.startsWith("/settings"),
+                  path.startsWith("/activity") ||
+                  path.startsWith("/settings") ||
+                  path.startsWith("/shared"),
                 expanded: more,
               }}
               onPress={() => setMore(true)}
@@ -430,7 +433,9 @@ export function Shell({ children }: PropsWithChildren) {
               <Icon
                 name="more"
                 color={
-                  path.startsWith("/activity") || path.startsWith("/settings")
+                  path.startsWith("/activity") ||
+                  path.startsWith("/settings") ||
+                  path.startsWith("/shared")
                     ? theme.primary
                     : theme.muted
                 }

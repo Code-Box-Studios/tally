@@ -63,6 +63,7 @@ dueDate.setUTCDate(dueDate.getUTCDate() + 7);
 const dueYear = String(dueDate.getUTCFullYear());
 const dueMonth = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" }).format(dueDate);
 const dueLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(dueDate);
+const importCsv = `Title,Type,Amount,Date,Due Date\nBrowser CSV loan,lent,12.34,2020-01-01,${dueDate.toISOString().slice(0, 10)}`;
 const viewportArgs = process.env.TALLY_QA_VIEWPORT ? ["--viewport", process.env.TALLY_QA_VIEWPORT] : [];
 const helpers = `const sleep=ms=>page.wait(ms);const button=label=>'[role="button"][aria-label="'+label+'"]';const field=label=>'[aria-label="'+label+'"]';const radio=label=>'[role="radio"][aria-label="'+label+'"]';async function click(label){if(['Settings','Activity'].includes(label) && !(await page.eval('!!document.querySelector('+JSON.stringify(button(label))+')'))){await page.click(button('More'));}await page.click(button(label));}async function save(label){const selector='[data-testid="tally-form"] '+button(label);await page.wait(selector,10000);await page.click(selector);await sleep(500);}async function check(text){let body='';for(let attempt=0;attempt<25;attempt++){body=await page.eval(()=>document.body.innerText);if(body.includes(text)){const size=await page.eval(()=>({width:innerWidth,content:document.documentElement.scrollWidth}));if(size.content>size.width)throw new Error('Horizontal layout overflow');console.log('PASS '+text);return;}await sleep(200);}throw new Error('Expected UI text: '+text+'; screen: '+body);}`;
 try {
@@ -89,6 +90,24 @@ try {
  await click('Add obligation');await page.click(radio('I lent money'));await page.fill('input'+field('Name'),'Browser John loan');await page.fill('input'+field('Original amount'),'5000');await click('Person / organization: No person selected');await page.click(radio('Browser John'));await click('Due date (optional): No due date yet');await click('Choose year');await click(${JSON.stringify(dueYear)});await click(${JSON.stringify(dueMonth)});await click(${JSON.stringify(dueLabel)});await save('Add obligation');await check('Owed to Me');
  await click('Record payment');await page.fill('input'+field('Payment amount'),'2000');await save('Record payment');await check('₱3,000.00');
  await click('Correct payment');await page.fill('textarea'+field('Reason'),'Wrong test amount');await save('Save correction');await check('Payment reversed');await check('₱5,000.00');
+ `);
+ run(`${helpers}
+ await click('Payoff simulator');await check('This estimate does not change your records.');
+ await page.fill('input'+field('Extra monthly payment (PHP)'),'1000');await check('With extra monthly payments');await check('No additional interest is included in this estimate.');await click('Done');await check('₱5,000.00');
+ console.log('PASS payoff preview leaves the saved loan balance unchanged');
+ await click('Share with borrower');await page.wait('input'+field('Borrower email'),10000);await check('verified email');
+ await page.fill('input'+field('Borrower email'),'synthetic@example.test');await click('Review invitation');await check('They must accept within 7 days.');await click('Create invitation');await check('Invited · synthetic@example.test');await check('http://localhost:7385/borrower');
+ await click('Revoke access');await check('Received proofs remain available for review.');await click('Confirm revoke');await check('Revoked · synthetic@example.test');await click('Done');await check('₱5,000.00');
+ console.log('PASS borrower invitation stays visible and revocation requires confirmation');
+ `);
+ run(`${helpers}
+ await click('Settings');await click('Import spreadsheet');await page.wait('textarea'+field('CSV text'),10000);await page.fill('textarea'+field('CSV text'),${JSON.stringify(importCsv)});
+ await click('Match columns');await check('1 rows found.');await click('Preview import');await check('Row 2 · Browser CSV loan');await check('₱12.34');await check('0 invalid');
+ await click('Import 1 selected row');await check('Import finished.');await check('Imported and synced.');
+ await click('Import another CSV');await page.fill('textarea'+field('CSV text'),${JSON.stringify(importCsv)});await click('Match columns');await click('Preview import');await check('1 possible duplicates');
+ if(!(await page.eval(()=>document.querySelector('[role="button"][aria-label="Import 0 selected rows"]')?.getAttribute('aria-disabled')==='true')))throw new Error('Repeated CSV import was not disabled');
+ await click('Obligations');await page.click(radio('Owed to Me'));await click('Browser CSV loan');await check('₱12.34');
+ console.log('PASS CSV mapping preview saves selected rows and skips a repeated import');
  `);
  run(`${helpers}
  await click('Add obligation');await page.click(radio('Add monthly due'));await page.fill('input'+field('Name'),'Browser Internet');await page.fill('input'+field('Default amount'),'1699');await save('Add obligation');await check('Billing periods');await click('Mark as paid');await save('Record payment');await check('₱1,699.00');await check('Payment recorded');

@@ -90,6 +90,12 @@ try {
         TALLY_QA_VIEWPORT: viewport,
         TALLY_QA_SESSION: `tally-ci-${randomUUID()}`,
       });
+      await run("tool/test_expo_borrower_browser.mjs", {
+        ...process.env,
+        TALLY_QA_BROWSER: endpoint,
+        TALLY_QA_VIEWPORT: viewport,
+        TALLY_QA_SESSION: `tally-borrower-ci-${randomUUID()}`,
+      });
       if (viewport === "1440x1000")
         await run("tool/test_expo_auth_appearance.mjs", {
           ...process.env,

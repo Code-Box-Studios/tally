@@ -23,6 +23,7 @@ jobs:
           cache-dependency-path: apps/tally/package-lock.json
       - run: npm --prefix apps/tally ci
       - run: tool/check_expo.sh
+      - run: node --test tool/tests/expo_install.test.mjs tool/tests/expo_release.test.mjs tool/tests/expo_ocr.test.mjs
       - run: npx expo export --platform all
         working-directory: apps/tally
       - run: node tool/prepare_expo_web.mjs
@@ -55,6 +56,7 @@ jobs:
               except (urllib.error.URLError, TimeoutError): time.sleep(1)
           else: raise RuntimeError('Local Edge worker did not start.')
           PY
+      - run: node tool/test_expo_borrower_api.mjs
       - run: python3 tool/test_supabase_financial.py
       - run: python3 tool/test_supabase_recurring.py
       - run: python3 tool/test_supabase_devices.py
@@ -69,7 +71,7 @@ jobs:
           node -e 'console.log("TALLY_CHROME_BIN=" + require(process.argv[1]).chromium.executablePath())' "$RUNNER_TEMP/tally-browser-tools/node_modules/playwright" >> "$GITHUB_ENV"
       - name: Build local browser test app
         run: python3 tool/build_expo_local.py
-      - name: Check desktop, mobile, offline replay, and account deletion
+      - name: Check desktop, mobile, borrower sharing, offline replay, and account deletion
         run: node tool/test_expo_journeys.mjs
       - if: always()
         run: npx supabase stop --no-backup

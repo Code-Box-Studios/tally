@@ -13,6 +13,8 @@ import { civilDate, todayInZone } from "../../core/domain/date";
 import { Choices, Field, Form, Txt, Button } from "../../shared/ui";
 import { DateField } from "../../shared/date-field";
 import { PaymentSourceField } from "../payment-sources/payment-source-field";
+import { ReceiptScanReview } from "./receipt-scan-review";
+import { appendReceiptReference } from "./receipt-parser";
 export function PaymentForm({
   obligation,
   instance,
@@ -55,9 +57,12 @@ export function PaymentForm({
       ),
     ),
     [method, setMethod] = useState("cash"),
+    [scanActive, setScanActive] = useState(false),
+    [reference, setReference] = useState(""),
     [notes, setNotes] = useState("");
   return (
     <Form
+      disabled={scanActive}
       saveLabel={confirm ? "Confirm deduction" : "Record payment"}
       onCancel={onDone}
       onSave={async () => {
@@ -71,7 +76,7 @@ export function PaymentForm({
           paymentDate: civilDate(date),
           paymentSourceId: source || null,
           paymentMethod: method,
-          notes,
+          notes: appendReceiptReference(notes, reference),
         };
         const payload: Data = confirm
           ? {
@@ -106,6 +111,16 @@ export function PaymentForm({
       }}
     >
       <Txt>Full and partial payments keep separate, traceable records.</Txt>
+      <ReceiptScanReview
+        currency={code}
+        ownerKey={`${profile!.userId}:${obligation.id}:${instance?.id ?? ""}`}
+        onActiveChange={setScanActive}
+        onApply={(draft) => {
+          if (draft.amount) setValue(draft.amount);
+          if (draft.paymentDate) setDate(draft.paymentDate);
+          if (draft.reference) setReference(draft.reference);
+        }}
+      />
       <Button
         secondary
         title="Use full remaining amount"
@@ -136,6 +151,12 @@ export function PaymentForm({
           "other",
         ].map((v) => ({ value: v, label: label(v) }))}
         onChange={setMethod}
+      />
+      <Field
+        label="Payment reference"
+        value={reference}
+        onChangeText={setReference}
+        maxLength={100}
       />
       <Field
         label="Payment notes"

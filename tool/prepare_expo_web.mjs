@@ -46,6 +46,8 @@ async function walk(root, prefix = "") {
 const paths = (await walk(directory)).filter(
   (p) =>
     !["service-worker.js", "_headers", "_redirects"].includes(p) &&
+    // OCR models load only when someone starts a scan, not during shell installation.
+    !p.startsWith("ocr/") &&
     !p.endsWith(".hbc") &&
     !p.includes("/ios/") &&
     !p.includes("/android/"),

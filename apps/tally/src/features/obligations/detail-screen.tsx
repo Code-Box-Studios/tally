@@ -1,3 +1,5 @@
+import { PayoffSimulator } from "../payoff/payoff-simulator";
+import { OwnerBorrowerPanel } from "../borrowers/owner-borrower-panel";
 import React, { useState } from "react";
 import { View } from "react-native";
 import { useLocalSearchParams, router, type Href } from "expo-router";
@@ -37,6 +39,8 @@ import { PeriodActionForm } from "../recurring/period-action-form";
 import { AttachmentsPanel } from "../attachments/attachments-panel";
 type Panel = {
   kind:
+    | "payoff"
+    | "borrower"
     | "pay"
     | "confirm"
     | "correct"
@@ -124,6 +128,24 @@ export function DetailScreen() {
         subtitle={`${label(text(d, "section"))} · ${code}`}
         action={
           <FlexRow>
+            {!recurring && (
+              <Button
+                secondary
+                title="Payoff simulator"
+                onPress={() => setPanel({ kind: "payoff" })}
+              />
+            )}
+            {!recurring && (
+              <Button
+                secondary
+                title={
+                  d.direction === "owedToMe"
+                    ? "Share with borrower"
+                    : "Borrower access"
+                }
+                onPress={() => setPanel({ kind: "borrower" })}
+              />
+            )}
             <Button
               secondary
               title="Edit obligation"
@@ -147,7 +169,16 @@ export function DetailScreen() {
       <View style={{ gap: 20 }}>
         {panel ? (
           <Card>
-            {panel.kind === "edit" ? (
+            {panel.kind === "payoff" ? (
+              <PayoffSimulator
+                obligation={obligation}
+                instances={instances}
+                today={todayInZone(profile!.timezone)}
+                onDone={done}
+              />
+            ) : panel.kind === "borrower" ? (
+              <OwnerBorrowerPanel obligation={obligation} onDone={done} />
+            ) : panel.kind === "edit" ? (
               <ObligationForm
                 existing={obligation}
                 instances={d.type === "installment" ? instances : []}

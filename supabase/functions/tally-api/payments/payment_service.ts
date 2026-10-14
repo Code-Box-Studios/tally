@@ -179,7 +179,7 @@ function validateInstallmentPayment(input: unknown): InstallmentPaymentInput {
   };
 }
 
-async function recordFinitePayment(
+export async function recordFinitePayment(
   context: OwnerCommandContext,
   payload: PaymentInput | InstallmentPaymentInput,
 ) {

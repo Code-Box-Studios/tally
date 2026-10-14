@@ -4,6 +4,8 @@ import { persisted, type RecordData } from "./runtime.ts";
 
 export const tables: Record<string, string> = {
   profiles: "tally_profiles",
+  borrowerShares: "tally_borrower_shares",
+  borrowerSubmissions: "tally_borrower_submissions",
   contacts: "tally_contacts",
   paymentSources: "tally_payment_sources",
   categories: "tally_categories",

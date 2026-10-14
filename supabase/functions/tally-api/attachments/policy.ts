@@ -4,7 +4,12 @@ import { enumValue, identifier, invalid } from "../shared/validation.ts";
 
 export const maxAttachmentBytes = 10485760;
 export const maxAttachmentsPerTarget = 10;
-export const attachmentTypes = ["obligation", "instance", "payment"] as const;
+export const attachmentTypes = [
+  "obligation",
+  "instance",
+  "payment",
+  "borrowerSubmission",
+] as const;
 export const attachmentMimeTypes = [
   "image/jpeg",
   "image/png",

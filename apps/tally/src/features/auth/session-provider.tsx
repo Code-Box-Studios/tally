@@ -62,7 +62,11 @@ interface AuthContext {
   pending: SavedCommand[];
   refresh: () => Promise<void>;
   setTrust: (enabled: boolean) => Promise<void>;
-  execute: (name: string, payload: Data) => Promise<SavedCommand>;
+  execute: (
+    name: string,
+    payload: Data,
+    stableId?: string,
+  ) => Promise<SavedCommand>;
   setProfile: (p: Profile) => void;
   flush: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -388,7 +392,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
       await queryClient.invalidateQueries();
     }
   }, [queue]);
-  async function execute(name: string, payload: Data) {
+  async function execute(name: string, payload: Data, stableId?: string) {
     if (!queue) throw new Error("Wait for your account to load.");
     if (
       !trusted &&
@@ -414,7 +418,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         ),
         { actionSaved: true },
       );
-    const item = await queue.enqueue(name, payload);
+    const item = await queue.enqueue(name, payload, stableId);
     await flush();
     const current = (await queue.list()).find((c) => c.id === item.id)!;
     if (current.status === "review") {

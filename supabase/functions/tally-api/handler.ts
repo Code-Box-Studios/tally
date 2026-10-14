@@ -1,3 +1,11 @@
+import {
+  borrowerAction,
+  createBorrowerShare,
+  getBorrowerReview,
+  reviewBorrowerSubmission,
+  revokeBorrowerShare,
+} from "./borrowers/service.ts";
+import { borrowerAttachmentAction } from "./borrowers/attachments.ts";
 import { createClient, type User } from "@supabase/supabase-js";
 import { CommandDatabase } from "./shared/database.ts";
 import { databaseError, HttpsError } from "./shared/errors.ts";
@@ -67,6 +75,9 @@ const commands: Record<
   string,
   (uid: string, input: unknown, db: CommandDatabase) => Promise<unknown>
 > = {
+  createBorrowerShare,
+  revokeBorrowerShare,
+  reviewBorrowerSubmission,
   repairFiniteDebt,
   createObligation,
   editObligation,
@@ -128,6 +139,17 @@ export async function dispatch(
   identity: User,
   sessionId: string,
 ): Promise<unknown> {
+  if (name === "getBorrowerReview") return getBorrowerReview(uid, input, db);
+  if (
+    [
+      "borrowerReserveAttachment",
+      "borrowerUploadAttachment",
+      "borrowerDownloadAttachment",
+    ].includes(name)
+  ) return borrowerAttachmentAction(uid, name, input, db, identity);
+  if (name.startsWith("borrower")) {
+    return borrowerAction(uid, name, input, db, identity);
+  }
   if (name === "requestAccountDeletion") {
     return requestAccountDeletion(uid, input, db, sessionId);
   }

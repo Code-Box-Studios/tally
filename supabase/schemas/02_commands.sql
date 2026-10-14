@@ -9,6 +9,7 @@ create function tally_private.table_name(collection text) returns text language 
  when 'deductionEvents' then 'tally_deduction_events' when 'paymentEvidence' then 'tally_payment_evidence'
  when 'reminders' then 'tally_reminders' when 'notificationPreferences' then 'tally_notification_preferences'
  when 'attachments' then 'tally_attachments' when 'notificationDevices' then 'tally_notification_devices'
+ when 'borrowerShares' then 'tally_borrower_shares' when 'borrowerSubmissions' then 'tally_borrower_submissions'
  when 'systemJobs' then 'tally_jobs' end;
 $$;
 revoke all on function tally_private.table_name(text) from public, anon;
