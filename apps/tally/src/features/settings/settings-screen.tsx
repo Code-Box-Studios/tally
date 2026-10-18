@@ -7,6 +7,7 @@ import { useRecords } from "../../shared/queries";
 import { currencies } from "../../core/domain/money";
 import { recordTitle, label, type Row } from "../../core/domain/records";
 import { CatalogForm } from "../people/catalog-form";
+import { ActionModal } from "../../shared/action-modal";
 import { PreferencesForm } from "../reminders/preferences-form";
 import { TimezoneField } from "../../shared/timezone-field";
 import { AppearanceControl } from "../../shared/appearance-control";
@@ -154,14 +155,17 @@ function SettingsContent({ initialTab }: { initialTab: string }) {
               }
             />
             {catalog && (
-              <Card>
+              <ActionModal
+                title={`${catalog.row ? "Edit" : "Add"} ${catalog.kind === "source" ? "payment source" : "category"}`}
+                onClose={() => setCatalog(null)}
+              >
                 <CatalogForm
                   key={catalog.kind + ":" + (catalog.row?.id ?? "new")}
                   kind={catalog.kind}
                   existing={catalog.row}
                   onDone={() => setCatalog(null)}
                 />
-              </Card>
+              </ActionModal>
             )}
             {(tab === "sources" ? sources : categories).data?.rows.map((r) => (
               <Card key={r.id}>

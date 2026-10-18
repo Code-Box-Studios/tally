@@ -10,6 +10,10 @@ import { PersonScreen } from "../src/features/people/person-screen";
 import type { Row } from "../src/core/domain/records";
 
 const mockPush = jest.fn();
+const mockExecute = jest.fn(async () => ({
+  status: "synced",
+  result: { id: "saved", revision: 2 },
+}));
 let mockId = "alex";
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
@@ -18,6 +22,7 @@ jest.mock("expo-router", () => ({
 jest.mock("../src/features/auth/session-provider", () => ({
   useSession: () => ({
     profile: { timezone: "Asia/Manila", defaultCurrency: "PHP" },
+    execute: mockExecute,
   }),
 }));
 const mockRows: Record<string, Row[]> = {};
@@ -41,6 +46,7 @@ beforeEach(() => {
   mockFailed = "";
   mockPending = "";
   mockPush.mockClear();
+  mockExecute.mockClear();
   mockRefetch.mockClear();
   mockRows.contacts = [
     { id: "alex", data: { displayName: "Alex", kind: "person" } },
@@ -167,6 +173,77 @@ it("shows the original contact's recurring account and opens an obligation prese
     pathname: "/add",
     params: { contactId: "alex" },
   });
+});
+
+it.each(["Close dialog", "Dismiss dialog", "Cancel"])(
+  "%s discards a new contact and preserves the people search",
+  async (name) => {
+    await render(<PeopleScreen />);
+    await fireEvent.changeText(screen.getByLabelText("Search people"), "Alex");
+    await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
+    await fireEvent.changeText(screen.getByLabelText("Contact name"), "Draft");
+    await fireEvent.press(
+      screen.getByRole("button", { name, includeHiddenElements: true }),
+    );
+    expect(screen.queryByLabelText("Contact name")).toBeNull();
+    expect(screen.getByLabelText("Search people").props.value).toBe("Alex");
+    expect(screen.queryByRole("button", { name: "Bea" })).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
+    expect(screen.getByLabelText("Contact name").props.value).toBe("");
+    expect(mockExecute).not.toHaveBeenCalled();
+  },
+);
+
+it("saves a new contact and returns to the existing people search", async () => {
+  await render(<PeopleScreen />);
+  await fireEvent.changeText(screen.getByLabelText("Search people"), "Alex");
+  await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
+  expect(screen.getByRole("button", { name: "Close dialog" })).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText("Contact name"), "Casey");
+  await fireEvent.press(
+    within(screen.getByTestId("tally-form")).getByRole("button", {
+      name: "Add contact",
+    }),
+  );
+  expect(mockExecute).toHaveBeenCalledWith(
+    "saveCatalog",
+    expect.objectContaining({
+      kind: "contact",
+      id: null,
+      expectedRevision: null,
+      values: expect.objectContaining({ displayName: "Casey", kind: "person" }),
+    }),
+  );
+  expect(screen.queryByRole("button", { name: "Close dialog" })).toBeNull();
+  expect(screen.getByLabelText("Search people").props.value).toBe("Alex");
+});
+
+it("discards contact edits before reopening and saves changes to the same contact", async () => {
+  mockRows.contacts[0].data.revision = 3;
+  await render(<PersonScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Edit contact" }));
+  await fireEvent.changeText(screen.getByLabelText("Contact name"), "Draft");
+  await fireEvent.press(screen.getByRole("button", { name: "Close dialog" }));
+  expect(screen.getByText("Shared utility")).toBeTruthy();
+  expect(mockExecute).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Edit contact" }));
+  expect(screen.getByLabelText("Contact name").props.value).toBe("Alex");
+  await fireEvent.changeText(
+    screen.getByLabelText("Contact name"),
+    "Alex Cruz",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "saveCatalog",
+    expect.objectContaining({
+      kind: "contact",
+      id: "alex",
+      expectedRevision: 3,
+      values: expect.objectContaining({ displayName: "Alex Cruz" }),
+    }),
+  );
+  expect(screen.queryByRole("button", { name: "Close dialog" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Edit contact" })).toBeTruthy();
 });
 
 it.each(["obligations", "obligationInstances"])(

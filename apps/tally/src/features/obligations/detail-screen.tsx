@@ -60,33 +60,41 @@ type Panel = {
 } | null;
 
 function DetailPanel({
-  kind,
+  panel,
   onClose,
   children,
 }: React.PropsWithChildren<{
-  kind: NonNullable<Panel>["kind"];
+  panel: NonNullable<Panel>;
   onClose: () => void;
 }>) {
-  if (kind === "borrower" || kind === "reminder")
-    return (
-      <ActionModal
-        title={kind === "borrower" ? "Share with borrower" : "Edit reminders"}
-        maxWidth={kind === "borrower" ? 820 : 600}
-        onClose={onClose}
-      >
-        {children}
-      </ActionModal>
-    );
+  if (panel.kind === "edit") return <Card>{children}</Card>;
+  const title =
+    panel.kind === "lifecycle"
+      ? `${label(panel.action!)} schedule`
+      : {
+          settlement: "Paid-in-full confirmation",
+          payoff: "Payoff simulator",
+          borrower: "Share with borrower",
+          pay: "Record payment",
+          confirm: "Confirm deduction",
+          correct: "Correct payment",
+          amount: "Set period amount",
+          periodEdit: "Edit billing period",
+          skip: "Skip billing period",
+          failed: "Report failed deduction",
+          cancel: "Cancel obligation",
+          reminder: "Edit reminders",
+        }[panel.kind];
   return (
-    <Card
-      style={
-        ["settlement", "payoff"].includes(kind)
-          ? { width: "100%", maxWidth: 820, alignSelf: "center" }
-          : undefined
+    <ActionModal
+      title={title}
+      maxWidth={
+        ["settlement", "payoff", "borrower"].includes(panel.kind) ? 820 : 600
       }
+      onClose={onClose}
     >
       {children}
-    </Card>
+    </ActionModal>
   );
 }
 
@@ -156,7 +164,7 @@ export function DetailScreen() {
   const done = () => {
     setPanel(null);
   };
-  const modalOpen = panel?.kind === "borrower" || panel?.kind === "reminder";
+  const modalOpen = panel !== null && panel.kind !== "edit";
   return (
     <Page>
       <Heading
@@ -217,7 +225,7 @@ export function DetailScreen() {
       />
       <View style={{ gap: 20 }}>
         {panel && (
-          <DetailPanel kind={panel.kind} onClose={done}>
+          <DetailPanel panel={panel} onClose={done}>
             {panel.kind === "settlement" ? (
               <SettlementPanel
                 key={obligation.id}

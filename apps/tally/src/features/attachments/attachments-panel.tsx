@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import * as Crypto from "expo-crypto";
 import { useSession } from "../auth/session-provider";
 import { useRecords } from "../../shared/queries";
 import { text } from "../../core/domain/records";
 import { addAttachment, downloadAttachment } from "./attachment-service";
 import { Button, Card, Txt, Row, Failure } from "../../shared/ui";
+import { ActionModal } from "../../shared/action-modal";
 export function AttachmentsPanel({
   targetType,
   targetId,
@@ -15,7 +16,9 @@ export function AttachmentsPanel({
   const { repo } = useSession(),
     files = useRecords("attachments"),
     [error, setError] = useState<unknown>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [removingId, setRemovingId] = useState<string | null>(null);
+  const working = useRef(false);
   const rows =
     files.data?.rows.filter(
       (r) =>
@@ -23,7 +26,10 @@ export function AttachmentsPanel({
         r.data.targetId === targetId &&
         r.data.state !== "deleted",
     ) ?? [];
+  const removing = rows.find((row) => row.id === removingId);
   async function run(work: () => Promise<void>) {
+    if (working.current) return;
+    working.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -37,6 +43,7 @@ export function AttachmentsPanel({
       } catch (e) {
         setError((current: unknown) => current ?? e);
       }
+      working.current = false;
       setBusy(false);
     }
   }
@@ -80,18 +87,10 @@ export function AttachmentsPanel({
               danger
               disabled={busy}
               title="Remove file"
-              onPress={() =>
-                void run(async () => {
-                  await repo!.command(
-                    "removeAttachment",
-                    {
-                      attachmentId: r.id,
-                      expectedRevision: Number(r.data.revision),
-                    },
-                    Crypto.randomUUID(),
-                  );
-                })
-              }
+              onPress={() => {
+                setError(null);
+                setRemovingId(r.id);
+              }}
             />
           </Row>
         </Card>
@@ -114,7 +113,52 @@ export function AttachmentsPanel({
         }
       />
       {!!files.error && <Failure error={files.error} />}
-      {!!error && <Failure error={error} />}
+      {!!error && !removingId && <Failure error={error} />}
+      {removingId && (
+        <ActionModal
+          title="Remove attachment"
+          onClose={() => {
+            if (!busy) setRemovingId(null);
+          }}
+        >
+          {removing ? (
+            <>
+              <Txt>Remove this file from the record?</Txt>
+              <Txt>{text(removing.data, "filename")}</Txt>
+            </>
+          ) : (
+            <Txt>This file is no longer available.</Txt>
+          )}
+          {!!error && <Failure error={error} />}
+          <Row>
+            <Button
+              danger
+              title={busy ? "Removing…" : "Remove file"}
+              disabled={busy || !repo || !removing}
+              onPress={() => {
+                if (!removing) return;
+                void run(async () => {
+                  await repo!.command(
+                    "removeAttachment",
+                    {
+                      attachmentId: removing.id,
+                      expectedRevision: Number(removing.data.revision),
+                    },
+                    Crypto.randomUUID(),
+                  );
+                  setRemovingId(null);
+                });
+              }}
+            />
+            <Button
+              secondary
+              title="Cancel"
+              disabled={busy}
+              onPress={() => setRemovingId(null)}
+            />
+          </Row>
+        </ActionModal>
+      )}
     </Card>
   );
 }

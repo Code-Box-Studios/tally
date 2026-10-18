@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, Pressable, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useRecords } from "../../shared/queries";
@@ -13,6 +13,7 @@ import {
 import { displayDate, todayInZone } from "../../core/domain/date";
 import { DateField } from "../../shared/date-field";
 import { SearchField } from "../../shared/search-field";
+import { ActionModal } from "../../shared/action-modal";
 import { SelectField } from "../../shared/select-field";
 import { Icon } from "../../shared/icons";
 import { currencies, parseMoney, formatMoney } from "../../core/domain/money";
@@ -80,6 +81,37 @@ function CalendarView({
     [showFilters, setShowFilters] = useState(false),
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
+  const currentFilters = {
+    section,
+    status,
+    mode,
+    currency,
+    contact,
+    category,
+    search,
+    day,
+    minimum,
+    maximum,
+  };
+  const savedFilters = useRef(currentFilters);
+  function openFilters() {
+    savedFilters.current = currentFilters;
+    setShowFilters(true);
+  }
+  function cancelFilters() {
+    const saved = savedFilters.current;
+    setSection(saved.section);
+    setStatus(saved.status);
+    setMode(saved.mode);
+    setCurrency(saved.currency);
+    setContact(saved.contact);
+    setCategory(saved.category);
+    setSearch(saved.search);
+    setDay(saved.day);
+    setMinimum(saved.minimum);
+    setMaximum(saved.maximum);
+    setShowFilters(false);
+  }
   const t = useTheme(),
     activeView = view;
   const split = (contentWidth || viewport.width - (compact ? 32 : 288)) >= 1000;
@@ -370,9 +402,9 @@ function CalendarView({
             <>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${showFilters ? "Hide filters" : "Filters"}${filterCount ? ` (${filterCount})` : ""}`}
+                accessibilityLabel={`Filters${filterCount ? ` (${filterCount})` : ""}`}
                 accessibilityState={{ expanded: showFilters }}
-                onPress={() => setShowFilters(!showFilters)}
+                onPress={openFilters}
                 style={{
                   minHeight: 48,
                   paddingHorizontal: 10,
@@ -417,115 +449,135 @@ function CalendarView({
           ) : (
             <Button
               secondary
-              title={`${showFilters ? "Hide filters" : "Filters"}${filterCount ? ` (${filterCount})` : ""}`}
-              onPress={() => setShowFilters(!showFilters)}
+              title={`Filters${filterCount ? ` (${filterCount})` : ""}`}
+              onPress={openFilters}
             />
           )}
           {!compact && (filterCount > 0 || !!search || section !== "all") && (
             <Button secondary title="Reset filters" onPress={reset} />
           )}
         </View>
-        {!!filterError && <Failure error={new Error(filterError)} />}
+        {!showFilters && !!filterError && (
+          <Failure error={new Error(filterError)} />
+        )}
         {showFilters && (
-          <Card>
-            {compact && (filterCount > 0 || !!search || section !== "all") && (
-              <Button secondary title="Reset filters" onPress={reset} />
-            )}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14 }}>
-              {[
-                {
-                  label: "Status",
-                  value: status,
-                  onChange: setStatus,
-                  options: options([
-                    "all",
-                    "paid",
-                    "pending",
-                    "partiallyPaid",
-                    "outstanding",
-                    "overdue",
-                    "upcoming",
-                    "skipped",
-                    "cancelled",
-                  ]),
-                },
-                {
-                  label: "Payment behavior",
-                  value: mode,
-                  onChange: setMode,
-                  options: options([
-                    "all",
-                    "manual",
-                    "automatic",
-                    "automaticConfirmation",
-                  ]),
-                },
-                {
-                  label: "Currency",
-                  value: currency,
-                  onChange: (v: string) => {
-                    setCurrency(v);
-                    setMinimum("");
-                    setMaximum("");
+          <ActionModal
+            title="Filter calendar"
+            maxWidth={720}
+            onClose={cancelFilters}
+          >
+            <View style={{ gap: 20 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14 }}>
+                {[
+                  {
+                    label: "Status",
+                    value: status,
+                    onChange: setStatus,
+                    options: options([
+                      "all",
+                      "paid",
+                      "pending",
+                      "partiallyPaid",
+                      "outstanding",
+                      "overdue",
+                      "upcoming",
+                      "skipped",
+                      "cancelled",
+                    ]),
                   },
-                  options: options(["all", ...currencies]),
-                },
-                {
-                  label: "Contact",
-                  value: contact,
-                  onChange: setContact,
-                  options: [
-                    { value: "all", label: "Everyone" },
-                    ...(contacts.data?.rows.map((r) => ({
-                      value: r.id,
-                      label: recordTitle(r),
-                    })) ?? []),
-                  ],
-                },
-                {
-                  label: "Category",
-                  value: category,
-                  onChange: setCategory,
-                  options: [
-                    { value: "all", label: "All categories" },
-                    ...(categories.data?.rows.map((r) => ({
-                      value: r.id,
-                      label: recordTitle(r),
-                    })) ?? []),
-                  ],
-                },
-              ].map((field) => (
-                <View
-                  key={field.label}
-                  style={{ width: compact ? "100%" : "48%" }}
-                >
-                  <SelectField {...field} />
-                </View>
-              ))}
-              {currency !== "all" && (
-                <>
-                  <View style={{ width: compact ? "100%" : "48%" }}>
-                    <Field
-                      label="Minimum amount (optional)"
-                      money
-                      keyboardType="decimal-pad"
-                      value={minimum}
-                      onChangeText={setMinimum}
-                    />
+                  {
+                    label: "Payment behavior",
+                    value: mode,
+                    onChange: setMode,
+                    options: options([
+                      "all",
+                      "manual",
+                      "automatic",
+                      "automaticConfirmation",
+                    ]),
+                  },
+                  {
+                    label: "Currency",
+                    value: currency,
+                    onChange: (v: string) => {
+                      setCurrency(v);
+                      setMinimum("");
+                      setMaximum("");
+                    },
+                    options: options(["all", ...currencies]),
+                  },
+                  {
+                    label: "Contact",
+                    value: contact,
+                    onChange: setContact,
+                    options: [
+                      { value: "all", label: "Everyone" },
+                      ...(contacts.data?.rows.map((r) => ({
+                        value: r.id,
+                        label: recordTitle(r),
+                      })) ?? []),
+                    ],
+                  },
+                  {
+                    label: "Category",
+                    value: category,
+                    onChange: setCategory,
+                    options: [
+                      { value: "all", label: "All categories" },
+                      ...(categories.data?.rows.map((r) => ({
+                        value: r.id,
+                        label: recordTitle(r),
+                      })) ?? []),
+                    ],
+                  },
+                ].map((field) => (
+                  <View
+                    key={field.label}
+                    style={{ width: compact ? "100%" : "48%" }}
+                  >
+                    <SelectField {...field} />
                   </View>
-                  <View style={{ width: compact ? "100%" : "48%" }}>
-                    <Field
-                      label="Maximum amount (optional)"
-                      money
-                      keyboardType="decimal-pad"
-                      value={maximum}
-                      onChangeText={setMaximum}
-                    />
-                  </View>
-                </>
-              )}
+                ))}
+                {currency !== "all" && (
+                  <>
+                    <View style={{ width: compact ? "100%" : "48%" }}>
+                      <Field
+                        label="Minimum amount (optional)"
+                        money
+                        keyboardType="decimal-pad"
+                        value={minimum}
+                        onChangeText={setMinimum}
+                      />
+                    </View>
+                    <View style={{ width: compact ? "100%" : "48%" }}>
+                      <Field
+                        label="Maximum amount (optional)"
+                        money
+                        keyboardType="decimal-pad"
+                        value={maximum}
+                        onChangeText={setMaximum}
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
+              {!!filterError && <Failure error={new Error(filterError)} />}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+                <Button
+                  title="Apply filters"
+                  disabled={!!filterError}
+                  onPress={() => setShowFilters(false)}
+                />
+                <Button secondary title="Cancel" onPress={cancelFilters} />
+                <Button
+                  secondary
+                  title="Reset filters"
+                  onPress={reset}
+                  disabled={!filterCount && !search && section === "all"}
+                />
+              </View>
             </View>
-          </Card>
+          </ActionModal>
         )}
         {loading ? (
           <Loading />

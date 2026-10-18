@@ -138,9 +138,11 @@ it("filters all sections using each obligation's remaining or bill amount", asyn
     screen.getByLabelText("Minimum remaining / bill amount"),
     "250",
   );
+  await fireEvent.press(screen.getByRole("button", { name: "Apply filters" }));
   expect(screen.getByRole("button", { name: "Internet bill" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Loan to Bea" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Laptop loan" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Filters (2)" }));
   await fireEvent.changeText(
     screen.getByLabelText("Minimum remaining / bill amount"),
     "150",
@@ -149,11 +151,31 @@ it("filters all sections using each obligation's remaining or bill amount", asyn
     screen.getByLabelText("Maximum remaining / bill amount"),
     "250",
   );
+  await fireEvent.press(screen.getByRole("button", { name: "Apply filters" }));
   expect(screen.getByRole("button", { name: "Loan to Bea" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Internet bill" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Filters (3)" }));
   await fireEvent.press(screen.getByRole("button", { name: "Clear filters" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Apply filters" }));
   expect(screen.getByRole("button", { name: "Laptop loan" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Internet bill" })).toBeTruthy();
+});
+
+it("discards unconfirmed obligation filters when the dialog closes", async () => {
+  await render(<ObligationsScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Filters" }));
+  await fireEvent.press(screen.getByRole("radio", { name: "PHP" }));
+  await fireEvent.changeText(
+    screen.getByLabelText("Minimum remaining / bill amount"),
+    "250",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Close dialog" }));
+  expect(screen.getByRole("button", { name: "Laptop loan" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Internet bill" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Filters" }));
+  expect(
+    screen.getByLabelText("Minimum remaining / bill amount").props.value,
+  ).toBe("");
 });
 
 it("opens all overdue payable obligations including an older unknown bill", async () => {

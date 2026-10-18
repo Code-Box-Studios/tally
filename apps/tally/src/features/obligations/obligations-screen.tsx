@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useRecords } from "../../shared/queries";
@@ -13,6 +13,7 @@ import { formatMoney, currencies, parseMoney } from "../../core/domain/money";
 import { displayDate, civilDate, todayInZone } from "../../core/domain/date";
 import { DateField } from "../../shared/date-field";
 import { SearchField } from "../../shared/search-field";
+import { ActionModal } from "../../shared/action-modal";
 import { useTheme } from "../../shared/theme";
 import { useSession } from "../auth/session-provider";
 import {
@@ -65,6 +66,37 @@ function ObligationList({
     [end, setEnd] = useState(""),
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
+  const currentFilters = {
+    status,
+    currency,
+    contact,
+    category,
+    mode,
+    source,
+    start,
+    end,
+    minimum,
+    maximum,
+  };
+  const savedFilters = useRef(currentFilters);
+  function openFilters() {
+    savedFilters.current = currentFilters;
+    setFilters(true);
+  }
+  function cancelFilters() {
+    const saved = savedFilters.current;
+    setStatus(saved.status);
+    setCurrency(saved.currency);
+    setContact(saved.contact);
+    setCategory(saved.category);
+    setMode(saved.mode);
+    setSource(saved.source);
+    setStart(saved.start);
+    setEnd(saved.end);
+    setMinimum(saved.minimum);
+    setMaximum(saved.maximum);
+    setFilters(false);
+  }
   const today = todayInZone(profile!.timezone);
   const needsPeriods = status === "overdue" || status === "outstanding";
   function matchesStatus(row: Row) {
@@ -229,125 +261,136 @@ function ObligationList({
           </View>
           <Button
             secondary
-            title={
-              filters
-                ? "Hide filters"
-                : filterCount
-                  ? `Filters (${filterCount})`
-                  : "Filters"
-            }
-            onPress={() => setFilters(!filters)}
+            title={filterCount ? `Filters (${filterCount})` : "Filters"}
+            onPress={openFilters}
           />
         </View>
         {filters && (
-          <Card>
-            <Choices
-              label="Payment behavior"
-              value={mode}
-              options={[
-                "all",
-                "manual",
-                "automatic",
-                "automaticConfirmation",
-              ].map((v) => ({ value: v, label: label(v) }))}
-              onChange={setMode}
-            />
-            <Choices
-              label="Payment source"
-              value={source}
-              options={[
-                { value: "all", label: "All sources" },
-                ...(sources.data?.rows.map((r) => ({
-                  value: r.id,
-                  label: recordTitle(r),
-                })) ?? []),
-              ]}
-              onChange={setSource}
-            />
-            <DateField
-              label="Due from"
-              value={start}
-              onChange={setStart}
-              optional
-              today={todayInZone(profile!.timezone)}
-            />
-            <DateField
-              label="Due until"
-              value={end}
-              onChange={setEnd}
-              optional
-              today={todayInZone(profile!.timezone)}
-            />
-            <Field
-              label="Minimum remaining / bill amount"
-              value={minimum}
-              onChangeText={setMinimum}
-              money
-              keyboardType="decimal-pad"
-            />
-            <Field
-              label="Maximum remaining / bill amount"
-              value={maximum}
-              onChangeText={setMaximum}
-              money
-              keyboardType="decimal-pad"
-            />
+          <ActionModal
+            title="Filter obligations"
+            maxWidth={720}
+            onClose={cancelFilters}
+          >
+            <View style={{ gap: 20 }}>
+              <Choices
+                label="Payment behavior"
+                value={mode}
+                options={[
+                  "all",
+                  "manual",
+                  "automatic",
+                  "automaticConfirmation",
+                ].map((v) => ({ value: v, label: label(v) }))}
+                onChange={setMode}
+              />
+              <Choices
+                label="Payment source"
+                value={source}
+                options={[
+                  { value: "all", label: "All sources" },
+                  ...(sources.data?.rows.map((r) => ({
+                    value: r.id,
+                    label: recordTitle(r),
+                  })) ?? []),
+                ]}
+                onChange={setSource}
+              />
+              <DateField
+                label="Due from"
+                value={start}
+                onChange={setStart}
+                optional
+                today={todayInZone(profile!.timezone)}
+              />
+              <DateField
+                label="Due until"
+                value={end}
+                onChange={setEnd}
+                optional
+                today={todayInZone(profile!.timezone)}
+              />
+              <Field
+                label="Minimum remaining / bill amount"
+                value={minimum}
+                onChangeText={setMinimum}
+                money
+                keyboardType="decimal-pad"
+              />
+              <Field
+                label="Maximum remaining / bill amount"
+                value={maximum}
+                onChangeText={setMaximum}
+                money
+                keyboardType="decimal-pad"
+              />
 
-            <Choices
-              label="Status"
-              value={status}
-              options={[
-                "all",
-                "active",
-                "outstanding",
-                "partiallyPaid",
-                "paid",
-                "overdue",
-                "cancelled",
-                "paused",
-                "ended",
-              ].map((v) => ({ value: v, label: label(v) }))}
-              onChange={setStatus}
-            />
-            <Choices
-              label="Currency"
-              value={currency}
-              options={["all", ...currencies]}
-              onChange={setCurrency}
-            />
-            <Choices
-              label="Person / organization"
-              value={contact}
-              options={[
-                { value: "all", label: "Everyone" },
-                ...(contacts.data?.rows.map((r) => ({
-                  value: r.id,
-                  label: recordTitle(r),
-                })) ?? []),
-              ]}
-              onChange={setContact}
-            />
-            <Choices
-              label="Category"
-              value={category}
-              options={[
-                { value: "all", label: "All categories" },
-                ...(categories.data?.rows.map((r) => ({
-                  value: r.id,
-                  label: recordTitle(r),
-                })) ?? []),
-              ]}
-              onChange={setCategory}
-            />
-            <Button
-              secondary
-              title="Clear filters"
-              onPress={clearFilters}
-              disabled={!filterCount}
-            />
-          </Card>
+              <Choices
+                label="Status"
+                value={status}
+                options={[
+                  "all",
+                  "active",
+                  "outstanding",
+                  "partiallyPaid",
+                  "paid",
+                  "overdue",
+                  "cancelled",
+                  "paused",
+                  "ended",
+                ].map((v) => ({ value: v, label: label(v) }))}
+                onChange={setStatus}
+              />
+              <Choices
+                label="Currency"
+                value={currency}
+                options={["all", ...currencies]}
+                onChange={setCurrency}
+              />
+              <Choices
+                label="Person / organization"
+                value={contact}
+                options={[
+                  { value: "all", label: "Everyone" },
+                  ...(contacts.data?.rows.map((r) => ({
+                    value: r.id,
+                    label: recordTitle(r),
+                  })) ?? []),
+                ]}
+                onChange={setContact}
+              />
+              <Choices
+                label="Category"
+                value={category}
+                options={[
+                  { value: "all", label: "All categories" },
+                  ...(categories.data?.rows.map((r) => ({
+                    value: r.id,
+                    label: recordTitle(r),
+                  })) ?? []),
+                ]}
+                onChange={setCategory}
+              />
+              {filterError && <Failure error={new Error(filterError)} />}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+                <Button
+                  title="Apply filters"
+                  disabled={!!filterError}
+                  onPress={() => setFilters(false)}
+                />
+                <Button secondary title="Cancel" onPress={cancelFilters} />
+                <Button
+                  secondary
+                  title="Clear filters"
+                  onPress={clearFilters}
+                  disabled={!filterCount}
+                />
+              </View>
+            </View>
+          </ActionModal>
         )}
-        {filterError ? <Failure error={new Error(filterError)} /> : null}
+        {!filters && filterError ? (
+          <Failure error={new Error(filterError)} />
+        ) : null}
         {query.isPending || (needsPeriods && periods.isPending) ? (
           <Loading />
         ) : query.error || (needsPeriods && periods.error) ? (

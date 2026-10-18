@@ -7,6 +7,7 @@ import { formatStatementMoney as formatMoney } from "../statements/statement-mon
 import { displayDate } from "../../core/domain/date";
 import { contactOverview } from "./contact-overview";
 import { CatalogForm } from "./catalog-form";
+import { ActionModal } from "../../shared/action-modal";
 import {
   Page,
   Heading,
@@ -83,7 +84,7 @@ export function PersonScreen() {
             <Button
               secondary
               title="Edit contact"
-              onPress={() => setEdit(!edit)}
+              onPress={() => setEdit(true)}
             />
             <Button
               title="Generate statement"
@@ -99,13 +100,14 @@ export function PersonScreen() {
       />
       <View style={{ gap: 18 }}>
         {edit && (
-          <Card>
+          <ActionModal title="Edit contact" onClose={() => setEdit(false)}>
             <CatalogForm
+              key={person.id}
               kind="contact"
               existing={person}
               onDone={() => setEdit(false)}
             />
-          </Card>
+          </ActionModal>
         )}
         <Txt>{text(person.data, "notes")}</Txt>
         {queries.some((query) => query.data?.cached) && (

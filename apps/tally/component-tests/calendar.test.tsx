@@ -203,17 +203,36 @@ it("applies and resets advanced filters through the compact mobile toolbar", asy
   await fireEvent.press(screen.getByRole("button", { name: "Filters" }));
   await fireEvent.press(screen.getByRole("button", { name: "Status: All" }));
   await fireEvent.press(screen.getByRole("radio", { name: "Paid" }));
-  expect(screen.getByRole("button", { name: "Hide filters (1)" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Apply filters" }));
+  expect(screen.getByRole("button", { name: "Filters (1)" })).toBeTruthy();
   expect(
     screen.getByRole("button", { name: "Oct 15, 2026, 0 due dates" }),
   ).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Loan to Alex/ })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Filters (1)" }));
   await fireEvent.press(screen.getByRole("button", { name: "Reset filters" }));
   expect(screen.getByRole("button", { name: "Status: All" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("button", { name: "Filters (1)" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Loan to Alex/ })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Filters (1)" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Reset filters" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Apply filters" }));
   expect(
     screen.getByRole("button", { name: "Oct 15, 2026, 2 due dates" }),
   ).toBeTruthy();
   expect(screen.getByRole("button", { name: /Loan to Alex/ })).toBeTruthy();
+});
+
+it("closes calendar filter drafts without hiding the original events", async () => {
+  await render(<CalendarScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Filters" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Status: All" }));
+  await fireEvent.press(screen.getByRole("radio", { name: "Paid" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Close dialog" }));
+  expect(screen.getByRole("button", { name: /Loan to Alex/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Internet bill/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Apply filters" })).toBeNull();
 });
 
 it("opens the selected period rather than losing it among other months", async () => {

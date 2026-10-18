@@ -6,6 +6,7 @@ import { recordTitle, text } from "../../core/domain/records";
 import { formatStatementMoney as formatMoney } from "../statements/statement-money";
 import { contactOverview } from "./contact-overview";
 import { SearchField } from "../../shared/search-field";
+import { ActionModal } from "../../shared/action-modal";
 import {
   Page,
   Heading,
@@ -60,13 +61,13 @@ export function PeopleScreen() {
       <Heading
         title="People & organizations"
         subtitle="A clear picture of each relationship."
-        action={<Button title="Add contact" onPress={() => setAdd(!add)} />}
+        action={<Button title="Add contact" onPress={() => setAdd(true)} />}
       />
       <View style={{ gap: 16 }}>
         {add && (
-          <Card>
+          <ActionModal title="Add contact" onClose={() => setAdd(false)}>
             <CatalogForm kind="contact" onDone={() => setAdd(false)} />
-          </Card>
+          </ActionModal>
         )}
         <SearchField
           label="Search people"

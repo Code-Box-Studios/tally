@@ -26,6 +26,7 @@ import {
 } from "../../shared/ui";
 import { BorrowerProofForm } from "./borrower-proof-form";
 import { addProofFile, downloadProofFile } from "./proof-files";
+import { ActionModal } from "../../shared/action-modal";
 
 function list(data: Data | undefined, key: string): Data[] {
   const value = data?.[key];
@@ -179,7 +180,10 @@ function SharedContent() {
                           )}
                       </Card>
                       {adding && (
-                        <Card>
+                        <ActionModal
+                          title="Submit payment proof"
+                          onClose={() => setAdding(false)}
+                        >
                           <BorrowerProofForm
                             ownerId={text(selected, "ownerId")}
                             shareId={text(selected, "shareId")}
@@ -190,7 +194,7 @@ function SharedContent() {
                               void detail.refetch();
                             }}
                           />
-                        </Card>
+                        </ActionModal>
                       )}
                       <Card>
                         <Txt big>Payment schedule</Txt>
