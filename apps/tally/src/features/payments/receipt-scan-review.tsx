@@ -176,6 +176,7 @@ function ReceiptScanReviewContent({
             onChangeText={(amount) =>
               setDraft((current) => ({ ...current, amount }))
             }
+            money
             keyboardType="decimal-pad"
           />
           {result.candidates.amount.length > 1 &&

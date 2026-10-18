@@ -35,6 +35,36 @@ const obligation = {
   },
 };
 beforeEach(() => mockExecute.mockClear());
+it("groups populated and typed amounts while saving exact cents", async () => {
+  await render(<PaymentForm obligation={obligation} onDone={() => {}} />);
+  expect(screen.getByLabelText("Payment amount").props.value).toBe("7,000.00");
+  await fireEvent.changeText(screen.getByLabelText("Payment amount"), "");
+  expect(screen.getByLabelText("Payment amount").props.value).toBe("");
+  await fireEvent.changeText(screen.getByLabelText("Payment amount"), "1234.");
+  expect(screen.getByLabelText("Payment amount").props.value).toBe("1,234.");
+  await fireEvent.changeText(
+    screen.getByLabelText("Payment amount"),
+    "1,234.50",
+  );
+  expect(screen.getByLabelText("Payment amount").props.value).toBe("1,234.50");
+  await fireEvent.press(screen.getByRole("button", { name: "Record payment" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "recordPayment",
+    expect.objectContaining({ amountMinor: 123450 }),
+  );
+});
+
+it("rejects invalid pasted symbols instead of changing their financial meaning", async () => {
+  await render(<PaymentForm obligation={obligation} onDone={() => {}} />);
+  await fireEvent.changeText(
+    screen.getByLabelText("Payment amount"),
+    "1,234e2",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Record payment" }));
+  expect(await screen.findByText("Use up to two decimal places.")).toBeTruthy();
+  expect(mockExecute).not.toHaveBeenCalled();
+});
+
 it("rejects an overpayment before dispatching a financial command", async () => {
   await render(<PaymentForm obligation={obligation} onDone={() => {}} />);
   await fireEvent.changeText(screen.getByLabelText("Payment amount"), "7500");

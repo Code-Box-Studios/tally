@@ -86,6 +86,7 @@ export function BorrowerProofForm({
         label="Amount paid"
         value={value}
         onChangeText={setValue}
+        money
         keyboardType="decimal-pad"
         editable={!locked}
         placeholder="0.00"

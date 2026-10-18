@@ -82,6 +82,7 @@ export function PayoffSimulator({
                 label={`Planned monthly payment (${code})`}
                 value={monthly}
                 onChangeText={setMonthly}
+                money
                 keyboardType="decimal-pad"
                 placeholder="Enter a monthly amount"
               />
@@ -99,6 +100,7 @@ export function PayoffSimulator({
                 label={`Extra monthly payment (${code})`}
                 value={extra}
                 onChangeText={setExtra}
+                money
                 keyboardType="decimal-pad"
               />
             </View>

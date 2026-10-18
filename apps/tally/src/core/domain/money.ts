@@ -63,6 +63,15 @@ export function moneyInput(
         code === "JPY" ? 0 : 2,
       );
 }
+export function formatMoneyInput(value: string): string {
+  const raw = value.replaceAll(",", "");
+  if (!/^\d*(?:\.\d*)?$/.test(raw)) return raw;
+  const [whole, fraction] = raw.split(".");
+  return (
+    whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+    (fraction === undefined ? "" : `.${fraction}`)
+  );
+}
 export function balances(
   original: number,
   payments: number[],

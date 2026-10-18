@@ -131,6 +131,7 @@ export function PaymentForm({
         label="Payment amount"
         value={value}
         onChangeText={setValue}
+        money
         keyboardType="decimal-pad"
       />
       <DateField

@@ -227,6 +227,7 @@ export function InterestCalculator({
                 label={"Interest amount (" + code + ")"}
                 value={settings.fixedAmount}
                 onChangeText={(fixedAmount) => change({ fixedAmount })}
+                money
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 editable={!locked}

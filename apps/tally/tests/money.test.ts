@@ -4,8 +4,34 @@ import {
   formatMoney,
   balances,
   splitCurrencies,
+  formatMoneyInput,
 } from "../src/core/domain/money";
 import { civilDate, todayInZone } from "../src/core/domain/date";
+
+describe("money input formatting", () => {
+  it.each([
+    ["", ""],
+    ["999", "999"],
+    ["1000", "1,000"],
+    ["1234567.80", "1,234,567.80"],
+    ["1000.", "1,000."],
+    ["0.00", "0.00"],
+    [".50", ".50"],
+    ["0001000.05", "0,001,000.05"],
+    ["1,234.50", "1,234.50"],
+    ["9007199254740993.07", "9,007,199,254,740,993.07"],
+  ])("groups %s without changing its digits", (input, expected) => {
+    expect(formatMoneyInput(input)).toBe(expected);
+  });
+
+  it.each(["1e3", "$1234.50", "-1234", "1234..5", "1 234"])(
+    "preserves invalid symbols in %s for validation",
+    (input) => {
+      expect(formatMoneyInput(input)).toBe(input);
+      expect(() => parseMoney(formatMoneyInput(input), "PHP")).toThrow();
+    },
+  );
+});
 
 describe("exact financial calculations", () => {
   it("keeps minor units exact", () =>

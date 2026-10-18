@@ -219,8 +219,8 @@ export function ObligationForm({
       displayedSchedule = [];
     }
   }
+  const obligationTitle = title.trim() || "Untitled";
   async function save() {
-    if (!title.trim()) throw new Error("Give this obligation a name.");
     const start = civilDate(date),
       reminderPolicy = {
         enabled: remind === "yes",
@@ -243,7 +243,7 @@ export function ObligationForm({
         ],
         calendar = ["months", "years"].includes(recurrenceUnit);
       payload = {
-        title: title.trim(),
+        title: obligationTitle,
         description,
         notes,
         contactId: contact || null,
@@ -308,7 +308,7 @@ export function ObligationForm({
       if (dueDate && dueDate < start)
         throw new Error("Due date must follow the borrowed or lent date.");
       payload = {
-        title: title.trim(),
+        title: obligationTitle,
         description,
         notes,
         direction:
@@ -406,7 +406,7 @@ export function ObligationForm({
               icon="obligations"
             >
               <Field
-                label="Name"
+                label="Name (optional)"
                 placeholder={
                   isRecurring
                     ? "Internet, rent, subscription…"
@@ -430,6 +430,7 @@ export function ObligationForm({
                   }
                   value={money}
                   onChangeText={setMoney}
+                  money
                   keyboardType="decimal-pad"
                   placeholder={
                     isRecurring && amountKind === "variable"
@@ -619,6 +620,7 @@ export function ObligationForm({
                         <Field
                           label={`Installment ${i + 1} amount`}
                           value={item.amount}
+                          money
                           keyboardType="decimal-pad"
                           onChangeText={(v) =>
                             setSchedule((s) =>
@@ -938,9 +940,7 @@ export function ObligationForm({
                 </Txt>
               </View>
               <View style={{ height: 1, backgroundColor: theme.border }} />
-              <Txt style={{ fontWeight: "600" }}>
-                {title.trim() || "Your new obligation"}
-              </Txt>
+              <Txt style={{ fontWeight: "600" }}>{obligationTitle}</Txt>
               <View style={{ gap: 10 }}>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <Icon name="people" size={16} color={theme.muted} />

@@ -33,6 +33,7 @@ import {
 } from "../../shared/ui";
 import { PaymentForm } from "../payments/payment-form";
 import { DateField } from "../../shared/date-field";
+import { ActionModal } from "../../shared/action-modal";
 import { CorrectionForm } from "../payments/correction-form";
 import { ObligationForm } from "./obligation-form";
 import { hasComputedInterest, interestSummary } from "./interest-settings";
@@ -57,6 +58,38 @@ type Panel = {
   subject?: Row;
   action?: string;
 } | null;
+
+function DetailPanel({
+  kind,
+  onClose,
+  children,
+}: React.PropsWithChildren<{
+  kind: NonNullable<Panel>["kind"];
+  onClose: () => void;
+}>) {
+  if (kind === "borrower" || kind === "reminder")
+    return (
+      <ActionModal
+        title={kind === "borrower" ? "Share with borrower" : "Edit reminders"}
+        maxWidth={kind === "borrower" ? 820 : 600}
+        onClose={onClose}
+      >
+        {children}
+      </ActionModal>
+    );
+  return (
+    <Card
+      style={
+        ["settlement", "payoff"].includes(kind)
+          ? { width: "100%", maxWidth: 820, alignSelf: "center" }
+          : undefined
+      }
+    >
+      {children}
+    </Card>
+  );
+}
+
 export function DetailScreen() {
   const { id, instanceId } = useLocalSearchParams<{
       id: string;
@@ -123,13 +156,14 @@ export function DetailScreen() {
   const done = () => {
     setPanel(null);
   };
+  const modalOpen = panel?.kind === "borrower" || panel?.kind === "reminder";
   return (
     <Page>
       <Heading
         title={recordTitle(obligation)}
         subtitle={`${label(text(d, "section"))} · ${code}`}
         action={
-          panel ? (
+          panel && !modalOpen ? (
             <Button secondary title="Back to obligation" onPress={done} />
           ) : (
             <FlexRow>
@@ -182,14 +216,8 @@ export function DetailScreen() {
         }
       />
       <View style={{ gap: 20 }}>
-        {panel ? (
-          <Card
-            style={
-              ["settlement", "payoff", "borrower"].includes(panel.kind)
-                ? { width: "100%", maxWidth: 820, alignSelf: "center" }
-                : undefined
-            }
-          >
+        {panel && (
+          <DetailPanel kind={panel.kind} onClose={done}>
             {panel.kind === "settlement" ? (
               <SettlementPanel
                 key={obligation.id}
@@ -323,8 +351,9 @@ export function DetailScreen() {
                 )}
               </Form>
             )}
-          </Card>
-        ) : (
+          </DetailPanel>
+        )}
+        {(!panel || modalOpen) && (
           <>
             <View style={styles.columns}>
               {[

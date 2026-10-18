@@ -507,6 +507,7 @@ function CalendarView({
                   <View style={{ width: compact ? "100%" : "48%" }}>
                     <Field
                       label="Minimum amount (optional)"
+                      money
                       keyboardType="decimal-pad"
                       value={minimum}
                       onChangeText={setMinimum}
@@ -515,6 +516,7 @@ function CalendarView({
                   <View style={{ width: compact ? "100%" : "48%" }}>
                     <Field
                       label="Maximum amount (optional)"
+                      money
                       keyboardType="decimal-pad"
                       value={maximum}
                       onChangeText={setMaximum}

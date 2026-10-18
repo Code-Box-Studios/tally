@@ -63,6 +63,10 @@ beforeEach(() => {
 it("opens and saves the existing reminder schedule without enabling it or changing its time", async () => {
   await render(<DetailScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Edit reminders" }));
+  expect(screen.getByRole("button", { name: "Close dialog" })).toBeTruthy();
+  expect(
+    screen.getByText("Original", { includeHiddenElements: true }),
+  ).toBeTruthy();
   expect(
     screen.getByRole("radio", { name: "Disabled" }).props.accessibilityState
       .checked,
@@ -77,6 +81,42 @@ it("opens and saves the existing reminder schedule without enabling it or changi
     expectedRevision: 4,
     reminderPolicy: { enabled: false, offsetDays: [14, 7], localTime: "18:30" },
   });
+  expect(screen.queryByRole("button", { name: "Close dialog" })).toBeNull();
+});
+
+it.each(["Close dialog", "Dismiss dialog"])(
+  "%s dismisses reminder edits without saving",
+  async (name) => {
+    await render(<DetailScreen />);
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Edit reminders" }),
+    );
+    await fireEvent.changeText(screen.getByLabelText("Days before due"), "2,0");
+    await fireEvent.press(
+      screen.getByRole("button", { name, includeHiddenElements: true }),
+    );
+    expect(screen.queryByLabelText("Days before due")).toBeNull();
+    expect(screen.getByRole("button", { name: "Edit reminders" })).toBeTruthy();
+    expect(mockExecute).not.toHaveBeenCalled();
+  },
+);
+
+it("opens borrower access over the obligation and closes without leaving it", async () => {
+  mockObligation.data.direction = "owedToMe";
+  await render(<DetailScreen />);
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Share with borrower" }),
+  );
+  expect(screen.getByRole("button", { name: "Close dialog" })).toBeTruthy();
+  expect(
+    screen.getByText("Original", { includeHiddenElements: true }),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Close dialog" }));
+  expect(screen.queryByRole("button", { name: "Close dialog" })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Share with borrower" }),
+  ).toBeTruthy();
+  expect(mockExecute).not.toHaveBeenCalled();
 });
 
 it("preserves an empty offset list instead of adding a due-day reminder", async () => {

@@ -151,8 +151,8 @@ export function LandingScreen() {
           <div className="tally-nav-actions">
             <InstallTallyAction />
             <AppearanceControl />
-            <Link href="/sign-in" asChild>
-              <a className="tally-sign-in">Sign in</a>
+            <Link href={session ? "/settings" : "/sign-in"} asChild>
+              <a className="tally-sign-in">{session ? "Profile" : "Sign in"}</a>
             </Link>
             <Link href={destination} asChild>
               <a className="tally-cta tally-nav-cta">

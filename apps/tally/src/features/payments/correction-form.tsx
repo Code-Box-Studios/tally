@@ -108,6 +108,7 @@ export function CorrectionForm({
             label="Correct amount"
             value={money}
             onChangeText={setMoney}
+            money
             keyboardType="decimal-pad"
           />
           <DateField

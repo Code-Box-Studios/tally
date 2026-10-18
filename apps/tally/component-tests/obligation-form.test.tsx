@@ -33,9 +33,70 @@ beforeEach(() => {
   mockReplace.mockClear();
 });
 
+it.each([
+  ["I borrowed money", "createObligation", "Original amount", ""],
+  ["I lent money", "createObligation", "Original amount", "   "],
+  ["Add installments", "createInstallment", "Original amount", ""],
+  ["Add monthly due", "createRecurring", "Default amount", "   "],
+])(
+  "saves %s without requiring a name",
+  async (kind, command, amountLabel, name) => {
+    await render(<ObligationForm />);
+    await fireEvent.press(screen.getByRole("radio", { name: kind }));
+    await fireEvent.changeText(screen.getByLabelText(/^Name/), name);
+    await fireEvent.changeText(screen.getByLabelText(amountLabel), "5000");
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Add obligation" }),
+    );
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      command,
+      expect.objectContaining({
+        title: "Untitled",
+        [command === "createRecurring" ? "defaultAmountMinor" : "amountMinor"]:
+          500000,
+      }),
+    );
+    expect(mockReplace).toHaveBeenCalledWith("/obligations/new-obligation");
+  },
+);
+
+it("allows clearing the name when editing an obligation", async () => {
+  await render(
+    <ObligationForm
+      existing={{
+        id: "loan",
+        data: {
+          title: "Old name",
+          section: "iOwe",
+          currency: "PHP",
+          originalAmountMinor: 500000,
+          originationDate: "2026-10-01",
+          revision: 2,
+        },
+      }}
+    />,
+  );
+  await fireEvent.changeText(screen.getByLabelText(/^Name/), "");
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(mockExecute).toHaveBeenCalledWith(
+    "editObligation",
+    expect.objectContaining({
+      obligationId: "loan",
+      expectedRevision: 2,
+      title: "Untitled",
+      amountMinor: 500000,
+    }),
+  );
+});
+
 it("creates a contact inline without losing the obligation draft", async () => {
   await render(<ObligationForm />);
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Laptop loan");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Laptop loan",
+  );
   await fireEvent.changeText(
     screen.getByLabelText("Original amount"),
     "2500.50",
@@ -46,8 +107,10 @@ it("creates a contact inline without losing the obligation draft", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
   await fireEvent.changeText(screen.getByLabelText("Contact name"), "Alex");
   await fireEvent.press(screen.getByRole("button", { name: "Add contact" }));
-  expect(screen.getByLabelText("Name").props.value).toBe("Laptop loan");
-  expect(screen.getByLabelText("Original amount").props.value).toBe("2500.50");
+  expect(screen.getByLabelText("Name (optional)").props.value).toBe(
+    "Laptop loan",
+  );
+  expect(screen.getByLabelText("Original amount").props.value).toBe("2,500.50");
   expect(
     screen.getByRole("button", { name: "Person / organization: Alex" }),
   ).toBeTruthy();
@@ -64,7 +127,10 @@ it("creates a contact inline without losing the obligation draft", async () => {
 
 it("records a loan in the selected currency with the original amount", async () => {
   await render(<ObligationForm />);
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Laptop loan");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Laptop loan",
+  );
   await fireEvent.changeText(
     screen.getByLabelText("Original amount"),
     "2500.50",
@@ -87,7 +153,10 @@ it("records a loan in the selected currency with the original amount", async () 
 it("records money lent without changing its direction", async () => {
   await render(<ObligationForm />);
   await fireEvent.press(screen.getByRole("radio", { name: "I lent money" }));
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Loan to Alex");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Loan to Alex",
+  );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "5000");
   await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
   expect(mockExecute).toHaveBeenCalledWith(
@@ -98,7 +167,10 @@ it("records money lent without changing its direction", async () => {
 
 it("chooses and clears an optional due date without inventing a deadline", async () => {
   await render(<ObligationForm />);
-  await fireEvent.changeText(screen.getByLabelText("Name"), "No deadline loan");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "No deadline loan",
+  );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "5000");
   await fireEvent.press(
     screen.getByRole("button", { name: /^Due date \(optional\):/ }),
@@ -123,7 +195,10 @@ it("chooses and clears an optional due date without inventing a deadline", async
 it("creates a variable bill with confirmation and no invented amount", async () => {
   await render(<ObligationForm />);
   await fireEvent.press(screen.getByRole("radio", { name: "Add monthly due" }));
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Electricity");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Electricity",
+  );
   await fireEvent.press(
     screen.getByRole("radio", { name: "Changes each period" }),
   );
@@ -151,7 +226,10 @@ it("blocks an installment schedule that does not equal the original amount", asy
   await fireEvent.press(
     screen.getByRole("radio", { name: "Add installments" }),
   );
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Installment loan");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Installment loan",
+  );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "20000");
   await fireEvent.changeText(
     screen.getByLabelText("Number of installments"),
@@ -193,7 +271,10 @@ it("blocks an installment schedule that does not equal the original amount", asy
 it("shows principal, interest and total due and saves the total as the payable balance", async () => {
   await render(<ObligationForm />);
   await fireEvent.press(screen.getByRole("radio", { name: "I lent money" }));
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Loan to Alex");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Loan to Alex",
+  );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "1000");
   await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
   await fireEvent.changeText(screen.getByLabelText("Interest rate (%)"), "5");
@@ -219,7 +300,10 @@ it("shows principal, interest and total due and saves the total as the payable b
 
 it("requires a due date before saving monthly interest", async () => {
   await render(<ObligationForm />);
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Monthly loan");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Monthly loan",
+  );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "1000");
   await fireEvent.press(screen.getByRole("button", { name: "Add interest" }));
   await fireEvent.changeText(screen.getByLabelText("Interest rate (%)"), "3");
@@ -237,7 +321,7 @@ it("requires a due date before saving monthly interest", async () => {
 it("saves a fixed interest amount in the selected currency", async () => {
   await render(<ObligationForm />);
   await fireEvent.changeText(
-    screen.getByLabelText("Name"),
+    screen.getByLabelText("Name (optional)"),
     "Fixed loan charge",
   );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "1000");
@@ -373,7 +457,10 @@ it("generates an exact installment schedule without entering each amount or open
   await fireEvent.press(
     screen.getByRole("radio", { name: "Add installments" }),
   );
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Three payments");
+  await fireEvent.changeText(
+    screen.getByLabelText("Name (optional)"),
+    "Three payments",
+  );
   await fireEvent.changeText(screen.getByLabelText("Original amount"), "100");
   await fireEvent.changeText(
     screen.getByLabelText("Number of installments"),

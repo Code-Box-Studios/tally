@@ -282,12 +282,14 @@ function ObligationList({
               label="Minimum remaining / bill amount"
               value={minimum}
               onChangeText={setMinimum}
+              money
               keyboardType="decimal-pad"
             />
             <Field
               label="Maximum remaining / bill amount"
               value={maximum}
               onChangeText={setMaximum}
+              money
               keyboardType="decimal-pad"
             />
 

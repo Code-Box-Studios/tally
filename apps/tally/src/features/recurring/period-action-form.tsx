@@ -77,6 +77,7 @@ export function PeriodActionForm({
           label="This period’s amount"
           value={money}
           onChangeText={setMoney}
+          money
           keyboardType="decimal-pad"
         />
       )}

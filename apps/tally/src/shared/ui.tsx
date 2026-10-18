@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useTheme } from "./theme";
+import { MoneyInput } from "./money-input";
 export { Loading } from "./loading";
 export function Txt({
   children,
@@ -111,12 +112,17 @@ export function Button({
     </Pressable>
   );
 }
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function Field({
+  label,
+  money = false,
+  ...props
+}: TextInputProps & { label: string; money?: boolean }) {
   const t = useTheme();
+  const Input = money ? MoneyInput : TextInput;
   return (
     <View style={{ gap: 6 }}>
       <Txt muted>{label}</Txt>
-      <TextInput
+      <Input
         {...props}
         accessibilityLabel={label}
         placeholderTextColor={t.muted}
