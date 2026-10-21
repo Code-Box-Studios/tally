@@ -58,6 +58,7 @@ jobs:
           PY
       - run: node tool/test_expo_borrower_api.mjs
       - run: python3 tool/test_supabase_financial.py
+      - run: python3 tool/test_supabase_assigned_installments.py
       - run: python3 tool/test_supabase_recurring.py
       - run: python3 tool/test_supabase_devices.py
       - run: python3 tool/test_supabase_files.py

@@ -1,6 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ObligationForm } from "../src/features/obligations/obligation-form";
+import type { Row } from "../src/core/domain/records";
 
 // The first Expo render lazily initializes native modules on cold CI workers.
 jest.setTimeout(15_000);
@@ -13,6 +14,8 @@ const mockExecute = jest.fn(async (command: string) => ({
       : { obligationId: "new-obligation" },
 }));
 const mockReplace = jest.fn();
+let mockContacts: Row[] = [];
+let mockSources: Row[] = [];
 jest.mock("expo-router", () => ({
   router: {
     replace: (...args: unknown[]) => mockReplace(...args),
@@ -26,11 +29,78 @@ jest.mock("../src/features/auth/session-provider", () => ({
   }),
 }));
 jest.mock("../src/shared/queries", () => ({
-  useRecords: () => ({ data: { rows: [] }, isPending: false }),
+  useRecords: (collection: string) => ({
+    data: {
+      rows:
+        collection === "contacts"
+          ? mockContacts
+          : collection === "paymentSources"
+            ? mockSources
+            : [],
+    },
+    isPending: false,
+  }),
 }));
 beforeEach(() => {
   mockExecute.mockClear();
   mockReplace.mockClear();
+  mockContacts = [];
+  mockSources = [];
+});
+
+it("assigns installments on my account to someone from People", async () => {
+  mockContacts = [
+    {
+      id: "alex",
+      data: { displayName: "Alex", kind: "person", archived: false },
+    },
+  ];
+  mockSources = [
+    { id: "card", data: { name: "BPI", type: "creditCard", active: true } },
+  ];
+  await render(<ObligationForm />);
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "Add installments" }),
+  );
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "Someone else is repaying" }),
+  );
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "100");
+  await fireEvent.press(
+    screen.getByRole("button", { name: /^Person repaying you:/ }),
+  );
+  await fireEvent.press(screen.getByRole("radio", { name: "Alex" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: /^Card \/ lending account:/ }),
+  );
+  await fireEvent.press(screen.getByRole("radio", { name: "BPI" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(mockExecute).toHaveBeenCalledWith(
+    "createInstallment",
+    expect.objectContaining({
+      direction: "owedByMe",
+      contactId: null,
+      paymentSourceId: null,
+      amountMinor: 10000,
+      repayment: { contactId: "alex", accountId: "card" },
+    }),
+  );
+});
+
+it("requires a person and account before saving assigned installments", async () => {
+  await render(<ObligationForm />);
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "Add installments" }),
+  );
+  await fireEvent.press(
+    screen.getByRole("radio", { name: "Someone else is repaying" }),
+  );
+  await fireEvent.changeText(screen.getByLabelText("Original amount"), "100");
+  await fireEvent.press(screen.getByRole("button", { name: "Add obligation" }));
+  expect(
+    await screen.findByText("Choose the person repaying you."),
+  ).toBeTruthy();
+  expect(mockExecute).not.toHaveBeenCalled();
 });
 
 it.each([

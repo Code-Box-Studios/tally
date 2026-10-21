@@ -16,10 +16,12 @@ const mockRepo = { check: () => {}, invoke: mockInvoke, owner: "owner" };
 let mockObligation: Row;
 let mockInstances: Row[];
 let mockPayments: Row[];
+let mockLinked: Row | null;
+const mockPush = jest.fn();
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ id: "loan" }),
-  router: { push: jest.fn() },
+  router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
 jest.mock("../src/features/auth/session-provider", () => ({
   useSession: () => ({
@@ -34,7 +36,7 @@ jest.mock("../src/shared/queries", () => ({
     data: {
       rows:
         collection === "obligations"
-          ? [mockObligation]
+          ? [mockObligation, ...(mockLinked ? [mockLinked] : [])]
           : collection === "obligationInstances"
             ? mockInstances
             : collection === "payments"
@@ -50,6 +52,8 @@ jest.mock("../src/features/attachments/attachments-panel", () => ({
 }));
 
 beforeEach(() => {
+  mockLinked = null;
+  mockPush.mockClear();
   mockExecute.mockReset().mockResolvedValue({ status: "synced" });
   mockInvoke
     .mockReset()
@@ -106,6 +110,71 @@ beforeEach(() => {
       },
     },
   ];
+});
+
+it.each(["provider", "repayment"])(
+  "shows both independent balances from the %s installment",
+  async (role) => {
+    const account = { name: "BPI", type: "creditCard", lastFour: "1234" };
+    const provider = {
+      ...mockObligation.data,
+      type: "installment",
+      installmentRole: "provider",
+      contactId: null,
+      installmentAccountSnapshot: account,
+    };
+    const repayment = {
+      ...provider,
+      direction: "owedToMe",
+      section: "owedToMe",
+      installmentRole: "repayment",
+      contactId: "alex",
+      contactSnapshot: { displayName: "Alex" },
+      remainingMinor: 30000,
+      totalPaidMinor: 70000,
+    };
+    mockObligation.data = {
+      ...(role === "provider" ? provider : repayment),
+      linkedObligationId: "linked",
+    };
+    mockLinked = {
+      id: "linked",
+      data: {
+        ...(role === "provider" ? repayment : provider),
+        linkedObligationId: "loan",
+      },
+    };
+    await render(<DetailScreen />);
+    expect(screen.getByText("Your provider balance")).toBeTruthy();
+    expect(screen.getByText("Alex owes you")).toBeTruthy();
+    expect(screen.getByText("BPI · ••1234")).toBeTruthy();
+    expect(screen.getAllByText("₱800.00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₱300.00").length).toBeGreaterThan(0);
+    await fireEvent.press(
+      screen.getByRole("button", {
+        name:
+          role === "provider" ? "View repayments" : "View provider installment",
+      }),
+    );
+    expect(mockPush).toHaveBeenCalledWith("/obligations/linked");
+  },
+);
+
+it("keeps a missing linked installment visible as unavailable", async () => {
+  mockObligation.data = {
+    ...mockObligation.data,
+    type: "installment",
+    installmentRole: "provider",
+    linkedObligationId: "unavailable",
+    installmentAccountSnapshot: { name: "BPI" },
+  };
+  await render(<DetailScreen />);
+  expect(
+    screen.getByText(
+      "Linked installment unavailable. Refresh to load its balance.",
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "View repayments" })).toBeNull();
 });
 
 function dialogFor(title: string) {

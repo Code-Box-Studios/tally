@@ -43,8 +43,13 @@ export async function validateReceipt(
       "obligationId",
       created ? await predicted("obligation") : p.obligationId,
     );
-  const allocations = (key: string, min: number, max: number) => {
-    const values = r[key];
+  const allocations = (
+    key: string,
+    min: number,
+    max: number,
+    receipt: Data = r,
+  ) => {
+    const values = receipt[key];
     if (!Array.isArray(values) || values.length < min || values.length > max)
       throw new Error("Invalid allocation receipt.");
     const seen = new Set<string>();
@@ -126,6 +131,49 @@ export async function validateReceipt(
           ids.some((i) => !seen.has(String(i)))
         )
           throw new Error("Invalid installment receipt.");
+        if (c.name === "createInstallment" && p.repayment != null) {
+          if (!Array.isArray(p.installments))
+            throw new Error("Missing installment schedule.");
+          const paired = object(r.repayment);
+          const repaymentId = await predicted("repaymentObligation");
+          for (const [receipt, parentId] of [
+            [r, r.obligationId],
+            [paired, repaymentId],
+          ] as const) {
+            if (
+              receipt.obligationId !== parentId ||
+              !Number.isSafeInteger(receipt.obligationRevision) ||
+              Number(receipt.obligationRevision) < 1
+            ) {
+              throw new Error("Invalid linked installment receipt.");
+            }
+            const linkedIds = receipt.obligationInstanceIds;
+            const revisions = allocations("instanceRevisions", 2, 120, receipt);
+            const expectedIds = await Promise.all(
+              p.installments.map(
+                async (_term, index) =>
+                  "instance-" +
+                  (await hash(
+                    JSON.stringify([
+                      parentId,
+                      `i:${String(index + 1).padStart(4, "0")}`,
+                    ]),
+                  )),
+              ),
+            );
+            if (
+              !Array.isArray(linkedIds) ||
+              linkedIds.length !== expectedIds.length ||
+              revisions.size !== expectedIds.length ||
+              expectedIds.some(
+                (expected, index) =>
+                  linkedIds[index] !== expected || !revisions.has(expected),
+              )
+            ) {
+              throw new Error("Invalid linked installment schedule.");
+            }
+          }
+        }
       }
       break;
     case "recordPayment":

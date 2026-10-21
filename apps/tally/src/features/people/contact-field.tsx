@@ -10,10 +10,12 @@ export function ContactField({
   rows,
   value,
   onChange,
+  label = "Person / organization",
 }: {
   rows: Row[];
   value: string;
   onChange: (id: string) => void;
+  label?: string;
 }) {
   const theme = useTheme();
   const [adding, setAdding] = useState(false);
@@ -26,7 +28,7 @@ export function ContactField({
   return (
     <>
       <SelectField
-        label="Person / organization"
+        label={label}
         value={value}
         searchable
         onChange={onChange}

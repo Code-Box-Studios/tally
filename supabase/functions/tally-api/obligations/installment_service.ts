@@ -1,7 +1,11 @@
 import type { CommandDatabase } from "../shared/runtime.ts";
 import { HttpsError } from "../shared/errors.ts";
 import { exactObject } from "../shared/callable.ts";
-import { executeOwnerCommand } from "../shared/commands.ts";
+import {
+  executeOwnerCommand,
+  type OwnerCommandContext,
+} from "../shared/commands.ts";
+import type { RecordData } from "../shared/runtime.ts";
 import { stageReminderPeriod } from "../notifications/reminder_jobs.ts";
 import { assertInterestTermsUnchanged } from "./interest_calculation.ts";
 import { statusForBalance } from "../shared/financial_status.ts";
@@ -31,13 +35,14 @@ import {
 
 interface InstallmentInput extends ObligationInput {
   installments: InstallmentTerm[];
+  repayment?: { contactId: string; accountId: string };
 }
 
 function validateCreation(input: unknown): InstallmentInput {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return invalid();
   }
-  const { installments, ...body } = input as Record<string, unknown>;
+  const { installments, repayment, ...body } = input as Record<string, unknown>;
   const obligation = validateObligationCreation(body);
   const schedule = validateSchedule(
     installments,
@@ -47,6 +52,23 @@ function validateCreation(input: unknown): InstallmentInput {
   if (obligation.dueDate !== schedule[schedule.length - 1]!.dueDate) {
     return invalid("The due date must match the final installment.");
   }
+  if (repayment !== undefined) {
+    const assigned = exactObject(repayment, ["contactId", "accountId"]);
+    if (obligation.direction !== "owedByMe" || obligation.contactId !== null) {
+      return invalid(
+        "Assigned installments must keep your provider debt separate from the person repaying you.",
+      );
+    }
+    return {
+      ...obligation,
+      installments: schedule,
+      repayment: {
+        contactId: identifier(assigned.contactId),
+        accountId: identifier(assigned.accountId),
+      },
+    };
+  }
+  // Keep older commands' normalized payloads unchanged for durable retries.
   return { ...obligation, installments: schedule };
 }
 
@@ -58,10 +80,109 @@ function validateEdit(input: unknown) {
     string,
     unknown
   >;
+  if ("repayment" in body) {
+    return invalid("Add assigned repayments when creating an installment.");
+  }
   return {
     obligationId: identifier(obligationId),
     expectedRevision: revision(expectedRevision),
     ...validateCreation(body),
+  };
+}
+
+function stageInstallment(
+  context: OwnerCommandContext,
+  payload: Omit<InstallmentInput, "repayment">,
+  obligationId: string,
+  snapshots: Awaited<ReturnType<typeof references>>,
+  link: RecordData = {},
+) {
+  const section = payload.direction === "owedByMe" ? "iOwe" : "owedToMe";
+  const today = localToday(context.profile.timezone);
+  const instances = payload.installments.map(
+    (term, index): FiniteInstance => {
+      const occurrenceKey = `i:${String(index + 1).padStart(4, "0")}`;
+      const instanceId = occurrenceInstanceId(obligationId, occurrenceKey);
+      return {
+        instanceId,
+        obligationId,
+        occurrenceKey,
+        occurrenceDate: term.dueDate,
+        periodLabel: `Installment ${
+          index + 1
+        } of ${payload.installments.length}`,
+        yearMonth: term.dueDate.slice(0, 7),
+        dueDate: term.dueDate,
+        deductionDate: null,
+        timezone: context.profile.timezone,
+        direction: payload.direction,
+        section,
+        contactId: payload.contactId,
+        categoryId: payload.categoryId,
+        currency: payload.currency,
+        amountMinor: term.amountMinor,
+        amountState: "known",
+        financialStatus: statusForBalance(
+          0,
+          term.amountMinor,
+          term.dueDate,
+          today,
+        ),
+        deductionStatus: null,
+        paymentMode: "manual",
+        paymentSourceId: payload.paymentSourceId,
+        snapshot: { title: payload.title, ...snapshots },
+        templateRevision: 1,
+        totalPaidMinor: 0,
+        remainingMinor: term.amountMinor,
+        closed: false,
+        hasPaymentHistory: false,
+        lastDeductionAttemptId: null,
+        revision: 1,
+      };
+    },
+  );
+  const obligationInstanceIds = instances.map((instance) =>
+    instance.instanceId
+  );
+  const { installments, ...obligation } = payload;
+  context.create("obligations", obligationId, {
+    ...terms(obligation, snapshots),
+    type: "installment",
+    obligationId,
+    timezone: context.profile.timezone,
+    singleInstanceId: null,
+    installmentInstanceIds: obligationInstanceIds,
+    ...finiteSummary(instances, context.profile.timezone),
+    lifecycle: "active",
+    archived: false,
+    hasPaymentHistory: false,
+    revision: 1,
+    ...link,
+    reminderPolicy: {
+      enabled: true,
+      offsetDays: [3, 0],
+      localTime: "09:00",
+      preferenceRevision: 1,
+    },
+  });
+  for (const instance of instances) {
+    context.create("obligationInstances", instance.instanceId, instance);
+    stageReminderPeriod(
+      context,
+      obligationId,
+      instance.instanceId,
+      new Date(),
+    );
+  }
+  return {
+    obligationId,
+    obligationInstanceIds,
+    obligationRevision: 1,
+    instanceRevisions: instances.map((instance) => ({
+      instanceId: instance.instanceId,
+      instanceRevision: 1,
+    })),
   };
 }
 
@@ -76,104 +197,74 @@ export async function createInstallment(
     "createInstallment",
     validateCreation,
     async (context, payload) => {
-      if (
-        payload.originationDate > localToday(context.profile.timezone)
-      ) return invalid("Borrowed or lent date cannot be in the future.");
-      const snapshots = await references(context, payload);
-      const obligationId = context.id("obligation");
-      const section = payload.direction === "owedByMe" ? "iOwe" : "owedToMe";
-      const today = localToday(context.profile.timezone);
-      const instances = payload.installments.map(
-        (term, index): FiniteInstance => {
-          const occurrenceKey = `i:${String(index + 1).padStart(4, "0")}`;
-          const instanceId = occurrenceInstanceId(obligationId, occurrenceKey);
-          return {
-            instanceId,
-            obligationId,
-            occurrenceKey,
-            occurrenceDate: term.dueDate,
-            periodLabel: `Installment ${
-              index + 1
-            } of ${payload.installments.length}`,
-            yearMonth: term.dueDate.slice(0, 7),
-            dueDate: term.dueDate,
-            deductionDate: null,
-            timezone: context.profile.timezone,
-            direction: payload.direction,
-            section,
-            contactId: payload.contactId,
-            categoryId: payload.categoryId,
-            currency: payload.currency,
-            amountMinor: term.amountMinor,
-            amountState: "known",
-            financialStatus: statusForBalance(
-              0,
-              term.amountMinor,
-              term.dueDate,
-              today,
-            ),
-            deductionStatus: null,
-            paymentMode: "manual",
-            paymentSourceId: payload.paymentSourceId,
-            snapshot: { title: payload.title, ...snapshots },
-            templateRevision: 1,
-            totalPaidMinor: 0,
-            remainingMinor: term.amountMinor,
-            closed: false,
-            hasPaymentHistory: false,
-            lastDeductionAttemptId: null,
-            revision: 1,
-          };
-        },
-      );
-      const obligationInstanceIds = instances.map((instance) =>
-        instance.instanceId
-      );
-      const { installments, ...obligation } = payload;
-      context.create("obligations", obligationId, {
-        ...terms(obligation, snapshots),
-        type: "installment",
-        obligationId,
-        timezone: context.profile.timezone,
-        singleInstanceId: null,
-        installmentInstanceIds: obligationInstanceIds,
-        ...finiteSummary(instances, context.profile.timezone),
-        lifecycle: "active",
-        archived: false,
-        hasPaymentHistory: false,
-        revision: 1,
-        reminderPolicy: {
-          enabled: true,
-          offsetDays: [3, 0],
-          localTime: "09:00",
-          preferenceRevision: 1,
-        },
-      });
-      for (const instance of instances) {
-        context.create("obligationInstances", instance.instanceId, instance);
-        stageReminderPeriod(
-          context,
-          obligationId,
-          instance.instanceId,
-          new Date(),
-        );
+      if (payload.originationDate > localToday(context.profile.timezone)) {
+        return invalid("Borrowed or lent date cannot be in the future.");
       }
+      const { repayment, ...obligation } = payload;
+      const snapshots = await references(context, obligation);
+      const obligationId = context.id("obligation");
+      let linked: ReturnType<typeof stageInstallment> | undefined;
+      let providerLink: RecordData = {};
+      if (repayment) {
+        const account = await context.read(
+          "paymentSources",
+          repayment.accountId,
+        );
+        if (!account.active) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Choose an active card or lending account.",
+          );
+        }
+        const repaymentTerms = {
+          ...obligation,
+          direction: "owedToMe" as const,
+          contactId: repayment.contactId,
+          paymentSourceId: null,
+        };
+        const repaymentSnapshots = await references(context, repaymentTerms);
+        const repaymentId = context.id("repaymentObligation");
+        const accountLink = {
+          installmentAccountId: repayment.accountId,
+          installmentAccountSnapshot: {
+            name: account.name,
+            type: account.type,
+            lastFour: account.lastFour,
+          },
+        };
+        linked = stageInstallment(
+          context,
+          repaymentTerms,
+          repaymentId,
+          repaymentSnapshots,
+          {
+            ...accountLink,
+            installmentRole: "repayment",
+            linkedObligationId: obligationId,
+          },
+        );
+        providerLink = {
+          ...accountLink,
+          installmentRole: "provider",
+          linkedObligationId: repaymentId,
+        };
+      }
+      const result = stageInstallment(
+        context,
+        obligation,
+        obligationId,
+        snapshots,
+        providerLink,
+      );
       context.activity("obligationCreated", {
         obligationId,
         title: payload.title,
         amountMinor: payload.amountMinor,
         currency: payload.currency,
         direction: payload.direction,
+        ...(linked ? { linkedObligationId: linked.obligationId } : {}),
       });
-      return {
-        obligationId,
-        obligationInstanceIds,
-        obligationRevision: 1,
-        instanceRevisions: instances.map((instance) => ({
-          instanceId: instance.instanceId,
-          instanceRevision: 1,
-        })),
-      };
+      return { ...result, ...(linked ? { repayment: linked } : {}) };
     },
     db,
   );
@@ -202,6 +293,16 @@ export async function editInstallment(
         throw new HttpsError(
           "aborted",
           "This obligation changed. Refresh and try again.",
+        );
+      }
+      if (
+        parent.linkedObligationId &&
+        (parent.direction !== payload.direction ||
+          parent.contactId !== payload.contactId)
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Linked installments keep their original direction and assigned person.",
         );
       }
       if (payload.installments.length !== debt.instances.length) {

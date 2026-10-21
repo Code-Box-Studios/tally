@@ -98,6 +98,7 @@ export function ObligationForm({
       text(d, "categoryId", "default-personal-loan"),
     ),
     [source, setSource] = useState(text(d, "paymentSourceId")),
+    [installmentAccount, setInstallmentAccount] = useState(""),
     [amountKind, setAmountKind] = useState(text(d, "amountKind", "fixed")),
     [mode, setMode] = useState(text(d, "paymentMode", "manual")),
     [frequency, setFrequency] = useState(text(rule, "frequency", "monthly")),
@@ -162,6 +163,8 @@ export function ObligationForm({
   const [showDetails, setShowDetails] = useState(Boolean(description || notes));
   const isRecurring = kind === "recurring",
     isInstallment = kind === "installment";
+  const assignedInstallment = isInstallment && direction === "onBehalf";
+  const linkedInstallment = isInstallment && !!text(d, "linkedObligationId");
   let calculated: SimpleInterest | CustomInterest | null = null;
   let calculatorError = "";
   let scheduleError = "";
@@ -272,6 +275,11 @@ export function ObligationForm({
       };
       command = existing ? "editRecurring" : "createRecurring";
     } else {
+      if (assignedInstallment) {
+        if (!contact) throw new Error("Choose the person repaying you.");
+        if (!installmentAccount)
+          throw new Error("Choose your card or lending account.");
+      }
       if (calculatorError || scheduleError)
         throw new Error(calculatorError || scheduleError);
       const principal = parseMoney(money, code),
@@ -319,9 +327,9 @@ export function ObligationForm({
         amountMinor: total,
         originationDate: start,
         dueDate,
-        contactId: contact || null,
+        contactId: assignedInstallment ? null : contact || null,
         categoryId: category,
-        paymentSourceId: source || null,
+        paymentSourceId: assignedInstallment ? null : source || null,
         interestInfo: calculated
           ? {
               ...calculated,
@@ -331,6 +339,9 @@ export function ObligationForm({
             ? savedInterest
             : null,
         ...(installments ? { installments } : {}),
+        ...(assignedInstallment
+          ? { repayment: { contactId: contact, accountId: installmentAccount } }
+          : {}),
       };
       command = existing
         ? isInstallment
@@ -405,6 +416,31 @@ export function ObligationForm({
               subtitle="A few details to keep things clear."
               icon="obligations"
             >
+              {isInstallment && !existing && (
+                <Choices
+                  label="Installments for"
+                  value={direction}
+                  options={[
+                    { value: "owedByMe", label: "I owe" },
+                    { value: "owedToMe", label: "Owed to me" },
+                    { value: "onBehalf", label: "Someone else is repaying" },
+                  ]}
+                  onChange={setDirection}
+                />
+              )}
+              {assignedInstallment && (
+                <Txt muted>
+                  Your account stays in your name. We track what you owe the
+                  provider and what this person owes you separately.
+                </Txt>
+              )}
+              {linkedInstallment && (
+                <Txt muted>
+                  This is one side of a linked installment. Changes and payments
+                  affect this schedule only; the assigned person and account
+                  stay fixed.
+                </Txt>
+              )}
               <Field
                 label="Name (optional)"
                 placeholder={
@@ -460,17 +496,37 @@ export function ObligationForm({
                 />
               )}
               <FormGrid columns={columns}>
-                <ContactField
-                  value={contact}
-                  rows={contacts.data?.rows ?? []}
-                  onChange={setContact}
-                />
+                {linkedInstallment ? (
+                  <Txt muted>
+                    {d.installmentRole === "repayment"
+                      ? `Person repaying you: ${text(d.contactSnapshot ? object(d.contactSnapshot) : {}, "displayName", "Assigned person")}`
+                      : "Your debt to the account provider"}
+                  </Txt>
+                ) : (
+                  <ContactField
+                    label={
+                      assignedInstallment
+                        ? "Person repaying you"
+                        : "Person / organization"
+                    }
+                    value={contact}
+                    rows={contacts.data?.rows ?? []}
+                    onChange={setContact}
+                  />
+                )}
                 <CategoryField
                   rows={categories.data?.rows ?? []}
                   value={category}
                   onChange={setCategory}
                 />
               </FormGrid>
+              {assignedInstallment && (
+                <PaymentSourceField
+                  label="Card / lending account"
+                  value={installmentAccount}
+                  onChange={setInstallmentAccount}
+                />
+              )}
               <FormGrid columns={columns}>
                 <DateField
                   label={
@@ -496,7 +552,7 @@ export function ObligationForm({
                   />
                 )}
               </FormGrid>
-              {!isRecurring && (
+              {!isRecurring && !assignedInstallment && (
                 <PaymentSourceField
                   label="Payment source"
                   value={source}
@@ -510,17 +566,6 @@ export function ObligationForm({
                 subtitle="Set the total, number of payments and first due date. We split the total exactly."
                 icon="calendar"
               >
-                {!existing && (
-                  <Choices
-                    label="Installments for"
-                    value={direction}
-                    options={[
-                      { value: "owedByMe", label: "I owe" },
-                      { value: "owedToMe", label: "Owed to me" },
-                    ]}
-                    onChange={setDirection}
-                  />
-                )}
                 {!customize && (
                   <>
                     <FormGrid columns={columns}>

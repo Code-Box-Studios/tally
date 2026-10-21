@@ -36,6 +36,7 @@ import { DateField } from "../../shared/date-field";
 import { ActionModal } from "../../shared/action-modal";
 import { CorrectionForm } from "../payments/correction-form";
 import { ObligationForm } from "./obligation-form";
+import { LinkedInstallmentCard } from "./linked-installment-card";
 import { hasComputedInterest, interestSummary } from "./interest-settings";
 import { PeriodActionForm } from "../recurring/period-action-form";
 import { AttachmentsPanel } from "../attachments/attachments-panel";
@@ -363,6 +364,12 @@ export function DetailScreen() {
         )}
         {(!panel || modalOpen) && (
           <>
+            <LinkedInstallmentCard
+              obligation={obligation}
+              linked={parents.data!.rows.find(
+                (row) => row.id === d.linkedObligationId,
+              )}
+            />
             <View style={styles.columns}>
               {[
                 ["Original", amount(d, "originalAmountMinor")],

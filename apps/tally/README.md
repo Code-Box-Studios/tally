@@ -4,6 +4,8 @@ Expo SDK 57 frontend. See [repository operations](../../docs/operations/expo.md)
 
 `npm start`, `npm run web`, `npm run android`, and `npm run ios` use public backend environment values. Root `npm run start:local` obtains public configuration from the isolated local Supabase stack.
 
+For purchases someone makes using your card or lending account, choose **Add installments → Someone else is repaying**, select the person from People and your account, then set the installment schedule. Tally creates linked provider and repayment schedules in one save. Record your provider payments and the person's repayments on their respective schedules; each has its own balance. The repayment appears under that person in People, and either schedule links to the other. Edits and cancellation affect only the schedule you open.
+
 Open a receivable loan and choose **Share with borrower** to invite one verified email. Share the displayed link yourself; Tally does not send invitation emails. The recipient accepts under **Shared with me** (inside **More** on mobile), reviews the balance and schedule, and can submit payment proof. Sending proof does not change the balance. The owner reviews it from the loan and explicitly approves or rejects it. Access can be revoked at any time.
 
 **Settings → Import spreadsheet** accepts CSV upload or paste with column mapping and a preview. Select the rows to import; possible duplicates start unchecked. Unsupported payment history, settled statuses, and advanced interest terms are reported rather than silently changed. Retrying the same import reuses its saved commands.
