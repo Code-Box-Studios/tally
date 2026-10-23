@@ -44,7 +44,7 @@ jobs:
       - run: npx supabase test db
       - run: npx supabase db advisors --local --type security --level warn --fail-on error
       - run: npx deno check --config supabase/functions/deno.json supabase/functions/tally-api/index.ts supabase/functions/tally-worker/index.ts
-      - run: npx deno test --config supabase/functions/deno.json --allow-read=firebase/fixtures supabase/tests/functions
+      - run: npx deno test --config supabase/functions/deno.json --allow-read=supabase/tests/fixtures supabase/tests/functions
       - run: |
           npx supabase functions serve tally-api --no-verify-jwt > "$RUNNER_TEMP/tally-edge.log" 2>&1 &
           python3 - <<'PY'

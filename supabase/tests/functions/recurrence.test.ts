@@ -17,7 +17,7 @@ import {
 
 const fixtures = JSON.parse(
   readFileSync(
-    resolve(import.meta.dirname!, "../../../firebase/fixtures/recurrence.json"),
+    resolve(import.meta.dirname!, "../fixtures/recurrence.json"),
     "utf8",
   ),
 ) as {

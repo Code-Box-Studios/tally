@@ -2,8 +2,6 @@
 
 Tally now uses **Expo / React Native / TypeScript** with **Supabase**. The primary app is [`apps/tally`](apps/tally). Start local testing with `npm run install:app`, `python3 tool/start_supabase_local.py`, `supabase functions serve`, and `npm run start:local`. See [Expo operations](docs/operations/expo.md) for web deployment, EAS builds, native notifications, offline behavior, and validation.
 
-The Flutter/Firebase sections below describe the preserved migration reference.
-
 ## Product
 
 Tally tracks borrowed money, money lent, recurring bills, installments, interest, repayments, and statements of account. It keeps currencies separate and preserves payment history through recorded corrections.
@@ -18,8 +16,8 @@ Tally tracks borrowed money, money lent, recurring bills, installments, interest
 
 Never reset the local database for frontend testing. Integration suites create and remove their own temporary identities.
 
-## Migration reference
+## Repository layout
 
-The root `lib`, `test`, `android`, and `ios` directories contain the preserved Flutter implementation. `functions` and `firebase` retain the earlier Firebase backend. These are migration references, not the current Expo build entry points. Existing migration work remains separate from active app changes.
+The active app, assets, and frontend tests live in `apps/tally`. Backend code, migrations, tests, and recurrence fixtures live in `supabase`; `tool` contains the current build and validation scripts. Expo generates native projects from the app configuration when needed.
 
-The [original requirements](docs/product/requirements.md), [user experience](docs/product/experience.md), [financial engine](docs/architecture/financial-engine.md), and [Supabase operations](docs/operations/supabase.md) provide historical design and backend context. The Expo operations guide and current source define the active frontend behavior.
+The retired Flutter/Firebase implementation is available in Git history. Older design plans and verification reports describe that implementation. The [original requirements](docs/product/requirements.md), [user experience](docs/product/experience.md), and [financial engine](docs/architecture/financial-engine.md) provide historical design context; the [Expo operations guide](docs/operations/expo.md), [Supabase operations guide](docs/operations/supabase.md), and current source define active behavior.

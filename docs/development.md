@@ -1,134 +1,45 @@
 # Tally development
 
-The first Flutter foundation is implemented. Default launches are explicit sample previews; production configuration and financial writes are not implemented yet.
+The application is Expo / React Native / TypeScript in `apps/tally`. Supabase backend code, migrations, and tests live in `supabase`. The retired Flutter/Firebase implementation and its tooling are available in Git history.
 
-## Verified toolchain
+## Local development
 
-| Component | Resolved version |
-| --- | --- |
-| Flutter stable | 3.47.6 |
-| Dart | 3.13.5 |
-| flutter_riverpod | 3.4.3 |
-| go_router | 18.0.2 |
-| firebase_core | 4.15.0 |
-| firebase_auth | 6.7.0 |
-| cloud_firestore | 6.10.0 |
-| cloud_functions | 6.5.0 |
-| firebase_storage | 13.6.0 |
-| cupertino_icons | 2.0.0 |
-| Node / npm | 22.23.3 / 10.9.9 |
-| Firebase CLI | 15.32.1, local locked dev dependency |
-| firebase-functions / firebase-admin | 7.4.0 / 14.5.0 |
-| TypeScript | 7.0.2 |
-| Java compiler | Temurin JDK 21.0.12.1 |
-
-Application dependencies are locked in pubspec.lock. Android minimum is at least API 23, and iOS deployment target is 15.0. The temporary native application identifier is dev.tally.tally, pending release/provisioning decisions.
-
-## Run the preview
+Use Node 22.23.3, Python 3, Docker, and Supabase CLI 2.120.0. Set `TALLY_SUPABASE_CLI` if the CLI is outside PATH.
 
 ```sh
-flutter pub get --enforce-lockfile
-flutter run -d chrome --target lib/main_preview.dart
+npm run install:app
+python3 tool/start_supabase_local.py
 ```
 
-For a browser-independent debug server:
+Keep `supabase functions serve` running in a separate terminal, then run:
 
 ```sh
-flutter run -d web-server --web-hostname=127.0.0.1 --web-port=7357 --target lib/main_preview.dart
+npm run start:local
 ```
 
-Open `http://127.0.0.1:7357`. Home uses clearly labeled October 2026 sample data. Other destinations have purposeful empty states; Add returns an action choice and does not save a financial record. Theme/currency preferences last for the session. DM Sans, Manrope and the fallback Roboto fonts are bundled with their licenses; the app does not request Google Fonts at runtime. Preview imports no active Firebase initialization path. The original visual authority remains `.lavish/tally-design.html` with its CSS/JavaScript companions.
+Open http://localhost:7384. Local services use API port 56321, database port 56322, and Mailpit port 56324. Never reset the local database for frontend testing; integration suites create and remove their own temporary identities.
 
-## Deploy the web preview
-
-The current web release is a sample-data preview hosted at [tally-codebox-preview.web.app](https://tally-codebox-preview.web.app) on Firebase Hosting. This deployment does not enable authentication or financial writes. See the [deployment verification](quality/web-deployment.md).
-
-With Node 22 selected, build the Flutter release:
+For an exported web build against the local backend:
 
 ```sh
-node tool/build_web_preview.mjs
+python3 tool/build_expo_local.py
+python3 tool/serve_expo_local.py
 ```
 
-The build bundles renderer resources and fonts locally. Hosting publishes only `build/web-preview`; source, Firebase configuration, emulator output and credentials are excluded. Assets revalidate on each request so later releases can replace Flutter's stable filenames safely. The Hosting predeploy hook rebuilds this same explicit preview entry point.
+The exported application runs at http://localhost:7385. Local exports must not be publicly deployed.
 
-On a new machine, sign in interactively:
+## Validation
 
 ```sh
-npx --no-install firebase login --interactive
+tool/check_expo.sh
+node --test tool/tests/*.test.mjs
+deno check --config supabase/functions/deno.json supabase/functions/tally-api/index.ts supabase/functions/tally-worker/index.ts
+deno test --config supabase/functions/deno.json --allow-read=supabase/tests/fixtures supabase/tests/functions
+supabase test db
 ```
 
-Preview the Hosting routing and response headers locally:
+See [Expo operations](operations/expo.md) for browser journeys, native builds, and web deployment. See [Supabase operations](operations/supabase.md) for backend integration suites and deployment. The committed CI workflow defines the full release checks.
 
-```sh
-npx --no-install firebase emulators:start --project demo-tally --only hosting
-```
+## Historical documents
 
-Open `http://127.0.0.1:5000`. Publish with an explicit project and Hosting-only deployment:
-
-```sh
-npx --no-install firebase deploy --only hosting --project preview
-```
-
-The `preview` alias in `.firebaserc` identifies the separate Tally preview project. There is no default production project. Continue making source changes directly on `main`.
-
-## Local Firebase development
-
-Select Node 22 and a JDK with Java 21+ in your environment. Java's runtime alone is insufficient for native Android compilation; `javac` must be available. The local workspace tools live under `~/.local/share/tally-tools`; these paths are optional, not embedded in source:
-
-```sh
-export PATH="$HOME/.local/share/tally-tools/node22/bin:$PATH"
-export JAVA_HOME="$HOME/.local/share/tally-tools/jdk21"
-npm ci
-npm --prefix functions ci
-npm --prefix functions run build
-npx --no-install firebase emulators:start --project demo-tally --only auth,firestore,functions,storage
-```
-
-In a separate terminal:
-
-```sh
-flutter run -d web-server --web-hostname=localhost --web-port=7358 --target lib/main_dev.dart
-```
-
-Open `http://localhost:7358`. Emulator web startup requires the localhost browser origin because the installed FlutterFire Auth web adapter restores its saved emulator binding only there; other browser origins fail before SDK initialization. Native emulator endpoints remain configurable. Ports: Auth 9099, Firestore 8080, Functions 5001, Storage 9199, UI 4000, all bound to loopback. `demo-tally` cannot access real Firebase resources. Email/Google sign-in, trusted profile bootstrap, onboarding, saved preferences and logout are implemented. Personal financial records follow in the next increment; emulator Home never substitutes sample data. Account callables use `asia-southeast1`; the foundation `emulatorHealth` probe remains in `us-central1`.
-
-Firestore permits active owners to read allowlisted user-scoped collections with explicit limits; direct client writes remain denied. Trusted account commands write profiles/defaults with revisions and idempotency receipts. Storage remains deny-all until the complete private attachment workflow is implemented. No composite index is needed by the account UI; planned financial queries/indexes are in the Firebase blueprint. Emulator Firestore persistence is disabled to avoid retained local fixtures. Production offline persistence/outbox behavior is a later milestone.
-
-Android emulators reach the host through `10.0.2.2`:
-
-```sh
-flutter run -d emulator-5554 --target lib/main_dev.dart --dart-define=TALLY_EMULATOR_HOST=10.0.2.2
-```
-
-A physical phone needs its host's reachable LAN IP and emulator bindings/firewall configured for that LAN. `TALLY_EMULATOR_HOST` changes only the client; the checked-in Firebase config remains loopback. Preview runs without Firebase configuration on any target. Staging/production entry points show a safe configuration error until provisioning and App Check are deliberately implemented; they never fall back to another backend.
-
-## Repeatable checks
-
-Stop the development emulators first; the test runner starts isolated emulators on the same ports.
-
-```sh
-tool/check.sh
-```
-
-This fails on formatting, static analysis, Flutter tests, Functions compile/unit tests, emulator Rules/SDK integration tests, or either web build. Web outputs are separated into `build/web-preview` and `build/web-emulator`.
-
-The supported Dart Chrome runner verifies exact financial primitives under JavaScript:
-
-```sh
-CHROME_EXECUTABLE=/path/to/chrome dart test --platform chrome test/core/money_test.dart test/core/money_formatter_test.dart test/core/local_date_test.dart test/core/entity_ids_test.dart
-```
-
-Flutter 3.47.6 deprecates its framework-oriented `flutter test --platform chrome` mode; Flutter UI is covered by VM widget tests plus actual browser smoke checks.
-
-```sh
-flutter build apk --debug --target lib/main_preview.dart
-flutter build ios --debug --no-codesign --target lib/main_preview.dart
-```
-
-iOS commands require macOS, Xcode and CocoaPods. The committed CI workflow pins Flutter/Node/action commits, reuses the same check script, builds Android on Linux and builds iOS on macOS. CI has not run in this local workspace. Neither native device execution nor iOS build success is inferred from a web build.
-
-## Dependency and release status
-
-App/tooling lockfiles are committed. Tested transitive overrides remove resolved grpc-js, basic-ftp, OpenTelemetry and uuid advisories. The Functions package audit is clean. Firebase CLI still carries an unpatched `braces <=3.0.3` advisory through chokidar; use only trusted local paths/patterns and re-evaluate the CLI before release. Do not apply `npm audit fix --force` downgrades to the current Firebase SDK/tooling stack. This is development tooling, not an exposed deployed endpoint.
-
-See [the verification record](quality/foundation-verification.md) for exact evidence, screenshots, independent-review results, decisions and pending platform/release checks. A separate Firebase preview project has now been provisioned for Hosting; application backend configuration and production financial workflows remain pending.
+Older plans, architecture notes, screenshots, and verification reports record the retired implementation. Their Flutter/Firebase commands are historical; use the commands above and the current operations guides for active development.

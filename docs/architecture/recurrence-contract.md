@@ -1,6 +1,6 @@
 # Recurrence and scheduled civil time
 
-The shared contract lives in `firebase/fixtures/recurrence.json`. Flutter and Functions run the same fixtures; neither uses the machine's local timezone or floating financial dates.
+The active recurrence contract lives in `supabase/tests/fixtures/recurrence.json`. Supabase function tests cover anchored recurrence and scheduled instants without depending on the machine's local timezone or floating financial dates. Later sections record the original implementation's design; current backend behavior is defined by the Supabase services and tests.
 
 ## Anchored occurrences
 
@@ -12,13 +12,11 @@ An original occurrence's key is `r:YYYY-MM-DD`; existing `occurrenceInstanceId` 
 
 ## One bundled timezone release
 
-Both runtimes use **IANA2026c**, checksum `e4a178a4477f3d0ea77cc31828ff72aa38feff8d61aa13e7e99e142e9d902be4`, from the [official IANA release archive](https://data.iana.org/time-zones/releases/tzdata2026c.tar.gz). This includes597 zones/aliases and explicit transitions through2200, covering supported civil dates1900–2199 even when their UTC instant falls in the neighboring year.
+The backend uses **IANA 2026c**, checksum `e4a178a4477f3d0ea77cc31828ff72aa38feff8d61aa13e7e99e142e9d902be4`, from the [official IANA release archive](https://data.iana.org/time-zones/releases/tzdata2026c.tar.gz). The pinned catalog is `supabase/functions/tally-api/generated/timezones.json`. It contains 597 zones/aliases and explicit transitions through 2200, covering supported civil dates 1900–2199 even when their UTC instant falls in the neighboring year.
 
-The original timezone0.11.1 bundle freezes the last offset when it reaches an unprocessed POSIX future-rule tail. A2099 New York summer fixture caught this: it returned14:00Z rather than13:00Z for09:00 local. Managed Node's ICU data can also change independently of Flutter. Tally therefore generates both tables from the same checksum-verified source, instead of using those separate runtime databases for schedule calculations or server `localToday`.
+The catalog was generated from checksum-verified IANA data using rearguard rules and `zic -b fat -r /@<2201-01-01 UTC>`. Expanding future rules into explicit transitions avoids relying on independently updated host ICU data or freezing the final historical offset. The original Flutter-dependent generator is available in Git history; it is no longer part of the active toolchain.
 
-`tool/rebuild_timezones.mjs` downloads/verifies the archive, runs IANA's `ziguard.awk` in rearguard mode, and invokes `zic -b fat -r /@<2201-01-01 UTC>`. This upper bound expands future rules into explicit transitions. The pinned timezone0.11.1 parser/serializer emits `lib/core/dates/tally_timezones.g.dart` and `functions/src/generated/timezones.json`. The table is public calendar data, not financial records or credentials. Profile validation accepts the same supported-zone catalog as Flutter and rejects numerical offset strings.
-
-Rebuild requires Node22, curl, awk, tar, zic and Dart with the locked project dependencies. Run `node tool/rebuild_timezones.mjs` or pass a local archive path as the first argument for an offline rebuild; both paths enforce the checksum. Commit both generated artifacts together after fixture tests. Updating data is explicit: update the pinned URL/checksum, regenerate and run cross-language tests before deploying. Future legal timezone changes require such an update; the bundle reflects the chosen release's rules.
+Profile validation uses this same supported-zone catalog and rejects numeric offset strings. Data updates must preserve the `initialOffset`, `offsets`, `transitionAt`, and `transitionZone` schema and pass the recurrence and all-zone future-time tests before deployment. Future legal timezone changes require an explicit catalog update; the bundle reflects the chosen release's rules.
 
 ## Gap and overlap policy
 
@@ -42,7 +40,7 @@ Fees, contacts, sources, reminders and rule edits affect newly generated snapsho
 
 Variable periods use `amountState=unknown`, null amount/remaining, zero paid and an optional estimate in the snapshot. Entering an amount after its automatic deduction time requires confirmation. Template lifetime amounts and `nextDueDate` remain null; outstanding dates come from individual periods and complete projections. `nextGenerationDate` describes schedule processing and must not be presented as the next outstanding bill.
 
-The scheduled generation dispatcher uses `kind=recurringGeneration`, `status=pending` plus `nextRunAt`, and separately expired `status=leased` plus `leaseExpiresAt`. Both indexes reuse the corresponding kind/status/date system-job composites. Parent period pages use obligationId/occurrenceDate ascending; lifecycle retention counts add userId to that server-owned query. Index declarations are in `firestore.indexes.json`; emulator success does not establish production index readiness.
+The scheduled generation dispatcher uses `kind=recurringGeneration`, `status=pending` plus `nextRunAt`, and separately expired `status=leased` plus `leaseExpiresAt`. Both indexes reuse the corresponding kind/status/date system-job composites. Parent period pages use obligationId/occurrenceDate ascending; lifecycle retention counts add userId to that server-owned query. The original Firebase index declarations are available in Git history. Current indexes are defined by the Supabase migrations.
 
 ## Payments and automatic deductions
 
@@ -64,6 +62,6 @@ New commands coalesce projection work into one deterministic global owner job. A
 
 ## Flutter read contracts
 
-Recurring templates expose typed anchored rules, generation cursor, pause ranges and reminder policy; lifetime debt amounts remain null. Periods expose unknown amounts separately from estimates, saved deduction timing, source snapshots, explicit deduction status and confirmation requirements. An unknown skipped period remains readable historical data. Attempts and confirmation evidence retain immutable owner-scoped identities. The canonical Dart fixtures in `firebase/fixtures/recurring_documents.json` are captured from actual demo emulator commands; `tool/capture_recurring_fixtures.mjs` regenerates them only with local emulator endpoints configured.
+Recurring templates expose typed anchored rules, generation cursor, pause ranges and reminder policy; lifetime debt amounts remain null. Periods expose unknown amounts separately from estimates, saved deduction timing, source snapshots, explicit deduction status and confirmation requirements. An unknown skipped period remains readable historical data. Attempts and confirmation evidence retain immutable owner-scoped identities. The original Dart document fixtures and Firebase capture tooling are available in Git history. Active recurring-service tests live under `supabase/tests/functions`, with local integration suites in `tool/test_supabase_recurring*.py`.
 
 Period pages are50 documents ordered by occurrence date and document ID. Attempt history uses instanceId plus processedAt descending; evidence uses instanceId plus recordedAt descending. Their composite indexes are declared alongside the existing parent/occurrence index. Opaque repository cursors bind to owner, subject and history collection before the underlying Firebase cursor is reused. Page contents are never treated as complete lifetime totals. Owner-scoped Riverpod providers and pending-command state retain the original command ID/payload for an uncertain retry and discard completion when their account scope is disposed.

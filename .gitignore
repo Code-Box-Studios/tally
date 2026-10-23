@@ -30,13 +30,7 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
+# Local build and coverage output
 /build/
 /coverage/
 
@@ -46,21 +40,8 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Widget Preview related
-.widget_preview/
-
-# Local Firebase / Node build output
+# Local Node build output
 node_modules/
-/functions/lib/
-/.firebase/
 *-debug.log
 
-# Generated native Kotlin cache
-/android/.kotlin/
 .env*
-/config/*.local.json

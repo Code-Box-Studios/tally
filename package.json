@@ -5,8 +5,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "check:functions": "npm --prefix functions run check",
-    "test:emulators": "npm --prefix functions run build && node tool/test_emulators.mjs",
     "start": "npm --prefix apps/tally start",
     "start:local": "python3 tool/run_expo_local.py",
     "web": "npm --prefix apps/tally run web",
@@ -17,18 +15,5 @@
     "lint": "npm --prefix apps/tally run lint",
     "build:web": "node tool/build_expo_web.mjs",
     "install:app": "npm --prefix apps/tally ci"
-  },
-  "devDependencies": {
-    "@firebase/rules-unit-testing": "5.0.2",
-    "firebase": "12.19.0",
-    "firebase-tools": "15.32.1"
-  },
-  "overrides": {
-    "gaxios": {
-      "uuid": "11.1.1"
-    },
-    "@grpc/grpc-js": "1.14.5",
-    "basic-ftp": "6.2.1",
-    "@opentelemetry/core": "2.11.0"
   }
 }
